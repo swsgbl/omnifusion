@@ -6,7 +6,7 @@
 >
 > Bifrost-class performance (Go, µs-level overhead) carrying OmniRoute-class feature depth (multi-strategy routing, three-layer resilience isolation, token compression pipeline, MCP).
 
-**Status**: ✅ M0–M6 complete (MVP / three-layer resilience / four inbound protocols / compression + semantic cache / MCP + CLI + observability / Fusion + ML routing + memory) → 🚧 M7 in progress on demand (Go SDK, A2A v1.0, Tauri desktop, Responses API inbound, quality capability ranking, and the novice-friendliness round — chat page / first-run guide / desktop key management / bundled gateway — delivered; K8s/WASM deferred); `v0.1.1` released.
+**Status**: ✅ M0–M6 complete (MVP / three-layer resilience / four inbound protocols / compression + semantic cache / MCP + CLI + observability / Fusion + ML routing + memory) → 🚧 M7 in progress on demand (Go SDK, A2A v1.0, Tauri desktop, Responses API inbound, quality capability ranking, and the novice-friendliness round — chat page / first-run guide / desktop key management / bundled gateway — delivered; CN provider trio + true-cost cheap routing delivered, 12 built-in providers; K8s/WASM deferred); `v0.1.2` released.
 > Deployment chain ready: Docker two-stage image + compose with three profiles (incl. a zero-key full-chain mock stack) + systemd units; local smoke test `sh scripts/smoke.sh` with 17 assertions.
 
 ## The problem it solves

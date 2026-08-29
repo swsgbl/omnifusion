@@ -2,7 +2,7 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
-## [Unreleased]
+## [v0.1.2] - 2026-08-30
 
 ### 新增
 
