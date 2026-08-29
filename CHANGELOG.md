@@ -6,6 +6,8 @@
 
 「小白友好」轮：把复杂性继续留在底层，把首次成功体验补到交互层。
 
+> EN: The "novice-friendly" release — OpenAI Responses API inbound, `@quality` capability-ranked routing, built-in dashboard chat page, first-run guide, desktop app with bundled gateway & key management.
+
 ### 新增
 
 - **OpenAI Responses API 入站（`POST /v1/responses`）**：Codex CLI 默认 wire 协议与新一代 OpenAI SDK 零配置直连——input（字符串/item 数组）与 instructions 归一进网关 IR，工具定义/调用/结果三向互译，`text.format` 结构化输出映射，reasoning/metadata 等无对应字段显式降级标头；流式输出完整 Responses SSE 事件序列，断流优雅收尾。协议矩阵第四入站面——协议翻译矩阵全格落地；
@@ -22,6 +24,8 @@
 ## [v0.1.0] - 2026-08-29
 
 首个功能完整版：MVP → 三协议互译 → 压缩与缓存 → 弹性与可观测 → 智能路由，M0–M6 全量收官 + M7 3 项 + 工程化收尾。
+
+> EN: First feature-complete release — aggregation core, three-layer resilience, multi-protocol translation, token compression + semantic cache, MCP/A2A/CLI, Fusion + ML routing.
 
 ### 新增
 
