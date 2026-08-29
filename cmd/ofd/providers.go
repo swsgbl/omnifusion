@@ -71,11 +71,12 @@ func buildRouter(log *slog.Logger, st *store.Store, kr *security.Keyring) (*rout
 }
 
 // buildCatalog 装配模型目录（M3.5）：live 拉取用 router 里已实例化的
-// provider；静态回落与 free_meta 取自注册表声明（ErrNotSupported 的
-// 原生协议家在 M6 前靠静态清单）。
+// provider；静态回落、free_meta 与登记定价取自注册表声明
+//（ErrNotSupported 的原生协议家在 M6 前靠静态清单）。
 func buildCatalog(log *slog.Logger, st *store.Store, r *routing.Router) *routing.Catalog {
 	static := map[string][]provider.ModelInfo{}
 	freeMeta := map[string]string{}
+	prices := map[string]map[string]provider.Price{}
 	entries, err := registry.Load()
 	if err != nil {
 		log.Warn("catalog falls back to live lists only; registry unavailable", "err", err)
@@ -85,11 +86,17 @@ func buildCatalog(log *slog.Logger, st *store.Store, r *routing.Router) *routing
 		if l := e.StaticModels(); len(l) > 0 {
 			static[e.ID] = l
 		}
+		if idx := e.PriceIndex(); len(idx) > 0 {
+			prices[e.ID] = idx
+		}
 		if e.FreeTier != "" {
 			freeMeta[e.ID] = e.FreeTier
 		}
 	}
-	return routing.NewCatalog(r.Providers, static, freeMeta, st, log)
+	cat := routing.NewCatalog(r.Providers, static, freeMeta, st, log)
+	// 注册表登记定价（cheap 真成本排序的静态数据源）。
+	cat.SetStaticPrices(prices)
+	return cat
 }
 
 // keyringKey 解密 connections 表中对应 provider 的密钥；未存储或

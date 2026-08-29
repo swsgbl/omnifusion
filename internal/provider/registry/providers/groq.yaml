@@ -18,16 +18,30 @@ providers:
     # whisper-*/orpheus-*（语音）与 prompt-guard/safeguard（分类审核）非对话模型，不列。
     # 区域封锁：CN/HK 出口 IP 一律 403（发生在密钥校验前），需配
     # HTTPS_PROXY 走美/日等出口（docs/04 L2 分级代理·全局层）。
+    # 登记定价口径：免费层内 $0（无卡档）；超层转按量的公开单价不
+    # 登记（cheap 对未登记档不惩罚）。
     models:
       - id: openai/gpt-oss-120b
         context_window: 131072
+        price_in: 0
+        price_out: 0
       - id: openai/gpt-oss-20b
         context_window: 131072
+        price_in: 0
+        price_out: 0
       - id: qwen/qwen3.8-27b
         context_window: 131042
+        price_in: 0
+        price_out: 0
       - id: qwen/qwen3.6-27b
         context_window: 131072
+        price_in: 0
+        price_out: 0
       - id: groq/compound
         context_window: 131072
+        price_in: 0
+        price_out: 0
       - id: groq/compound-mini
         context_window: 131072
+        price_in: 0
+        price_out: 0

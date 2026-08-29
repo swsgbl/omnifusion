@@ -111,6 +111,21 @@ func TestParseFeedValidation(t *testing.T) {
 			t.Errorf("capability %s accepted, want rejected", cap)
 		}
 	}
+	// price_in/price_out（cheap 真成本数据源）：显式 0 = 免费声明，
+	// 负值/半配对拒收（指针语义同注册表）。
+	if _, err := ParseFeed([]byte(`{"version":1,"generated_at":1,"providers":{"p":{"models":[` +
+		`{"id":"m","ctx_len":8,"status":"stable","price_in":0,"price_out":0}]}}}`)); err != nil {
+		t.Fatalf("explicit free price rejected: %v", err)
+	}
+	for name, model := range map[string]string{
+		"负 price":     `{"id":"m","ctx_len":8,"status":"stable","price_in":-1,"price_out":2}`,
+		"半配对 price": `{"id":"m","ctx_len":8,"status":"stable","price_in":1}`,
+	} {
+		raw := `{"version":1,"generated_at":1,"providers":{"p":{"models":[` + model + `]}}}`
+		if _, err := ParseFeed([]byte(raw)); err == nil {
+			t.Errorf("%s: ParseFeed accepted bad price", name)
+		}
+	}
 }
 
 func TestCheckFreshness(t *testing.T) {

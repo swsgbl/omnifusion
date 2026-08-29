@@ -11,7 +11,8 @@ import (
 
 var expectedIDs = []string{
 	"anthropic", "cerebras", "cloudflare", "gemini", "groq",
-	"huggingface", "nvidia", "ollama", "openrouter",
+	"huggingface", "modelscope", "nvidia", "ollama", "openrouter",
+	"siliconflow", "zhipu",
 }
 
 // expectedKinds 声明非 openai_compat 的原生适配器（M3.2）。
@@ -170,6 +171,35 @@ func TestStaticModels(t *testing.T) {
 	}
 	if counts["ollama"] != 0 {
 		t.Errorf("ollama static models = %d, want 0 (dynamic local catalog)", counts["ollama"])
+	}
+}
+
+// TestPriceIndex 验证登记定价的指针语义：显式 0/0 = 免费声明可查到，
+// 省略 = 未登记（索引不含该模型）。
+func TestPriceIndex(t *testing.T) {
+	entries, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	byID := map[string]Entry{}
+	for _, e := range entries {
+		byID[e.ID] = e
+	}
+
+	// 国内三件套：免费模型显式登记 0 价。
+	if p, ok := byID["zhipu"].PriceIndex()["glm-4.5-flash"]; !ok || p.In != 0 || p.Out != 0 {
+		t.Errorf("zhipu glm-4.5-flash price = %+v ok=%v, want explicit free", p, ok)
+	}
+	// anthropic：登记公开单价；未核实费率（opus-4-6）不登记。
+	if p, ok := byID["anthropic"].PriceIndex()["claude-sonnet-4-5"]; !ok || p.In != 3 || p.Out != 15 {
+		t.Errorf("anthropic sonnet-4-5 price = %+v ok=%v, want 3/15", p, ok)
+	}
+	if _, ok := byID["anthropic"].PriceIndex()["claude-opus-4-6"]; ok {
+		t.Error("anthropic opus-4-6 should be unpriced (rate unverified)")
+	}
+	// openrouter/auto 是聚合路由，单价不定，不登记。
+	if len(byID["openrouter"].PriceIndex()) != 0 {
+		t.Error("openrouter should declare no prices (auto routing, variable)")
 	}
 }
 

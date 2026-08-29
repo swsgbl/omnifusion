@@ -31,6 +31,7 @@ func printFirstRunGuide(cfg *config.Config, keySources map[string]string) {
 	fmt.Println("│");
 	fmt.Println("│    1. 申请免费密钥（任选一家）· Get a free key (any one):")
 	fmt.Println("│         https://openrouter.ai/keys")
+	fmt.Println("│         CN: open.bigmodel.cn / siliconflow.cn / modelscope.cn")
 	fmt.Println("│    2. 录入密钥 · Add it:      ofd key add openrouter")
 	fmt.Println("│    3. 打开对话页 · Open chat: " + base + "/dashboard/chat")
 	fmt.Println("│       （网关令牌见 ofd gateway-key · gateway token via that command）")

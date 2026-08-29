@@ -13,11 +13,19 @@ providers:
       features: [tools]
     free_tier: 无免费层（BYOK 付费）
     models:
+      # 登记定价（USD / 1M tokens，anthropic.com 公开价）：sonnet 3/15、
+      # haiku-3.5 0.8/4；opus-4-6 费率未核实，不登记（cheap 未登记档）。
       - id: claude-sonnet-4-5
         context_window: 200000
+        price_in: 3
+        price_out: 15
       - id: claude-opus-4-6
         context_window: 200000
       - id: claude-3-7-sonnet-latest
         context_window: 200000
+        price_in: 3
+        price_out: 15
       - id: claude-3-5-haiku-latest
         context_window: 200000
+        price_in: 0.8
+        price_out: 4

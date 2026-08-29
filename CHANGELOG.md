@@ -2,6 +2,15 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [Unreleased]
+
+### 新增
+
+- **国内三件套出厂预装**：智谱 BigModel（GLM-4.5-Flash / GLM-4.7-Flash 完全免费、128K）、硅基流动（L0 免费档 16 模型）、魔搭 ModelScope（每日 2000 次免费调用）——全部 OpenAI 兼容端点、国内直连，与 Groq 类区域封锁形成双通道（国内档直连、西方档走代理）；内置提供商 9 → 12；
+- **cheap 真成本路由**：注册表 / 签名 feed 登记每模型定价（USD / 1M tokens；显式 0 = 免费声明，省略 = 未登记），cheap 策略升级为三档真成本排序——登记免费 → 未登记 → 已定价按预计成本升序（输入单价×压缩后 token + 输出单价×名义输出长度），档内保持免费额度余量降序；无定价数据时整体退回 v1 余量语义。存量 9 家同步标注（免费层内 0 价、anthropic 公开单价、未核实费率省略）；feed 新增 `price_in/price_out` 字段（指针语义同注册表，负值/半配对拒收）。
+
+> EN: Three CN providers preinstalled (Zhipu / SiliconFlow / ModelScope — direct-connect free tiers, 9 → 12 built-ins); cheap strategy upgraded to true-cost ordering over declared per-model prices (registry YAML + signed feed `price_in`/`price_out`).
+
 ## [v0.1.1] - 2026-08-29
 
 「小白友好」轮：把复杂性继续留在底层，把首次成功体验补到交互层。

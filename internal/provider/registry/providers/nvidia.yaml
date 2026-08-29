@@ -13,7 +13,16 @@ providers:
     free_tier: 免费开发者额度约 40 RPM（build.nvidia.com，按账户积分）
     rate_limits: {rpm: 40} # 官方口径"约"，保守取 40
     models:
+      # 开发者免费积分内 $0（积分耗尽转按量，不登记）。
       - id: z-ai/glm-5.2
+        price_in: 0
+        price_out: 0
       - id: qwen/qwen3.5-122b-a10b
+        price_in: 0
+        price_out: 0
       - id: moonshotai/kimi-k2.6
+        price_in: 0
+        price_out: 0
       - id: meta/llama-3.1-8b-instruct
+        price_in: 0
+        price_out: 0

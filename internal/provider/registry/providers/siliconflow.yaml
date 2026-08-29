@@ -1,0 +1,24 @@
+providers:
+  - id: siliconflow
+    kind: openai_compat
+    display_name: 硅基流动 SiliconFlow
+    # 国内直连（docs.siliconflow.cn）：OpenAI 兼容 /v1；实名后解锁 L0
+    # 免费档 16 个模型（调用费用 0）。限速是账户级·按模型独立（官方未
+    # 公布固定数值，社区口径约 1000 RPM / 5-8 万 TPM），不设滑动窗口，
+    # 429 由隔离层接管；完整免费名单以 live /models 同步为准，静态只
+    # 列长期在档的代表模型。
+    base_url: https://api.siliconflow.cn/v1
+    auth_style: bearer
+    key_env: SILICONFLOW_API_KEY
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: L0 免费档 16 模型（账户级按模型限速，实名解锁）
+    models:
+      - id: Qwen/Qwen3-8B
+        price_in: 0
+        price_out: 0
+      - id: THUDM/GLM-4-9B-0414
+        price_in: 0
+        price_out: 0

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/swsgbl/omnifusion/internal/catalogfeed"
+	"github.com/swsgbl/omnifusion/internal/provider"
 )
 
 // FeedModelEntry 是 feed 视角的一个模型（观测/report 面）。
@@ -29,6 +30,7 @@ func (c *Catalog) ApplyFeed(f *catalogfeed.Feed) int {
 	wins := map[string]map[string]int64{}
 	prob := map[string]map[string]bool{}
 	caps := map[string]map[string]float64{}
+	prices := map[string]map[string]provider.Price{}
 	n := 0
 	for name, pf := range f.Providers {
 		for _, m := range pf.Models {
@@ -44,6 +46,12 @@ func (c *Catalog) ApplyFeed(f *catalogfeed.Feed) int {
 			wins[name][m.ID] = m.CtxLen
 			prob[name][m.ID] = m.Status == catalogfeed.StatusProbation
 			caps[name][m.ID] = m.Capability
+			if m.PriceIn != nil && m.PriceOut != nil {
+				if prices[name] == nil {
+					prices[name] = map[string]provider.Price{}
+				}
+				prices[name][m.ID] = provider.Price{In: *m.PriceIn, Out: *m.PriceOut}
+			}
 			n++
 		}
 	}
@@ -51,6 +59,7 @@ func (c *Catalog) ApplyFeed(f *catalogfeed.Feed) int {
 	c.feedWindows = wins
 	c.feedProbation = prob
 	c.feedCapability = caps
+	c.feedPrices = prices
 	c.mu.Unlock()
 	return n
 }

@@ -18,8 +18,17 @@ providers:
     free_tier: 10K neurons/天（约 150 次 LLM 响应）
     rate_limits: {rpd: 150} # 近似：10K neurons ≈ 150 次响应（官方口径）
     models:
+      # 免费 neurons 额度内 $0（Workers 付费计划按 neuron 计价，不登记）。
       - id: "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+        price_in: 0
+        price_out: 0
       - id: "@cf/qwen/qwen2.5-coder-32b-instruct"
+        price_in: 0
+        price_out: 0
       - id: "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+        price_in: 0
+        price_out: 0
       - id: "@cf/moonshotai/kimi-k2.6"
         context_window: 262144
+        price_in: 0
+        price_out: 0

@@ -15,9 +15,16 @@ providers:
       features: [tools]
     free_tier: AI Studio 免费层（按模型配额）
     models:
+      # AI Studio 免费层内 $0（超层转按量计费；按免费路径口径登记）。
       - id: gemini-2.5-flash
         context_window: 1048576
+        price_in: 0
+        price_out: 0
       - id: gemini-2.5-flash-lite
         context_window: 1048576
+        price_in: 0
+        price_out: 0
       - id: gemini-3.1-flash-lite
         context_window: 1048576
+        price_in: 0
+        price_out: 0

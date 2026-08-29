@@ -155,7 +155,7 @@ func (r *Router) strategyByName(name string) Strategy {
 	case "priority":
 		return priorityStrategy{}
 	case "cheap":
-		return cheapStrategy{q: r.Quota}
+		return cheapStrategy{q: r.Quota, pr: r.Price}
 	case "fast":
 		return fastStrategy{s: r.Scoring}
 	case "lkgp":
@@ -190,23 +190,6 @@ func (priorityStrategy) Name() string { return "priority" }
 
 func (priorityStrategy) Order(cands []provider.Provider, _ *RouteContext) []provider.Provider {
 	return cands
-}
-
-// cheapStrategy 按剩余配额余量降序：先把最富裕的免费额度花掉。
-// v1 口径：四窗口最紧余量（无定价数据，接入 registry 定价后升级）。
-type cheapStrategy struct{ q *QuotaTracker }
-
-func (cheapStrategy) Name() string { return "cheap" }
-
-func (c cheapStrategy) Order(cands []provider.Provider, _ *RouteContext) []provider.Provider {
-	if c.q == nil {
-		return cands
-	}
-	sorted := append([]provider.Provider(nil), cands...)
-	sort.SliceStable(sorted, func(i, j int) bool {
-		return c.q.Headroom(sorted[i].Name()) > c.q.Headroom(sorted[j].Name())
-	})
-	return sorted
 }
 
 // fastStrategy 按延迟 EWMA 升序：未观测过的 key 视为 0ms（乐观探索）。

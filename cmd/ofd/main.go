@@ -139,6 +139,10 @@ func run() error {
 	// 无 feed 时 @quality 退化为注册序，不阻断）。
 	router.Capability = catalog
 
+	// cheap 策略真成本排序（注册表/签名 feed 登记定价；无数据时
+	// cheap 保持 v1 配额余量语义，不阻断）。
+	router.Price = catalog
+
 	// M4.6：语义缓存精确层——非流式请求命中直接返回（TTFT<10ms），
 	// 未命中上游成功后异步回写；TTL 24h、容量 4096 条（每 64 次回写
 	// 触发一次淘汰）。

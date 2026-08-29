@@ -35,6 +35,10 @@ const (
 type ModelDecl struct {
 	ID            string `yaml:"id"`
 	ContextWindow int64  `yaml:"context_window,omitempty"`
+	// PriceIn/PriceOut 是登记定价（USD / 1M tokens）。指针语义区分
+	// "显式 0"（免费声明）与"省略"（未登记）；两者必须成对声明。
+	PriceIn  *float64 `yaml:"price_in,omitempty"`
+	PriceOut *float64 `yaml:"price_out,omitempty"`
 }
 
 // RateLimitsDecl declares the free-tier sliding-window quotas of a
@@ -116,6 +120,12 @@ func Load() ([]Entry, error) {
 			if e.ID == "" || e.BaseURL == "" || e.Kind == "" {
 				return nil, fmt.Errorf("registry: %s: entry missing id/kind/base_url", de.Name())
 			}
+			for j := range e.Models {
+				if (e.Models[j].PriceIn == nil) != (e.Models[j].PriceOut == nil) {
+					return nil, fmt.Errorf("registry: %s: %s: price_in/price_out must be declared together",
+						de.Name(), e.Models[j].ID)
+				}
+			}
 			out = append(out, *e)
 		}
 	}
@@ -196,6 +206,20 @@ func (e Entry) StaticModels() []provider.ModelInfo {
 	out := make([]provider.ModelInfo, 0, len(e.Models))
 	for _, m := range e.Models {
 		out = append(out, provider.ModelInfo{ID: m.ID, ContextWindow: m.ContextWindow})
+	}
+	return out
+}
+
+// PriceIndex 返回 id → 登记定价（只含显式声明了价格的模型，显式
+// 0/0 = 免费声明）。cheap 策略真成本排序的静态数据源，cmd/ofd 装配
+// 时经 Catalog.SetStaticPrices 并入目录。
+func (e Entry) PriceIndex() map[string]provider.Price {
+	out := make(map[string]provider.Price, len(e.Models))
+	for _, m := range e.Models {
+		if m.PriceIn == nil || m.PriceOut == nil {
+			continue
+		}
+		out[m.ID] = provider.Price{In: *m.PriceIn, Out: *m.PriceOut}
 	}
 	return out
 }

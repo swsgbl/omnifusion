@@ -49,13 +49,17 @@ func (e *RollbackError) Error() string {
 }
 
 // ModelEntry 是 feed 中一个模型条目。Capability 是社区维护的能力分
-// （0-100，quality 策略的排序依据；0=未评级，排序时视为最弱并保持
+//（0-100，quality 策略的排序依据；0=未评级，排序时视为最弱并保持
 // 注册序）。数据源建议 LMArena Elo 或维护者分级，随 feed 版本更新。
+// PriceIn/PriceOut 是社区维护定价（USD / 1M tokens；显式 0 = 免费，
+// 省略 = 不置评——与注册表同样的指针语义，两者必须成对声明）。
 type ModelEntry struct {
-	ID         string  `json:"id"`
-	CtxLen     int64   `json:"ctx_len"`
-	Status     string  `json:"status"`
-	Capability float64 `json:"capability,omitempty"`
+	ID         string   `json:"id"`
+	CtxLen     int64    `json:"ctx_len"`
+	Status     string   `json:"status"`
+	Capability float64  `json:"capability,omitempty"`
+	PriceIn    *float64 `json:"price_in,omitempty"`
+	PriceOut   *float64 `json:"price_out,omitempty"`
 }
 
 // ProviderFeed 是 feed 中一个 provider 的条目组。
@@ -106,6 +110,12 @@ func ParseFeed(raw []byte) (*Feed, error) {
 			}
 			if m.Capability < 0 || m.Capability > 100 {
 				return nil, fmt.Errorf("catalogfeed: %s/%s has capability %v out of [0,100]", name, m.ID, m.Capability)
+			}
+			if (m.PriceIn == nil) != (m.PriceOut == nil) {
+				return nil, fmt.Errorf("catalogfeed: %s/%s: price_in/price_out must be declared together", name, m.ID)
+			}
+			if m.PriceIn != nil && (*m.PriceIn < 0 || *m.PriceOut < 0) {
+				return nil, fmt.Errorf("catalogfeed: %s/%s has negative price", name, m.ID)
 			}
 		}
 	}

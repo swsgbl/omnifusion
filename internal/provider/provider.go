@@ -114,6 +114,16 @@ type ModelInfo struct {
 	ContextWindow int64  `json:"context_window,omitempty"`
 }
 
+// Price is a model's declared list price in USD per 1M tokens (registry
+// YAML / signed catalog feed). In and Out are the input and output unit
+// prices; both zero is an explicit free declaration. Unknown prices are
+// simply absent from the price index — never represented as a zero
+// Price, so "free" and "unpriced" stay distinguishable.
+type Price struct {
+	In  float64
+	Out float64
+}
+
 // UpstreamError is a non-2xx upstream result. The router (M1.6+) uses
 // Status and Provider to classify failures for fallback; Body keeps
 // the provider's original payload for logging and debugging.

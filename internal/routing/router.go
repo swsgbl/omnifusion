@@ -76,6 +76,11 @@ type Router struct {
 	// 2026-08-29 补齐）；nil/无数据 = quality 退化为注册序。生产装配
 	// 同 Windows/Models（Catalog 三实现，数据源是签名 feed）。
 	Capability CapabilityResolver
+	// Price 是 (provider, model) → 登记定价查询（cheap 策略真成本
+	// 排序，2026-08-30 升级；定价登记于注册表 YAML / 签名 feed）；
+	// nil/无数据 = cheap 退化为 v1 配额余量语义。生产装配同
+	// Capability（Catalog 实现：feed 优先、注册表静态兜底）。
+	Price PriceResolver
 }
 
 // Dispatch 执行分发，成功时返回聚合响应与全部尝试记录；

@@ -1,0 +1,24 @@
+providers:
+  - id: modelscope
+    kind: openai_compat
+    display_name: 魔搭 ModelScope
+    # 国内直连（modelscope.cn 免费推理 API）：OpenAI 兼容 /v1，注册送
+    # 每日 2000 次调用（部分大参数模型另有更低的独立限额，见官方
+    # limits 文档）；密钥取魔搭「访问令牌」页的 SDK Token。上下文窗口
+    # 上游 /models 不透出，留空（0 = 不过滤）待签名 feed 补齐。
+    base_url: https://api-inference.modelscope.cn/v1
+    auth_style: bearer
+    key_env: MODELSCOPE_API_KEY
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 每日 2000 次免费调用（6 万+ 模型可选）
+    rate_limits: {rpd: 2000}
+    models:
+      - id: Qwen/Qwen3-235B-A22B-Instruct-2507
+        price_in: 0
+        price_out: 0
+      - id: deepseek-ai/DeepSeek-R1-0528
+        price_in: 0
+        price_out: 0

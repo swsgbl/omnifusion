@@ -63,6 +63,11 @@ type Catalog struct {
 	feedWindows    map[string]map[string]int64
 	feedProbation  map[string]map[string]bool
 	feedCapability map[string]map[string]float64
+	// staticPrices/feedPrices 是登记定价（provider → model → 价格，
+	// 显式 0 = 免费声明；cheap 策略真成本排序）。静态来自注册表
+	//（SetStaticPrices，cmd/ofd 装配），feed 可随版本更新价格。
+	staticPrices map[string]map[string]provider.Price
+	feedPrices   map[string]map[string]provider.Price
 }
 
 // NewCatalog 装配目录并从 SQLite 恢复快照（有 store 时）。
@@ -87,6 +92,14 @@ func NewCatalog(
 		c.restore()
 	}
 	return c
+}
+
+// SetStaticPrices 装入注册表登记定价（cmd/ofd 装配时调用一次；
+// Price 查询时 feed 价优先、此处静态兜底）。
+func (c *Catalog) SetStaticPrices(prices map[string]map[string]provider.Price) {
+	c.mu.Lock()
+	c.staticPrices = prices
+	c.mu.Unlock()
 }
 
 // restore 从 models 表重建内存快照（重启恢复；FreeRide 教训：
