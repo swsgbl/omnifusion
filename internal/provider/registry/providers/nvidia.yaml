@@ -1,0 +1,19 @@
+providers:
+  - id: nvidia
+    kind: openai_compat
+    display_name: NVIDIA NIM
+    # 聚合面：同一 key 后多路复用多家上游模型（OmniRoute #6773 记录 9 家厂商 17+ 模型）。
+    base_url: https://integrate.api.nvidia.com/v1
+    auth_style: bearer
+    key_env: NVAPI_API_KEY
+    capabilities:
+      input: [text, image]
+      output: [text]
+      features: [tools]
+    free_tier: 免费开发者额度约 40 RPM（build.nvidia.com，按账户积分）
+    rate_limits: {rpm: 40} # 官方口径"约"，保守取 40
+    models:
+      - id: z-ai/glm-5.2
+      - id: qwen/qwen3.5-122b-a10b
+      - id: moonshotai/kimi-k2.6
+      - id: meta/llama-3.1-8b-instruct

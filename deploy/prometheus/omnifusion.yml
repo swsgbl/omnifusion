@@ -1,0 +1,17 @@
+# OmniFusion Prometheus 抓取样例（M5.5）
+#
+# 1. 拿网关 key：`ofd gateway-key`（数据面与 /metrics 同一令牌）
+# 2. 把 credentials 换成该 key，targets 指向网关地址（默认 127.0.0.1:20130）
+# 3. prometheus --config.file=omnifusion.yml
+# 4. Grafana 添加 Prometheus 数据源指向本 Prometheus，导入
+#    deploy/grafana/omnifusion-dashboard.json 即用
+scrape_configs:
+  - job_name: omnifusion
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scheme: http
+    authorization:
+      type: Bearer
+      credentials: ofg-REPLACE-WITH-GATEWAY-KEY
+    static_configs:
+      - targets: ["127.0.0.1:20130"]

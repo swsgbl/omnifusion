@@ -1,0 +1,172 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+    - unparam
+    - depguard
+  settings:
+    # 热路径纪律见 docs/04 §5；函数 ≤50 行/文件 ≤300 行为人工评审纪律
+    # （历史违例存量未清，funlen 不入 lint 门禁）。
+    errcheck:
+      check-blank: false    # depguard 固化 docs/04 §1 层间规则（ADR-002 承诺，第三轮审计补上）：
+    # 只许上层依赖下层，装配层（internal/server、cmd/ofd）例外。
+    # 规则与 2026-08-29 实测依赖图一致（零存量违例）；pkg 前缀匹配，
+    # 如 internal/provider 覆盖其 anthropic/gemini/openai_compat 子包。
+    depguard:
+      rules:
+        l1-core-schema:
+          files: ["**/internal/core/**"]
+          deny:
+            - { pkg: github.com/swsgbl/omnifusion/internal/a2a, desc: "IR 层是依赖叶子（docs/04 §1）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/agent, desc: "IR 层是依赖叶子（docs/04 §1）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/catalogfeed, desc: "IR 层是依赖叶子（docs/04 §1）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/compression, desc: "IR 层是依赖叶子（docs/04 §1）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/config, desc: "IR 层是依赖叶子（docs/04 §1）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/intelligence, desc: "IR 层是依赖叶子（docs/04 §1）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/obs, desc: "IR 层是依赖叶子（docs/04 §1）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/provider, desc: "IR 层是依赖叶子（docs/04 §1）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/routing, desc: "IR 层是依赖叶子（docs/04 §1）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/security, desc: "IR 层是依赖叶子（docs/04 §1）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/server, desc: "IR 层是依赖叶子（docs/04 §1）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/store, desc: "IR 层是依赖叶子（docs/04 §1）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/translate, desc: "IR 层是依赖叶子（docs/04 §1）" }
+        l1-translate:
+          files: ["**/internal/translate/**"]
+          deny:
+            - { pkg: github.com/swsgbl/omnifusion/internal/a2a, desc: "L1 翻译层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/agent, desc: "L1 翻译层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/catalogfeed, desc: "L1 翻译层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/compression, desc: "L1 翻译层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/config, desc: "L1 翻译层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/intelligence, desc: "L1 翻译层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/obs, desc: "L1 翻译层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/provider, desc: "L1 翻译层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/routing, desc: "L1 翻译层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/security, desc: "L1 翻译层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/server, desc: "L1 翻译层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/store, desc: "L1 翻译层只依赖 IR" }
+        l1-provider:
+          files: ["**/internal/provider/**"]
+          deny:
+            - { pkg: github.com/swsgbl/omnifusion/internal/a2a, desc: "Provider 只依赖 IR 与翻译层" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/agent, desc: "Provider 只依赖 IR 与翻译层" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/catalogfeed, desc: "Provider 只依赖 IR 与翻译层" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/compression, desc: "Provider 只依赖 IR 与翻译层" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/config, desc: "Provider 只依赖 IR 与翻译层" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/intelligence, desc: "Provider 只依赖 IR 与翻译层" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/obs, desc: "Provider 只依赖 IR 与翻译层" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/routing, desc: "Provider 只依赖 IR 与翻译层" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/security, desc: "Provider 只依赖 IR 与翻译层" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/server, desc: "Provider 只依赖 IR 与翻译层" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/store, desc: "Provider 只依赖 IR 与翻译层" }
+        l2-security:
+          files: ["**/internal/security/**"]
+          deny:
+            - { pkg: github.com/swsgbl/omnifusion/internal, desc: "L2 只依赖标准库（密钥学自包含）" }
+        l3-routing:
+          files: ["**/internal/routing/**"]
+          deny:
+            - { pkg: github.com/swsgbl/omnifusion/internal/a2a, desc: "L3 不依赖 L6" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/agent, desc: "L3 不依赖 L6" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/compression, desc: "跨层协同经接口注入（L4→L3 是 server 装配，不是 L3 import L4）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/config, desc: "L3 收纯参数，不读配置" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/intelligence, desc: "L5/L3 互不 import（M6.3，SmartPlan 注入）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/obs, desc: "观测经 slog 接口" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/security, desc: "L3 不依赖 L2 内部" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/server, desc: "下层不依赖装配层" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/translate, desc: "L3 只见 provider 接口不见翻译层" }
+        l4-compression:
+          files: ["**/internal/compression/**"]
+          deny:
+            - { pkg: github.com/swsgbl/omnifusion/internal/a2a, desc: "L4 只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/agent, desc: "L4 只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/catalogfeed, desc: "L4 只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/config, desc: "L4 只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/intelligence, desc: "L4 只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/obs, desc: "L4 只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/provider, desc: "L4 只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/routing, desc: "L4 不依赖 L3（token 经 DispatchOption 上行）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/security, desc: "L4 只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/server, desc: "下层不依赖装配层" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/store, desc: "L4 只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/translate, desc: "L4 只依赖 IR" }
+        l5-intelligence:
+          files: ["**/internal/intelligence/**"]
+          deny:
+            - { pkg: github.com/swsgbl/omnifusion/internal/a2a, desc: "L5 不依赖 L6" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/agent, desc: "L5 不依赖 L6" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/catalogfeed, desc: "L5 跨层只收 L4 压缩原语" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/config, desc: "L5 收纯参数" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/obs, desc: "观测经 logger 注入" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/provider, desc: "L5 经 DispatchFunc 注入，不见 provider" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/routing, desc: "L5/L3 互不 import（M6.1，DispatchFunc 注入）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/security, desc: "L5 不依赖 L2 内部" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/server, desc: "下层不依赖装配层" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/translate, desc: "L5 不碰协议翻译" }
+        infra-store:
+          files: ["**/internal/store/**"]
+          deny:
+            - { pkg: github.com/swsgbl/omnifusion/internal, desc: "存储层是依赖叶子（meta/connections/cooldowns/models/cache/log/memory 全自包含）" }
+        infra-obs:
+          files: ["**/internal/obs/**"]
+          deny:
+            - { pkg: github.com/swsgbl/omnifusion/internal, desc: "观测层是依赖叶子（prometheus registry + slog 封装自包含）" }
+        infra-config:
+          files: ["**/internal/config/**"]
+          deny:
+            - { pkg: github.com/swsgbl/omnifusion/internal, desc: "配置层是依赖叶子" }
+        l6-agent:
+          files: ["**/internal/agent/**"]
+          deny:
+            - { pkg: github.com/swsgbl/omnifusion/internal, desc: "L6 agent 经 HTTP（GatewayView）/stdlib 自包含，MCP/bind 不 import 任何层" }
+        l6-a2a:
+          files: ["**/internal/a2a/**"]
+          deny:
+            - { pkg: github.com/swsgbl/omnifusion/internal/agent, desc: "A2A 类型层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/catalogfeed, desc: "A2A 类型层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/compression, desc: "A2A 类型层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/config, desc: "A2A 类型层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/intelligence, desc: "A2A 类型层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/obs, desc: "A2A 类型层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/provider, desc: "A2A 类型层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/routing, desc: "A2A 类型层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/security, desc: "A2A 类型层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/server, desc: "A2A 类型层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/store, desc: "A2A 类型层只依赖 IR" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/translate, desc: "A2A 类型层只依赖 IR" }
+        catalogfeed:
+          files: ["**/internal/catalogfeed/**"]
+          deny:
+            - { pkg: github.com/swsgbl/omnifusion/internal/a2a, desc: "feed 只依赖 store（验签+防回滚自包含）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/agent, desc: "feed 只依赖 store" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/compression, desc: "feed 只依赖 store" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/config, desc: "feed 只依赖 store" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/core, desc: "feed 只依赖 store" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/intelligence, desc: "feed 只依赖 store" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/obs, desc: "feed 只依赖 store" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/provider, desc: "feed 只依赖 store" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/routing, desc: "feed 只依赖 store（并入目录经 ApplyFeed 接口）" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/security, desc: "feed 只依赖 store" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/server, desc: "feed 只依赖 store" }
+            - { pkg: github.com/swsgbl/omnifusion/internal/translate, desc: "feed 只依赖 store" }
+
+  exclusions:
+    # 测试文件的 errcheck 噪声（defer resp.Body.Close()/t.Cleanup 伴生清理
+    # 不改断言语义）与 unparam（fixture 参数恒定是常态）不阻塞 CI。
+    # v2 schema：路径排除在 linters.exclusions.rules（不在 issues.exclude-rules）。
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - unparam
+
+issues:
+  max-issues-per-linter: 50
+  max-same-issues: 5

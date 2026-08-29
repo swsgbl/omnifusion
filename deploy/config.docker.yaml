@@ -1,0 +1,16 @@
+# OmniFusion 网关容器配置（docker-compose 挂载到 /etc/omnifusion/config.yaml）。
+# 密钥不写在本文件：进入容器执行 `ofd key add <provider> --stdin`（AES-256-GCM 加密落
+# /data/omnifusion.db，卷持久化），或 host 侧 `ofd key add` 后整库挂载。
+server:
+  # 容器内必须绑 0.0.0.0（进程只活在容器网络里）；对外暴露面由 compose 的
+  # ports 左侧控制（默认仅宿主回环 127.0.0.1:20130）。
+  host: 0.0.0.0
+  port: 20130
+
+store:
+  # /data 为 compose 卷挂载点，重启/升级不丢连接与缓存。
+  path: /data/omnifusion.db
+
+log:
+  level: info
+  format: json

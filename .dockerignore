@@ -1,0 +1,16 @@
+.git
+_locked
+apps
+docs
+deploy
+bench
+data
+CLAUDE.md
+README.md
+*.exe
+*.out
+*.db
+*.db-wal
+*.db-shm
+ofd
+ofd_smoke

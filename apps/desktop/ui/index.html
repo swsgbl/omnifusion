@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OmniFusion Desktop</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --fg: #e6edf3; --muted: #8b949e; --accent: #3fb950; --accent2: #58a6ff; --danger: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--fg); font: 14px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  header { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  header h1 { font-size: 16px; font-weight: 600; }
+  .badge { padding: 2px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); color: var(--muted); }
+  .badge.on { color: var(--accent); border-color: var(--accent); }
+  .badge.off { color: var(--muted); }
+  .badge.mgd { color: var(--accent2); border-color: var(--accent2); }
+  .grow { flex: 1; }
+  button { background: #21262d; color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 13px; }
+  button:hover { border-color: #8b949e; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: #1f6feb33; border-color: #316dca; }
+  button.danger { background: #da363433; border-color: #b62324; }
+  select { background: #0d1117; color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+  section.settings { padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  .grid { display: grid; grid-template-columns: 2fr 2fr 1.4fr auto; gap: 8px; align-items: end; }
+  .grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  input { background: #0d1117; border: 1px solid var(--border); color: var(--fg); border-radius: 6px; padding: 6px 10px; font-size: 13px; width: 100%; }
+  .row2 { display: grid; grid-template-columns: 2fr 1.4fr auto auto; gap: 8px; align-items: end; margin-top: 8px; }
+  .msg { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+  .msg.err { color: var(--danger); }
+  .msg.ok { color: var(--accent); }
+  nav.tabs { display: flex; gap: 4px; padding: 8px 18px 0; background: var(--panel); border-bottom: 1px solid var(--border); }
+  nav.tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0; background: transparent; color: var(--muted); padding: 7px 14px; }
+  nav.tabs button.active { color: var(--fg); border-bottom-color: var(--accent2); }
+  iframe { flex: 1; width: 100%; border: none; background: #fff; }
+</style>
+</head>
+<body>
+<header>
+  <h1>OmniFusion Desktop</h1>
+  <span class="badge off" id="statusBadge"></span>
+  <div class="grow"></div>
+  <select id="selLang" title="Language">
+    <option value="auto">跟随系统 / Auto</option>
+    <option value="zh">中文</option>
+    <option value="en">English</option>
+  </select>
+  <button id="btnRefresh"></button>
+  <button id="btnStart" class="primary"></button>
+  <button id="btnStop" class="danger"></button>
+</header>
+
+<section class="settings">
+  <div class="grid">
+    <label><span id="lblBin"></span>
+      <input id="inBin" />
+    </label>
+    <label><span id="lblConfig"></span>
+      <input id="inConfig" />
+    </label>
+    <label><span id="lblBase"></span>
+      <input id="inBase" value="http://127.0.0.1:20130" />
+    </label>
+    <button id="btnSave"></button>
+  </div>
+  <div class="row2">
+    <label><span id="lblKey"></span>
+      <input id="inKey" />
+    </label>
+    <button id="btnKey" class="primary"></button>
+  </div>
+  <div class="row2">
+    <label><span id="lblProvider"></span>
+      <select id="selProvider">
+        <option value="openrouter">OpenRouter（免费模型聚合）</option>
+        <option value="groq">Groq</option>
+        <option value="cerebras">Cerebras</option>
+        <option value="gemini">Google Gemini</option>
+        <option value="nvidia">NVIDIA NIM</option>
+        <option value="cloudflare">Cloudflare Workers AI</option>
+        <option value="huggingface">HuggingFace</option>
+        <option value="anthropic">Anthropic（BYOK）</option>
+        <option value="ollama">Ollama（本地，免密钥）</option>
+      </select>
+    </label>
+    <button id="btnKeyAdd"></button>
+    <span class="msg" id="keyAddHint" style="align-self:center"></span>
+  </div>
+  <div class="msg" id="msg"></div>
+</section>
+
+<nav class="tabs" id="tabs"></nav>
+<iframe id="frame" title="OmniFusion Dashboard"></iframe>
+
+<script>
+const { invoke } = window.__TAURI__.core;
+const PAGES = ["chat", "providers", "keys", "usage", "compression", "resilience"];
+const I18N = {
+  zh: {
+    refresh: "刷新状态", start: "启动网关", stop: "停止网关", save: "保存设置",
+    readKey: "从 ofd 读取 Key", detecting: "检测中…",
+    lblBin: "ofd 可执行文件路径", phBin: "C:\\path\\to\\ofd.exe（留空则按 PATH 解析 ofd.exe）",
+    lblConfig: "配置文件（可选）", phConfig: "C:\\path\\to\\config.yaml（留空用内置默认值）",
+    lblBase: "网关地址",
+    lblKey: "网关 API Key（本机明文存储于应用配置目录）",
+    phKey: "ofg-…（点击右侧按钮从 ofd 读取）",
+    lblProvider: "提供商密钥管理", btnKeyAdd: "添加/更新密钥…",
+    keyAddHint: "在弹出的控制台窗口中粘贴密钥（输入隐藏），完成后窗口自动可关",
+    msgKeyAddOk: "已打开密钥录入控制台（完成后刷新状态）", msgKeyAddFail: "拉起录入失败: ",
+    tabs: { chat: "对话", providers: "提供商", keys: "密钥", usage: "用量", compression: "压缩", resilience: "弹性" },
+    detail: { managed: "运行中（本应用托管）", external: "运行中（外部启动，本应用仅观测）", stopped: "未运行" },
+    err: {
+      spawn_failed: "启动进程失败", early_exit: "网关进程立即退出：请检查二进制路径与配置文件",
+      health_timeout: "网关已拉起但 8s 内 /healthz 未就绪（端口或配置可能不符）",
+      not_managed: "当前实例非本应用托管（外部启动），请自行停止",
+      gateway_key_failed: "ofd gateway-key 退出码非 0", gateway_key_empty: "ofd gateway-key 输出为空",
+    },
+    msgSaved: "设置已保存", msgSaveFail: "保存失败: ", msgKeyOk: "已读取网关 key", msgKeyFail: "读取失败: ",
+    msgStarting: "启动中…", msgStarted: "网关已启动", msgStopped: "已停止", msgAlready: "网关已在运行",
+    msgStartFail: "启动失败: ", msgStopFail: "停止失败: ", msgProbeFail: "探测失败: ",
+    healthOk: " · /healthz OK",
+  },
+  en: {
+    refresh: "Refresh Status", start: "Start Gateway", stop: "Stop Gateway", save: "Save Settings",
+    readKey: "Read Key from ofd", detecting: "Checking…",
+    lblBin: "ofd executable path", phBin: "C:\\path\\to\\ofd.exe (empty = resolve ofd.exe from PATH)",
+    lblConfig: "Config file (optional)", phConfig: "C:\\path\\to\\config.yaml (empty = built-in defaults)",
+    lblBase: "Gateway base URL",
+    lblKey: "Gateway API Key (stored in plaintext in the app config dir)",
+    phKey: "ofg-… (click the button on the right to read from ofd)",
+    lblProvider: "Provider key management", btnKeyAdd: "Add / update key…",
+    keyAddHint: "Paste the key in the console window that opens (input hidden)",
+    msgKeyAddOk: "Key-entry console opened (refresh status when done)", msgKeyAddFail: "Failed to launch: ",
+    tabs: { chat: "Chat", providers: "Providers", keys: "Keys", usage: "Usage", compression: "Compression", resilience: "Resilience" },
+    detail: { managed: "Running (managed by this app)", external: "Running (started externally, observed only)", stopped: "Stopped" },
+    err: {
+      spawn_failed: "Failed to spawn process", early_exit: "Gateway exited immediately: check the binary path and config file",
+      health_timeout: "Gateway started but /healthz not ready within 8s (port or config mismatch)",
+      not_managed: "Current instance is not managed by this app (started externally); stop it yourself",
+      gateway_key_failed: "ofd gateway-key exited non-zero", gateway_key_empty: "ofd gateway-key output is empty",
+    },
+    msgSaved: "Settings saved", msgSaveFail: "Save failed: ", msgKeyOk: "Gateway key read", msgKeyFail: "Read failed: ",
+    msgStarting: "Starting…", msgStarted: "Gateway started", msgStopped: "Stopped", msgAlready: "Gateway already running",
+    msgStartFail: "Start failed: ", msgStopFail: "Stop failed: ", msgProbeFail: "Probe failed: ",
+    healthOk: " · /healthz OK",
+  },
+};
+const $ = (id) => document.getElementById(id);
+let settings = { bin: "", config: "", base: "http://127.0.0.1:20130", key: "", lang: "auto" };
+let activePage = "providers";
+let t = I18N.en;
+
+function effLang() {
+  if (settings.lang === "zh" || settings.lang === "en") return settings.lang;
+  return (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
+}
+
+function setMsg(text, cls) {
+  const el = $("msg");
+  el.textContent = text || "";
+  el.className = "msg" + (cls ? " " + cls : "");
+}
+
+// 后端错误形如 "code: raw detail"，code 映射本地文案，detail 原样保留。
+function locErr(e) {
+  const s = String(e);
+  const i = s.indexOf(":");
+  const code = i > 0 ? s.slice(0, i) : s;
+  const rest = i > 0 ? s.slice(i) : "";
+  return t.err[code] ? t.err[code] + rest : s;
+}
+
+function currentInputs() {
+  return {
+    bin: $("inBin").value.trim(),
+    config: $("inConfig").value.trim(),
+    base: $("inBase").value.trim() || "http://127.0.0.1:20130",
+    key: $("inKey").value.trim(),
+    lang: settings.lang || "auto",
+  };
+}
+
+function applySettings(s) {
+  settings = { bin: "", config: "", base: "http://127.0.0.1:20130", key: "", lang: "auto", ...(s || {}) };
+  if (settings.lang !== "zh" && settings.lang !== "en") settings.lang = "auto";
+  $("inBin").value = settings.bin;
+  $("inConfig").value = settings.config;
+  $("inBase").value = settings.base;
+  $("inKey").value = settings.key;
+}
+
+function applyLang() {
+  t = I18N[effLang()];
+  document.documentElement.lang = effLang() === "zh" ? "zh-CN" : "en";
+  $("selLang").value = settings.lang || "auto";
+  $("btnRefresh").textContent = t.refresh;
+  $("btnStart").textContent = t.start;
+  $("btnStop").textContent = t.stop;
+  $("btnSave").textContent = t.save;
+  $("btnKey").textContent = t.readKey;
+  $("lblBin").textContent = t.lblBin;
+  $("lblConfig").textContent = t.lblConfig;
+  $("lblBase").textContent = t.lblBase;
+  $("lblKey").textContent = t.lblKey;
+  $("lblProvider").textContent = t.lblProvider;
+  $("btnKeyAdd").textContent = t.btnKeyAdd;
+  $("keyAddHint").textContent = t.keyAddHint;
+  $("inBin").placeholder = t.phBin;
+  $("inConfig").placeholder = t.phConfig;
+  $("inKey").placeholder = t.phKey;
+  $("statusBadge").textContent = t.detecting;
+  renderTabs();
+}
+
+function loadFrame() {
+  const base = $("inBase").value.trim() || "http://127.0.0.1:20130";
+  const key = encodeURIComponent($("inKey").value.trim());
+  const lang = settings.lang === "zh" || settings.lang === "en" ? `&lang=${settings.lang}` : "";
+  $("frame").src = `${base}/dashboard/${activePage}?key=${key}${lang}`;
+}
+
+function renderTabs() {
+  const nav = $("tabs");
+  nav.innerHTML = "";
+  for (const id of PAGES) {
+    const b = document.createElement("button");
+    b.textContent = t.tabs[id];
+    b.className = id === activePage ? "active" : "";
+    b.onclick = () => { activePage = id; renderTabs(); loadFrame(); };
+    nav.appendChild(b);
+  }
+}
+
+async function refresh() {
+  const { base } = currentInputs();
+  try {
+    const s = await invoke("gateway_status", { base });
+    const badge = $("statusBadge");
+    badge.textContent = (t.detail[s.detail] || s.detail) + (s.running ? t.healthOk : "");
+    badge.className = "badge " + (s.running ? (s.managed ? "mgd" : "on") : "off");
+    $("btnStop").disabled = !s.managed;
+    $("btnStart").disabled = s.running;
+    if (s.running) loadFrame();
+  } catch (e) {
+    $("statusBadge").textContent = t.msgProbeFail + e;
+    $("statusBadge").className = "badge off";
+  }
+}
+
+$("btnRefresh").onclick = refresh;
+$("btnSave").onclick = async () => {
+  try {
+    await invoke("save_settings", { settings: currentInputs() });
+    setMsg(t.msgSaved, "ok");
+  } catch (e) { setMsg(t.msgSaveFail + e, "err"); }
+};
+$("btnKey").onclick = async () => {
+  const { bin } = currentInputs();
+  try {
+    const key = await invoke("fetch_gateway_key", { bin: bin || "ofd.exe" });
+    $("inKey").value = key;
+    setMsg(t.msgKeyOk, "ok");
+    loadFrame();
+  } catch (e) { setMsg(t.msgKeyFail + locErr(e), "err"); }
+};
+$("btnKeyAdd").onclick = async () => {
+  const { bin, config } = currentInputs();
+  const provider = $("selProvider").value;
+  try {
+    await invoke("key_add", { bin: bin || "ofd.exe", config, provider });
+    setMsg(t.msgKeyAddOk, "ok");
+  } catch (e) { setMsg(t.msgKeyAddFail + locErr(e), "err"); }
+};
+$("btnStart").onclick = async () => {
+  const { bin, config, base } = currentInputs();
+  $("btnStart").disabled = true;
+  setMsg(t.msgStarting);
+  try {
+    const r = await invoke("gateway_start", { bin: bin || "ofd.exe", config, base });
+    if (r === "already-running") setMsg(t.msgAlready, "ok");
+    else if (r.startsWith("started")) setMsg(t.msgStarted + r.slice("started".length), "ok");
+    else setMsg(r, "ok");
+  } catch (e) { setMsg(t.msgStartFail + locErr(e), "err"); }
+  refresh();
+};
+$("btnStop").onclick = async () => {
+  try {
+    const r = await invoke("gateway_stop");
+    setMsg(r.startsWith("stopped") ? t.msgStopped + r.slice("stopped".length) : r, "ok");
+  } catch (e) { setMsg(t.msgStopFail + locErr(e), "err"); }
+  refresh();
+};
+$("selLang").onchange = async () => {
+  settings.lang = $("selLang").value;
+  applyLang();
+  try {
+    await invoke("set_language", { lang: effLang() });
+    await invoke("save_settings", { settings: currentInputs() });
+  } catch { /* 托盘同步/持久化失败不阻塞界面语言切换 */ }
+  loadFrame();
+  refresh();
+};
+["inBase", "inKey"].forEach((id) => $(id).addEventListener("change", loadFrame));
+
+(async function init() {
+  try { applySettings(await invoke("load_settings")); } catch { /* 首次运行为空 */ }
+  applyLang();
+  loadFrame();
+  try { await invoke("set_language", { lang: effLang() }); } catch { /* 托盘语言同步尽力而为 */ }
+  await refresh();
+  setInterval(refresh, 3000);
+})();
+</script>
+</body>
+</html>

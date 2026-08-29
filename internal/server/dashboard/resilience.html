@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="page_title">OmniFusion · Resilience</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 14px/1.5 system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 24px; }
+  header { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; margin-bottom: 20px; }
+  h1 { font-size: 18px; margin: 0; }
+  h2 { font-size: 14px; color: #8b949e; margin: 24px 0 8px; font-weight: 600; }
+  nav a { color: #58a6ff; text-decoration: none; margin-right: 12px; }
+  nav a[aria-current] { color: #e6edf3; text-decoration: underline; }
+  .meta { color: #8b949e; font-size: 12px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #21262d; }
+  th { color: #8b949e; font-weight: 600; white-space: nowrap; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; }
+  .b-open { background: #f85149; color: #fff; }
+  .b-half { background: #d29922; color: #fff; }
+  .b-closed { background: #21262d; color: #8b949e; }
+  .b-iso { background: #f85149; color: #fff; }
+  .b-ok { background: #21262d; color: #8b949e; }
+  .empty { color: #8b949e; padding: 24px 0; }
+  #err { color: #f85149; white-space: pre-wrap; }
+  #pin { margin: 0 0 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 data-i18n="page_title">OmniFusion · Resilience</h1>
+  <nav id="nav"></nav>
+</header>
+<p class="meta" id="pin"></p>
+<p class="meta" id="meta"></p>
+<div id="err"></div>
+<h2 data-i18n="h_isolation">isolation (store, survives restart)</h2>
+<table>
+  <thead><tr>
+    <th data-i18n="th_provider">provider</th><th data-i18n="th_scope">scope</th><th data-i18n="th_model">model</th><th data-i18n="th_until">until</th><th data-i18n="th_reason">reason</th>
+  </tr></thead>
+  <tbody id="cooldowns"></tbody>
+</table>
+<h2 data-i18n="h_breakers">breakers (in-memory, self-healing)</h2>
+<table>
+  <thead><tr>
+    <th data-i18n="th_provider">provider</th><th data-i18n="th_state">state</th><th class="num" data-i18n="th_window_failures">window failures</th><th data-i18n="th_open_till">open till</th>
+  </tr></thead>
+  <tbody id="breakers"></tbody>
+</table>
+<h2 data-i18n="h_signals">provider signals (EWMA)</h2>
+<table>
+  <thead><tr>
+    <th data-i18n="th_provider">provider</th><th class="num" data-i18n="th_latency">latency ms</th><th class="num" data-i18n="th_success">success</th>
+    <th data-i18n="th_last_success">last success</th><th class="num" data-i18n="th_isolations">isolations</th><th data-i18n="th_state">state</th>
+  </tr></thead>
+  <tbody id="providers"></tbody>
+</table>
+<h2 data-i18n="h_failures">recent failures (audit log)</h2>
+<table>
+  <thead><tr>
+    <th data-i18n="th_kind">kind</th><th class="num" data-i18n="th_count">count</th><th data-i18n="th_last_seen">last seen</th>
+  </tr></thead>
+  <tbody id="kinds"></tbody>
+</table>
+<table>
+  <thead><tr>
+    <th data-i18n="th_ts">ts</th><th class="num" data-i18n="th_status">status</th><th data-i18n="th_endpoint">endpoint</th><th data-i18n="th_model">model</th><th data-i18n="th_provider">provider</th><th data-i18n="th_kind">kind</th>
+  </tr></thead>
+  <tbody id="frows"></tbody>
+</table>
+<script>
+'use strict';
+// --- i18n (pattern shared across dashboard pages) ---
+const LANG = (() => {
+  const q = new URLSearchParams(location.search).get('lang');
+  const saved = localStorage.getItem('ofd-lang');
+  const nav = (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+  const lang = (q === 'zh' || q === 'en') ? q : ((saved === 'zh' || saved === 'en') ? saved : nav);
+  try { localStorage.setItem('ofd-lang', lang); } catch (e) {}
+  return lang;
+})();
+const I18N = {
+  en: {
+    page_title: 'OmniFusion · Resilience',
+    nav_providers: 'Providers', nav_keys: 'Keys', nav_usage: 'Usage',
+    nav_compression: 'Compression', nav_resilience: 'Resilience', nav_chat: 'Chat',
+    pin_active: 'pinned: {p} until {u}',
+    pin_none: 'no route pin',
+    h_isolation: 'isolation (store, survives restart)',
+    h_breakers: 'breakers (in-memory, self-healing)',
+    h_signals: 'provider signals (EWMA)',
+    h_failures: 'recent failures (audit log)',
+    th_provider: 'provider', th_scope: 'scope', th_model: 'model', th_until: 'until', th_reason: 'reason',
+    th_state: 'state', th_window_failures: 'window failures', th_open_till: 'open till',
+    th_latency: 'latency ms', th_success: 'success', th_last_success: 'last success', th_isolations: 'isolations',
+    th_kind: 'kind', th_count: 'count', th_last_seen: 'last seen',
+    th_ts: 'ts', th_status: 'status', th_endpoint: 'endpoint',
+    st_open: 'open', st_half_open: 'half-open', st_closed: 'closed',
+    st_isolated: 'isolated', st_ok: 'ok',
+    time_left: '({s}s left)', expired: '(expired)',
+    unknown_kind: 'unknown', none_provider: 'none',
+    empty_isolations: 'no active isolations',
+    empty_breakers: 'no breaker activity',
+    empty_providers: 'no providers wired',
+    empty_kinds: 'no failed requests',
+    meta: 'cooldowns/lockouts: store (persisted) · breakers: memory, reset on restart · refreshed {time}',
+  },
+  zh: {
+    page_title: 'OmniFusion · 弹性',
+    nav_providers: '提供商', nav_keys: '密钥', nav_usage: '用量',
+    nav_compression: '压缩', nav_resilience: '弹性', nav_chat: '对话',
+    pin_active: '钉选：{p} 直至 {u}',
+    pin_none: '未钉选路由',
+    h_isolation: '隔离（存储，重启后保留）',
+    h_breakers: '熔断器（内存中，自动恢复）',
+    h_signals: '提供商信号（EWMA）',
+    h_failures: '近期失败（审计日志）',
+    th_provider: '提供商', th_scope: '范围', th_model: '模型', th_until: '直至', th_reason: '原因',
+    th_state: '状态', th_window_failures: '窗口内失败次数', th_open_till: '开启至',
+    th_latency: '延迟 ms', th_success: '成功率', th_last_success: '最近成功', th_isolations: '隔离次数',
+    th_kind: '类型', th_count: '数量', th_last_seen: '最近出现',
+    th_ts: '时间', th_status: '状态', th_endpoint: '端点',
+    st_open: '开启', st_half_open: '半开', st_closed: '关闭',
+    st_isolated: '已隔离', st_ok: '正常',
+    time_left: '（剩余 {s} 秒）', expired: '（已过期）',
+    unknown_kind: '未知', none_provider: '无',
+    empty_isolations: '当前无隔离',
+    empty_breakers: '暂无熔断器活动',
+    empty_providers: '未接入任何提供商',
+    empty_kinds: '暂无失败请求',
+    meta: '冷却/锁定：存储（持久化） · 熔断器：内存，重启后重置 · 刷新于 {time}',
+  },
+};
+const t = (k) => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
+document.documentElement.lang = LANG === 'zh' ? 'zh-CN' : 'en';
+document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+
+const key = new URLSearchParams(location.search).get('key') || '';
+const PAGES = [['providers','nav_providers'],['keys','nav_keys'],['usage','nav_usage'],
+               ['compression','nav_compression'],['resilience','nav_resilience'],['chat','nav_chat']];
+const pageHref = (id, lang) => id + '.html?' + (key ? 'key=' + encodeURIComponent(key) + '&' : '') + 'lang=' + lang;
+document.getElementById('nav').innerHTML = PAGES.map(([id, nk]) => {
+  const cur = id === 'resilience' ? ' aria-current="page"' : '';
+  return `<a href="${pageHref(id, LANG)}"${cur}>${t(nk)}</a>`;
+}).join('') +
+  ` <a href="${pageHref('resilience', 'zh')}">中文</a> <a href="${pageHref('resilience', 'en')}">EN</a>`;
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function cell(cls, text) { return `<td${cls ? ` class="${cls}"` : ''}>${text}</td>`; }
+function badge(cls, text) { return `<span class="badge ${cls}">${text}</span>`; }
+function untilStr(s) {
+  const left = new Date(s) - Date.now();
+  return esc(s) + (left > 0 ? ` <span class="meta">${t('time_left').replace('{s}', Math.ceil(left / 1000))}</span>` : ` <span class="meta">${t('expired')}</span>`);
+}
+
+async function load() {
+  const err = document.getElementById('err');
+  try {
+    const resp = await fetch('api/resilience' + (key ? '?key=' + encodeURIComponent(key) : ''));
+    const body = await resp.json();
+    err.textContent = resp.ok ? '' : (body.error && body.error.message) || `HTTP ${resp.status}`;
+    if (!resp.ok) return;
+    document.getElementById('pin').textContent = body.pinned
+      ? t('pin_active').replace('{p}', body.pinned).replace('{u}', body.until)
+      : t('pin_none');
+    const cds = document.getElementById('cooldowns');
+    cds.innerHTML = body.cooldowns.length
+      ? body.cooldowns.map(c => '<tr>' + [
+          cell('', esc(c.provider)), cell('', esc(c.scope)), cell('', esc(c.model || '–')),
+          cell('', untilStr(c.until)), cell('', esc(c.reason)),
+        ].join('') + '</tr>').join('')
+      : `<tr><td colspan="5" class="empty">${t('empty_isolations')}</td></tr>`;
+    const brs = document.getElementById('breakers');
+    brs.innerHTML = body.breakers.length
+      ? body.breakers.map(b => '<tr>' + [
+          cell('', esc(b.provider)),
+          cell('', b.state === 'open' ? badge('b-open', t('st_open'))
+              : b.state === 'half-open' ? badge('b-half', t('st_half_open'))
+              : badge('b-closed', t('st_closed'))),
+          cell('num', b.failures),
+          cell('', b.open_till ? untilStr(b.open_till) : '–'),
+        ].join('') + '</tr>').join('')
+      : `<tr><td colspan="4" class="empty">${t('empty_breakers')}</td></tr>`;
+    const prs = document.getElementById('providers');
+    prs.innerHTML = body.providers.length
+      ? body.providers.map(p => '<tr>' + [
+          cell('', esc(p.name)),
+          cell('num', p.latency_ms ? p.latency_ms.toFixed(0) : '–'),
+          cell('num', p.success_rate ? (p.success_rate * 100).toFixed(0) + '%' : '–'),
+          cell('', p.last_success_at ? esc(p.last_success_at) : '–'),
+          cell('num', p.cooldowns || 0),
+          cell('', p.isolated ? badge('b-iso', t('st_isolated')) : badge('b-ok', t('st_ok'))),
+        ].join('') + '</tr>').join('')
+      : `<tr><td colspan="6" class="empty">${t('empty_providers')}</td></tr>`;
+    const ks = document.getElementById('kinds');
+    ks.innerHTML = body.failure_kinds.length
+      ? body.failure_kinds.map(k => '<tr>' + [
+          cell('', esc(k.kind || t('unknown_kind'))), cell('num', k.count), cell('', esc(k.last_seen)),
+        ].join('') + '</tr>').join('')
+      : `<tr><td colspan="3" class="empty">${t('empty_kinds')}</td></tr>`;
+    document.getElementById('frows').innerHTML = body.failure_rows.map(r => '<tr>' + [
+      cell('', esc(r.ts)), cell('num', r.status), cell('', esc(r.endpoint)),
+      cell('', esc(r.model)), cell('', esc(r.provider || t('none_provider'))), cell('', esc(r.error_kind)),
+    ].join('') + '</tr>').join('');
+    document.getElementById('meta').textContent =
+      t('meta').replace('{time}', new Date().toLocaleTimeString());
+  } catch (e) {
+    err.textContent = String(e);
+  }
+}
+load();
+setInterval(load, 5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+providers:
+  - id: groq
+    kind: openai_compat
+    display_name: Groq
+    base_url: https://api.groq.com/openai/v1
+    auth_style: bearer
+    key_env: GROQ_API_KEY
+    capabilities:
+      input: [text, image]
+      output: [text]
+      features: [tools]
+    # OmniRoute #3258：非推理 Llama 模型收到 reasoning_effort 会返回 400。
+    # 本网关不主动注入该字段，仅按调用方原样透传（Extra），风险由调用方承担。
+    free_tier: 免费层 30 RPM / 14.4K RPD（无卡）
+    rate_limits: {rpm: 30, rpd: 14400}
+    # 2026-08-28 经 /v1/models 实测刷新：llama-4-scout / llama-3.3-70b /
+    # qwen3-32b 已下线；context_window 取自接口返回值。
+    # whisper-*/orpheus-*（语音）与 prompt-guard/safeguard（分类审核）非对话模型，不列。
+    # 区域封锁：CN/HK 出口 IP 一律 403（发生在密钥校验前），需配
+    # HTTPS_PROXY 走美/日等出口（docs/04 L2 分级代理·全局层）。
+    models:
+      - id: openai/gpt-oss-120b
+        context_window: 131072
+      - id: openai/gpt-oss-20b
+        context_window: 131072
+      - id: qwen/qwen3.8-27b
+        context_window: 131042
+      - id: qwen/qwen3.6-27b
+        context_window: 131072
+      - id: groq/compound
+        context_window: 131072
+      - id: groq/compound-mini
+        context_window: 131072

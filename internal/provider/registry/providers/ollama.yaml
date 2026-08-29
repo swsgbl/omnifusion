@@ -1,0 +1,16 @@
+providers:
+  - id: ollama
+    kind: openai_compat
+    display_name: Ollama (本地)
+    # 本地自托管：默认无鉴权；用户可在覆盖配置里改 base_url 指向远端实例。
+    base_url: http://localhost:11434/v1
+    auth_style: bearer
+    optional_key: true
+    capabilities:
+      input: [text, image]
+      output: [text]
+      features: [tools]
+    free_tier: 本地推理，无配额限制
+    # 模型目录完全动态（取决于用户 ollama pull 了什么），静态列表留空；
+    # M1.9 冒烟时以 `ollama list` 实际输出为准。
+    models: []

@@ -1,0 +1,62 @@
+# OmniFusion 网关容器编排。
+#
+# 基础栈（仅网关）：
+#   docker compose -f deploy/docker-compose.yml up -d --build
+# 带 mock 上游的无 key 全链路验证（mock 与网关共享网络命名空间，
+# 内置 ollama provider 的 localhost:11434 即 mock）：
+#   docker compose -f deploy/docker-compose.yml --profile mock up -d --build
+# 带可观测栈（Prometheus + Grafana）：
+#   docker compose -f deploy/docker-compose.yml --profile mock --profile obs up -d --build
+#
+# 端口默认只绑宿主回环（安全红线 docs/06 R5）；对外暴露请自行修改 ports 左侧。
+name: omnifusion
+
+services:
+  omnifusion:
+    image: omnifusion:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: omnifusion
+    ports:
+      - "127.0.0.1:20130:20130"
+    volumes:
+      - ./config.docker.yaml:/etc/omnifusion/config.yaml:ro
+      - omnifusion-data:/data
+    restart: unless-stopped
+
+  # 冒烟上游：无真实 API key 时的端到端验证（chat/models/streaming 全走通）。
+  mockup:
+    image: omnifusion-mock:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.mockup
+    profiles: ["mock"]
+    network_mode: "service:omnifusion"
+    restart: "no"
+
+  # 可观测栈：/metrics 与数据面同令牌（Bearer 网关 key）。
+  # 先复制 prometheus/omnifusion.yml 填入 key，并把 targets 改为 omnifusion:20130。
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: ["obs"]
+    container_name: omnifusion-prometheus
+    volumes:
+      - ./prometheus/omnifusion.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: ["obs"]
+    container_name: omnifusion-grafana
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3001:3000"
+    restart: unless-stopped
+
+volumes:
+  omnifusion-data:
+  grafana-data:

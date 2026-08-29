@@ -1,0 +1,39 @@
+# OmniFusion 网关 systemd 单元（Linux 裸机部署）。
+#
+# 安装步骤（root）：
+#   1. install -Dm755 ofd /usr/local/bin/ofd
+#   2. useradd --system --home /var/lib/omnifusion --shell /usr/sbin/nologin omnifusion
+#   3. install -Dm644 config.yaml /etc/omnifusion/config.yaml   # host 保持 127.0.0.1
+#      chown root:omnifusion /etc/omnifusion/config.yaml && chmod 640 /etc/omnifusion/config.yaml
+#   4. install -Dm644 deploy/systemd/ofod.service /etc/systemd/system/ofod.service
+#   5. systemctl daemon-reload && systemctl enable --now ofod
+#   6. journalctl -u ofod -f    # 网关 key 提示与请求日志
+#      sudo -u omnifusion /usr/local/bin/ofd gateway-key
+
+[Unit]
+Description=OmniFusion AI Gateway (BYOK)
+Documentation=https://github.com/swsgbl/omnifusion
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=omnifusion
+Group=omnifusion
+ExecStart=/usr/local/bin/ofd -config /etc/omnifusion/config.yaml
+WorkingDirectory=/var/lib/omnifusion
+StateDirectory=omnifusion
+Restart=on-failure
+RestartSec=2
+
+# 最小权限加固
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+providers:
+  - id: huggingface
+    kind: openai_compat
+    display_name: HuggingFace Router
+    base_url: https://router.huggingface.co/v1
+    auth_style: bearer
+    key_env: HF_TOKEN
+    capabilities:
+      input: [text, image]
+      output: [text]
+      features: [tools]
+    free_tier: Inference Providers 免费额度（$0.10/月免费层）
+    models:
+      - id: meta-llama/llama-3.1-8b-instruct
+      - id: Qwen/Qwen2.5-7B-Instruct
+      - id: deepseek-ai/DeepSeek-V3
+      - id: google/gemma-2-9b-it

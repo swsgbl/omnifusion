@@ -1,0 +1,120 @@
+# =============================================================================
+# OmniFusion 网关配置模板（config.yaml.example）
+#
+# 用法：复制为 config.yaml 按需修改后启动：
+#     ofd -config config.yaml
+# 本文件与 internal/config/config.go 的 yaml 字段严格一致，且保持为合法
+# 可加载配置（即内置默认值版本），可直接验证：
+#     ofd -config config.yaml.example
+#
+# 安全约定（务必先读）：
+#   - 任何上游 API 密钥【不入此文件】：用 `ofd key add <provider>` 交互
+#     录入，加密入库（基于机器身份派生，非明文落盘）。
+#   - 客户端访问数据面统一用网关 key：`ofd gateway-key` 打印，请求带
+#     `Authorization: Bearer <key>`。
+#   - 值支持 ${VAR} 环境变量展开（未定义则保留原样，由启动校验报错）。
+# =============================================================================
+
+# HTTP 监听。host 默认 127.0.0.1（仅本机可达）是安全红线：改绑非回环
+# 地址必须显式配置——容器/WSL 内需对外提供服务时改 0.0.0.0，此时务必
+# 前置反向代理提供 TLS，并妥善保管网关 key（改绑时启动日志会告警）。
+server:
+  host: 127.0.0.1
+  port: 20130
+
+# SQLite 落盘位置（相对路径基于 ofd 进程工作目录）。
+store:
+  path: data/omnifusion.db
+
+# 结构化日志：level ∈ debug|info|warn|error；format ∈ json|text。
+log:
+  level: info
+  format: json
+
+# 命名组合层：路由组合（命名模型组，model 内嵌 "@combo:NAME" 选择）与
+# 压缩组合（有序阶段名 dedup/semantic/caveman）；路由组合可绑定一个
+# 压缩组合实现 per-path 压缩策略（如免费层路径用激进压缩）。留空 = 未启用。
+combos:
+  routing: {}
+  compression: {}
+  # 示例（去掉注释并替换为已配置的真实 provider/model 后生效）：
+  # routing:
+  #   free-path:                   # 客户端 model 传 "…@combo:free-path"
+  #     members:                   # 有序成员：声明序即尝试优先级
+  #       - provider: ollama
+  #         model: qwen3:4b
+  #       - provider: openrouter
+  #         model: deepseek/deepseek-chat-v3.1:free
+  #     compression: aggressive    # 绑定下方压缩组合名（可省略）
+  # compression:
+  #   aggressive: [dedup, semantic, caveman]
+
+# Fusion 扇出合成（model 内嵌 "@fusion" 选择）：并行扇出异构成员 →
+# QUORUM 门控 → 轻量 Judge 合成。空 members = 未启用（@fusion 请求 400）。
+fusion:
+  members: []          # 启用时至少 2 个（扇出+门控才有意义），建议 3–5 个异构
+  # members:
+  #   - provider: openrouter
+  #     model: deepseek/deepseek-chat-v3.1:free
+  #   - provider: ollama
+  #     model: qwen3:4b
+  # judge:              # 合成 Judge；缺省用 members[0]
+  #   provider: openrouter
+  #   model: google/gemini-2.5-flash
+  quorum: 2            # 成功扇出数下限（Judge 合成的前置条件）；0 = 默认 2
+
+# 语义压缩段：rate 是句保留率（0.1–0.9，0 = 默认 0.5）；配置 sidecar_url
+# 后可选档 semantic_sidecar 生效（LLMLingua-2 级神经压缩，进程外部署，
+# 默认二进制零模型依赖）。
+semantic:
+  sidecar_url: ""      # 如 http://127.0.0.1:8080/compress；空 = 仅规则档
+  rate: 0.5
+
+# ML 路由（model 内嵌 "@smart" 选择）：难度分 ≥ threshold 走强档，否则
+# 弱档；另一档殿后作 failover。weak/strong 必须成对配置，双双留空 = 未启用。
+mlrouter:
+  # weak:              # 弱档目标（小/免费模型，承接简单请求）
+  #   provider: ollama
+  #   model: qwen3:4b
+  # strong:            # 强档目标（大模型，承接高难度请求）
+  #   provider: openrouter
+  #   model: deepseek/deepseek-chat-v3.1:free
+  threshold: 0.55      # 难度阈值；0 = 默认 0.55，合法区间 (0,1)
+
+# 签名目录 feed（社区维护的上下文窗口/限流众测数据源）：feed_url 与
+# feed_pubkey 必须成对配置才启用；双空 = 未启用（默认，零行为变更）。
+# 验签失败即丢弃保留旧目录（pinned Ed25519，不接受降级/重放）。
+catalog:
+  feed_url: ""         # 如 https://example.com/omnifusion-catalog/feed.json
+  feed_pubkey: ""      # pinned 公钥，64 个 hex 字符（ed25519）
+
+# 规则型护栏：默认关闭（BYOK 个人网关不意外拦截），显式 enabled: true
+# 启用。PII 默认 block（拦截），注入检测默认 warn（告警放行）。
+# pii.types 缺省全部规则：email / phone_cn / cn_id / bank_card / secret_key。
+guardrails:
+  enabled: false
+  pii:
+    action: block      # block | warn | off
+    types: []          # 空数组 = 全部规则
+  injection:
+    action: warn       # warn | block | off
+
+# Prometheus 指标：GET /metrics，挂网关 key 鉴权（与数据面同令牌，
+# 不开匿名信息面）。默认开启。
+metrics:
+  enabled: true
+
+# 请求审计日志：每请求一行（含被护栏拦截的 400），max_rows 之外自动
+# 裁最旧。默认开启。
+audit:
+  enabled: true
+  max_rows: 10000
+
+# Agent2Agent v1.0 协议面：发现 /.well-known/agent-card.json + JSON-RPC
+# /rpc（数据面同网关 key 鉴权）。name/description 留空用内置文案；
+# default_model 可含 @smart / @fusion / @combo:NAME 指令或裸模型名。
+a2a:
+  enabled: true
+  name: ""
+  description: ""
+  default_model: ""

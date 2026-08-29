@@ -1,0 +1,17 @@
+# mockup — 冒烟/验证用 OpenAI 兼容 mock 上游镜像（与网关 compose 共享网络命名空间时，
+# ollama provider 的 http://localhost:11434/v1 即指向本容器）。
+ARG GOPROXY=https://proxy.golang.org,direct
+
+FROM golang:1.26-alpine AS build
+ARG GOPROXY
+ENV CGO_ENABLED=0 GOFLAGS=-trimpath
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY scripts/mockup .
+RUN go build -ldflags "-s -w" -o /out/mockup .
+
+FROM alpine:3.22
+COPY --from=build /out/mockup /usr/local/bin/mockup
+ENTRYPOINT ["/usr/local/bin/mockup"]
+CMD ["-addr", "127.0.0.1:11434"]

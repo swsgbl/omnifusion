@@ -1,0 +1,25 @@
+providers:
+  - id: cloudflare
+    kind: openai_compat
+    display_name: Cloudflare Workers AI
+    # URL 含账户维度：{account_id} 由凭据变量替换（dash.cloudflare.com 可查）。
+    base_url: https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1
+    url_vars: [account_id]
+    auth_style: bearer
+    key_env: CLOUDFLARE_API_TOKEN
+    vars_env:
+      account_id: CLOUDFLARE_ACCOUNT_ID
+    capabilities:
+      input: [text, image]
+      output: [text]
+      features: [tools]
+    # OmniRoute #8717：已下线的模型 id（llama-3.3-70b-instruct、llama-3.1-8b-instruct、
+    # gemma-3-12b-it、qwen2.5-coder-15b-instruct）不声明，上游会 400/403/410。
+    free_tier: 10K neurons/天（约 150 次 LLM 响应）
+    rate_limits: {rpd: 150} # 近似：10K neurons ≈ 150 次响应（官方口径）
+    models:
+      - id: "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      - id: "@cf/qwen/qwen2.5-coder-32b-instruct"
+      - id: "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+      - id: "@cf/moonshotai/kimi-k2.6"
+        context_window: 262144

@@ -1,0 +1,39 @@
+# 构建产物
+*.exe
+/ofd
+dist/
+
+# 本地数据（SQLite）
+*.db
+*.db-wal
+*.db-shm
+data/
+
+# 测试与临时
+*.out
+coverage.*
+
+# ACL 锁定的遗留副本集中区（提权会话产物；下划线开头使 go 工具链忽略；
+# 待提权后整体删除）
+_locked/
+
+# 内部文档，不公开
+docs-internal/
+_sweep*.ps1
+
+# IDE
+.idea/
+.vscode/
+
+# 桌面端（M7.3 Tauri）
+node_modules/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/bin/
+*.png.tmp
+# tauri icon 生成的多余平台图标（桌面端仅引用 32/128/128@2x/ico）
+apps/desktop/src-tauri/icons/android/
+apps/desktop/src-tauri/icons/ios/
+apps/desktop/src-tauri/icons/Square*.png
+apps/desktop/src-tauri/icons/StoreLogo.png
+apps/desktop/src-tauri/icons/icon.icns

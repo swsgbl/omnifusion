@@ -1,0 +1,17 @@
+providers:
+  - id: cerebras
+    kind: openai_compat
+    display_name: Cerebras
+    base_url: https://api.cerebras.ai/v1
+    auth_style: bearer
+    key_env: CEREBRAS_API_KEY
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 免费试用 1M tokens/天、30K TPM、5 RPM（无卡）
+    rate_limits: {rpm: 5, tpm: 30000, tpd: 1000000}
+    models:
+      - id: gpt-oss-120b
+      - id: zai-glm-4.7
+      - id: gemma-4-31b
