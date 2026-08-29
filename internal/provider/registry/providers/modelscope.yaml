@@ -16,9 +16,12 @@ providers:
     free_tier: 每日 2000 次免费调用（6 万+ 模型可选）
     rate_limits: {rpd: 2000}
     models:
+      # 2026-08-30 经公开 /v1/models（免鉴权）实测核对：目录默认返回
+      # 前 50 个热门模型，Qwen3-235B 在列；DeepSeek 系已迭代到 V4
+      #（R1-0528 已不在列，勿再声明）。
       - id: Qwen/Qwen3-235B-A22B-Instruct-2507
         price_in: 0
         price_out: 0
-      - id: deepseek-ai/DeepSeek-R1-0528
+      - id: deepseek-ai/DeepSeek-V4-Flash-0731
         price_in: 0
         price_out: 0
