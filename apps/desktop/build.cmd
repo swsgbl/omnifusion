@@ -18,7 +18,7 @@ cd /d "%~dp0"
 if not "%~1"=="check" (
   echo [build.cmd] building ofd.exe for bundling...
   pushd ..\..
-  go build -ldflags "-X main.version=v0.1.2" -o apps\desktop\src-tauri\bin\ofd.exe ./cmd/ofd
+  go build -ldflags "-X main.version=v0.1.3" -o apps\desktop\src-tauri\bin\ofd.exe ./cmd/ofd
   if errorlevel 1 ( popd & echo [build.cmd] ofd build failed 1>&2 & exit /b 1 )
   popd
 )

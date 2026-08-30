@@ -2,6 +2,25 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [v0.1.3] - 2026-08-30
+
+### 新增
+
+- **内置提供商 12 → 16**：DeepSeek（V4 系）、通义千问·阿里云百炼（新人限时额度）、小米 MiMo（V2.5 系）、火山方舟·豆包（模型需在方舟控制台开通）——四家端点/模型均经真实密钥实测核对；
+- **官方签名目录 feed v1 默认启用**：仓库 `catalog/feed.json`（13 提供商 53 模型的能力分/上下文窗口/免费定价，Ed25519 签名 + 防回滚）经 raw.githubusercontent 分发，网关默认 pin 公钥拉取——**对话页「⚡ 自动」与 `@quality` 开箱即用**（实测自动选中能力分最高的模型完成真实对话）；摄取器支持 `<url>.sig` 边车签名回退（静态托管无自定义响应头也能分发）；拉取失败照旧降级不阻断；
+- **根路径落地页**：直接访问 `http://127.0.0.1:20130/` 不再 404——双语状态页带对话页/控制台/API 入口。
+
+### 修复
+
+- **桌面端全新安装启动网关失败**（`ofd.exe: program not found`）：路径留空时前端预填裸名短路了后端「安装目录捆绑副本优先」解析——修复为原样传空；并给 iframe 增加「网关未运行」双语引导遮罩（替代白屏）；
+- NVIDIA NIM 静态模型清单对齐 live 目录（2 个已下架型号移除）。
+
+### 维护
+
+- 公开源码卫生：移除全部内部里程碑编号与指向内部文档的死链引用（206 文件），README 状态行改为用户视角。
+
+> EN: 16 built-in providers (DeepSeek / Qwen Bailian / Xiaomi MiMo / Volcengine Ark added); official signed catalog feed v1 on by default — `@quality` auto-ranking works out of the box; root landing page; desktop fresh-install gateway fix; public-source hygiene sweep.
+
 ## [v0.1.2] - 2026-08-30
 
 ### 新增
