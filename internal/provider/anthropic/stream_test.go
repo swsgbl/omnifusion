@@ -159,7 +159,7 @@ func TestParseStreamNon2xx(t *testing.T) {
 	}
 }
 
-// TestParseStreamToolUse 覆盖 M3.3 工具流：tool_use 块的 start/delta 序列
+// TestParseStreamToolUse 覆盖 工具流：tool_use 块的 start/delta 序列
 // 归一为 OpenAI 口径的 delta.tool_calls（index/id/name 首段 + arguments
 // 增量），stop_reason tool_use 反映射 finish=tool_calls。
 func TestParseStreamToolUse(t *testing.T) {

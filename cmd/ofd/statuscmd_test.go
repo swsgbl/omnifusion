@@ -21,7 +21,7 @@ func statusEntries(t *testing.T) []registry.Entry {
 	return entries
 }
 
-// TestBuildProviderStatusesLayers 是 M2.6 验收（三层视图）：
+// TestBuildProviderStatusesLayers 是 验收（三层视图）：
 // provider 层（ready/no-key/missing var）、key 层（stored/env/none）、
 // model 层（活跃锁定）各归其位。
 func TestBuildProviderStatusesLayers(t *testing.T) {

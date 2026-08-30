@@ -1,4 +1,4 @@
-// gemini_upstream.go 是矩阵的 Gemini 上游列出站对（M3.2）：UnifiedRequest
+// gemini_upstream.go 是矩阵的 Gemini 上游列出站对：UnifiedRequest
 // → GeminiRequest（上游 wire，model 在 URL 路径里），GeminiResponse →
 // UnifiedResponse。与入站对（gemini.go / gemini_response.go）共用同一套
 // wire 类型，构成"Gemini 直通"格的两侧。
@@ -15,8 +15,8 @@ import (
 // system 消息抽到顶层 systemInstruction；assistant 映射为 model 角色；
 // 图片 part 仅支持 data-URI（→inlineData）与 http(s) URL（→fileData）
 // 两种映射，其余静默丢弃属入站侧职责（降级头已标）；采样参数归入
-// generationConfig；工具面互译见 gemini_tools.go（M3.3）；结构化输出
-// response_format → responseMimeType/responseSchema（M3.6），无法解析
+// generationConfig；工具面互译见 gemini_tools.go；结构化输出
+// response_format → responseMimeType/responseSchema，无法解析
 // 的形进 degraded 清单丢弃。
 func ToGeminiUpstreamRequest(req *schema.UnifiedRequest) (*GeminiRequest, []string) {
 	names := geminiToolNameIndex(req.Messages)
@@ -68,7 +68,7 @@ func geminiMergeInstruction(dst *GeminiContent, m schema.Message) *GeminiContent
 	return dst
 }
 
-// geminiGeneration 归拢采样参数与结构化输出（M3.6）；全空则返回 nil
+// geminiGeneration 归拢采样参数与结构化输出；全空则返回 nil
 // （省略 generationConfig）。response_format 无法解析时进 degraded。
 func geminiGeneration(req *schema.UnifiedRequest) (*GeminiGeneration, []string) {
 	gc := &GeminiGeneration{

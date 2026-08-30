@@ -1,10 +1,10 @@
-// catalogcmd.go 承载 `ofd catalog`（M6.5 签名 feed 维护者工具面 +
+// catalogcmd.go 承载 `ofd catalog`（签名 feed 维护者工具面 +
 // 社区众测证据报告）：
 //
-//	ofd catalog keygen <seed.hex>            # 生成 ed25519 密钥对（seed 落文件，pub 打印）
-//	ofd catalog sign <feed.json> <seed.hex>  # 签名 → feed.json.sig
-//	ofd catalog verify <feed.json> [sig]     # 用配置公钥（或 --pubkey）验签+结构校验
-//	ofd catalog report [--days N]            # 众测证据：上次接受 feed 的条目 × request_log 聚合
+//	ofd catalog keygen <seed.hex> # 生成 ed25519 密钥对（seed 落文件，pub 打印）
+//	ofd catalog sign <feed.json> <seed.hex> # 签名 → feed.json.sig
+//	ofd catalog verify <feed.json> [sig] # 用配置公钥（或 --pubkey）验签+结构校验
+//	ofd catalog report [--days N] # 众测证据：上次接受 feed 的条目 × request_log 聚合
 package main
 
 import (

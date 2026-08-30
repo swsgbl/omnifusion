@@ -1,5 +1,5 @@
-// scoring.go 是 M2.4 打分路由 v1（docs/05 2.4）：按 健康度·延迟·剩余配额
-// 加权排序候选，把劣化的 provider 沉到候选列表尾部。与 M2.2/M2.3 的分工：
+// scoring.go 是 打分路由 v1（ 2.4）：按 健康度·延迟·剩余配额
+// 加权排序候选，把劣化的 provider 沉到候选列表尾部。与 / 的分工：
 // 隔离是硬边界（跳过），打分是软偏好（排序）；先 rank 后 skip，被隔离或
 // 配额耗尽的 key 根本不进尝试。内存态不持久化，重启即回到注册序冷启动。
 package routing
@@ -83,7 +83,7 @@ func (s *Scorer) Observe(name string, d time.Duration, success bool) {
 	}
 }
 
-// ObserveFailure 只记一次健康降分，不产生延迟观测（docs/04 §4.4：
+// ObserveFailure 只记一次健康降分，不产生延迟观测（
 // stream_broken 的 HealthPenalty——首 chunk 已落地的流中途断裂，
 // 延迟口径仍是"到首 chunk"，断裂不更新延迟与 lastOK）。nil 接收者安全。
 func (s *Scorer) ObserveFailure(name string) {
@@ -100,7 +100,7 @@ func (s *Scorer) ObserveFailure(name string) {
 }
 
 // LastSuccessAt 返回该 provider 最近一次成功的时间；从未成功过时
-// 第二返回值为 false。lkgp 策略（M2.5）消费。
+// 第二返回值为 false。lkgp 策略消费。
 func (s *Scorer) LastSuccessAt(name string) (time.Time, bool) {
 	if s == nil {
 		return time.Time{}, false
@@ -152,7 +152,7 @@ func (s *Scorer) Score(name string, q *QuotaTracker) (float64, ScoreSignals) {
 }
 
 // rank 返回按分数降序的候选副本（稳定排序：同分保持注册序）；
-// Scorer 未启用时原样返回注册序（M1 行为）。
+// Scorer 未启用时原样返回注册序（行为）。
 func (r *Router) rank() []provider.Provider {
 	if r.Scoring == nil {
 		return r.Providers

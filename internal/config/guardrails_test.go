@@ -1,4 +1,4 @@
-// guardrails_test.go 覆盖护栏段（M5.4）：加载与默认关闭语义。
+// guardrails_test.go 覆盖护栏段：加载与默认关闭语义。
 package config
 
 import (

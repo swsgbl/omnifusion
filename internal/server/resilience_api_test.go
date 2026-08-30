@@ -1,4 +1,4 @@
-// resilience_api_test.go 覆盖 M5.6 弹性状态面：store 冷却（含 reason）+
+// resilience_api_test.go 覆盖 弹性状态面：store 冷却（含 reason）+
 // 内存熔断 + scorer 信号 + 审计失败行聚合与空 pin，以及 scope 鉴权
 // （health-scoped 403 / route-scoped 200 / bare 401）。
 package server

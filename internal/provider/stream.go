@@ -9,7 +9,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/core/schema"
 )
 
-// StreamErrorReason 细分流中断的原因，供错误分类（M2.1）选择策略。
+// StreamErrorReason 细分流中断的原因，供错误分类选择策略。
 type StreamErrorReason string
 
 const (
@@ -23,7 +23,7 @@ const (
 
 // StreamError 是流式传输中断的归一化错误类型（冻结接口之外的
 // additive 扩展）。路由层用它区分"流坏了"（本类型）与"上游拒绝"
-// （UpstreamError）；流内嵌 {"error":...} 事件仍按 M1.5 契约归一为
+// （UpstreamError）；流内嵌 {"error":...} 事件仍按 契约归一为
 // Status==0 的 UpstreamError，由分类器映射为 stream_broken。
 type StreamError struct {
 	Provider string
@@ -49,7 +49,7 @@ func AsStreamError(err error) (*StreamError, bool) {
 }
 
 // ChunkStream 是归一化流式事件的拉取式迭代器（SSE 转发面，见
-// docs/04-架构设计 §3 的 buffer-first-chunk 段落）。
+// 的 buffer-first-chunk 段落）。
 //
 // Next 在正常收尾（上游发出 [DONE]）时返回 io.EOF；其余 error 均视为
 // 流中断：首 chunk 之前由路由层换家重试，首 chunk 之后只记日志不断流
@@ -59,7 +59,7 @@ type ChunkStream interface {
 	Close() error
 }
 
-// StreamParser 是冻结 Provider 接口（docs/04 §4.1）的可选流式扩展：
+// StreamParser 是冻结 Provider 接口的可选流式扩展：
 // 能流式的适配器实现它，不能的仍按非流式服务，路由层在 stream=true
 // 时跳过它们。ParseStream 与 Parse 对称：非 2xx 归一为 UpstreamError，
 // 2xx 体交给事件流惰性解析。

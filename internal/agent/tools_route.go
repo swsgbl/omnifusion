@@ -1,4 +1,4 @@
-// tools_route.go 注册 route scope 工具（M5.2）：全局路由钉选（设/
+// tools_route.go 注册 route scope 工具：全局路由钉选（设/
 // 清/查）与隔离清除——「路由切换」的运维面。写操作经网关控制 API，
 // token 无 route scope 时网关侧 403（工具错误面回传）。
 package agent

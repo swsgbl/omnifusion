@@ -1,4 +1,4 @@
-// toolfilter.go 是 ToolOutputFilter 阶段（docs/05 4.3，RTK 思想：
+// toolfilter.go 是 ToolOutputFilter 阶段（ 4.3，RTK 思想：
 // 命令感知的工具输出折叠）。Agent 会话里 role=tool 的消息常是终端
 // 命令输出——大目录列表、构建日志、循环监控——结构同质、信息密度
 // 头尾集中。本阶段从对应 tool_call 的 arguments 提取命令名，按命令

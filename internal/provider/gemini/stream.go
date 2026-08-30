@@ -1,4 +1,4 @@
-// stream.go 是 Gemini 上游的流式适配（M3.2）：alt=sse 的事件流里每条
+// stream.go 是 Gemini 上游的流式适配：alt=sse 的事件流里每条
 // data 载荷都是一个完整的 GenerateContentResponse，归一为 IR chunk。
 // 与 OpenAI 形不同，Gemini 流没有 [DONE] 终止符——连接干净关闭即正常
 // 收尾（io.EOF），读错误仍归一为 StreamError 驱动首 chunk 前换家。

@@ -10,7 +10,7 @@ import (
 var ErrCacheMiss = errors.New("store: semantic cache miss")
 
 // SemanticEntry 是 semantic_cache 命中的一行（不含 embedding_blob，
-// 近似层 M6 才启用）。
+// 近似层 才启用）。
 type SemanticEntry struct {
 	Payload   []byte
 	Timestamp int64
@@ -57,7 +57,7 @@ func (s *Store) TrimSemanticCache(maxEntries int) (int64, error) {
 	return n, nil
 }
 
-// CountSemanticCache 返回当前缓存条目数（M4.8 Dashboard usage 页）。
+// CountSemanticCache 返回当前缓存条目数（Dashboard usage 页）。
 func (s *Store) CountSemanticCache() (int64, error) {
 	var n int64
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM semantic_cache`).Scan(&n); err != nil {

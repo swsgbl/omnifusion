@@ -78,7 +78,7 @@ func TestSemanticCacheTrimKeepsNewest(t *testing.T) {
 	}
 }
 
-// TestCountSemanticCache 验证 M4.8 Dashboard 计数：空表为 0，写入
+// TestCountSemanticCache 验证 Dashboard 计数：空表为 0，写入
 // 与 upsert（同 hash 覆盖不新增）后取值正确。
 func TestCountSemanticCache(t *testing.T) {
 	s, err := Open(filepath.Join(t.TempDir(), "test.db"))

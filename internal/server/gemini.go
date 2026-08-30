@@ -1,4 +1,4 @@
-// gemini.go 承载 POST /v1beta/models/{model}:generateContent（M3.2）：
+// gemini.go 承载 POST /v1beta/models/{model}:generateContent：
 // Gemini generateContent 协议入站，Google SDK / aistudio.google.com 分享
 // 出的代码把本网关当 Gemini 端点直连。Go mux 的通配符后不能跟字面
 // 后缀（"{model}:generateContent" 不可声明），故整段前缀注册后在
@@ -55,7 +55,7 @@ func lastColon(s string) int {
 // handleGeminiGenerateContent 实现 Gemini 入站：拆路径 → 归一化 →
 // 分发 → 渲染（model 取自路径、stream 由 action 决定）。
 func (s *Server) handleGeminiGenerateContent(w http.ResponseWriter, r *http.Request) {
-	start := time.Now() // M5.5 审计时延口径
+	start := time.Now() // 审计时延口径
 	if s.router == nil || len(s.router.Providers) == 0 {
 		writeGeminiError(w, http.StatusServiceUnavailable, "UNAVAILABLE",
 			"no upstream providers configured; set API keys or configure providers")
@@ -84,13 +84,13 @@ func (s *Server) handleGeminiGenerateContent(w http.ResponseWriter, r *http.Requ
 
 	stream := action == "streamGenerateContent"
 	req, degraded := translate.FromGeminiGenerateContent(model, &in, stream)
-	// M5.4 Guardrails：翻译后、分发前扫描正文（未装配零开销）。
+	// Guardrails：翻译后、分发前扫描正文（未装配零开销）。
 	if !s.applyGuardrails(r.URL.Path, req, func(code int, msg string) {
 		writeGeminiError(w, code, "INVALID_ARGUMENT", msg)
 	}) {
 		return
 	}
-	// M6.4 会话记忆召回（opt-in 头）：命中注入 system 消息，永不阻断。
+	// 会话记忆召回（opt-in 头）：命中注入 system 消息，永不阻断。
 	s.memoryRecall(w, r, req)
 	opts, comboName, fusionReq, err := s.dispatchOptions(r, req) // @fast:model 指令与策略头同样可用
 	if err != nil {
@@ -98,11 +98,11 @@ func (s *Server) handleGeminiGenerateContent(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	opts = append(opts, sessionOption(r)...)
-	opts = append(opts, s.pinOption()...) // M5.2 全局路由钉选
+	opts = append(opts, s.pinOption()...) // 全局路由钉选
 	if comboName != "" {
 		opts = append(opts, s.comboCompress(r, req, comboName)...)
 	}
-	if fusionReq { // M6.1 @fusion：扇出合成短路（流式在其中 400）
+	if fusionReq { // @fusion：扇出合成短路（流式在其中 400）
 		s.handleFusion(w, r, req, "gemini", model, comboName, start,
 			func(status int, msg string) {
 				code := "INVALID_ARGUMENT"
@@ -124,7 +124,7 @@ func (s *Server) handleGeminiGenerateContent(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// L5 语义缓存查询（M4.6）：键取自 IR，跨协议与另两端点共享命中；
+	// L5 语义缓存查询：键取自 IR，跨协议与另两端点共享命中；
 	// 翻译期降级标记由入站请求形状决定，命中时照常给出。
 	if resp, ok := s.cache.Lookup(r.Context(), req); ok {
 		w.Header().Set("X-OmniFusion-Cache", "hit")
@@ -144,9 +144,9 @@ func (s *Server) handleGeminiGenerateContent(w http.ResponseWriter, r *http.Requ
 	setDegradedHeader(w, mergeDegraded(degraded, attemptDegraded(attempts)))
 	writeJSON(w, http.StatusOK, translate.ToGeminiGenerateContent(resp))
 	s.auditDone("gemini", model, comboName, start, resp.ProviderName, resp.Usage, false)
-	// L5 缓存异步回写（M4.6）：WithoutCancel 防客户端断开中断回写。
+	// L5 缓存异步回写：WithoutCancel 防客户端断开中断回写。
 	go s.cache.WriteBack(context.WithoutCancel(r.Context()), req, resp)
-	// M6.4 会话记忆记录（opt-in 头）：非流式成功后旁路记录回合。
+	// 会话记忆记录（opt-in 头）：非流式成功后旁路记录回合。
 	go s.memoryRecord(r, req, resp)
 }
 
@@ -206,7 +206,7 @@ func (s *Server) handleGeminiStream(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// setDegradedHeader 打显式降级标记（docs/04 §7：禁止静默丢弃）。
+// setDegradedHeader 打显式降级标记。
 func setDegradedHeader(w http.ResponseWriter, degraded []string) {
 	if len(degraded) > 0 {
 		w.Header().Set("X-OmniFusion-Degraded", strings.Join(degraded, ", "))

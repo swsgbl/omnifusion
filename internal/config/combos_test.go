@@ -1,4 +1,4 @@
-// combos_test.go 覆盖组合段（M4.7）：YAML 加载与成员校验。
+// combos_test.go 覆盖组合段：YAML 加载与成员校验。
 package config
 
 import (

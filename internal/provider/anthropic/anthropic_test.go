@@ -64,7 +64,7 @@ func TestTranslateWire(t *testing.T) {
 		t.Error("max_tokens must be present (required upstream)")
 	}
 	if _, ok := body["tools"]; ok {
-		t.Error("tools must not be sent before M3.3")
+		t.Error("tools must not be sent for tool-less requests")
 	}
 	if call.Stream {
 		t.Error("Stream should be false")

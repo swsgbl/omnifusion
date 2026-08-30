@@ -60,7 +60,7 @@ func sampleOutputs() []struct {
 	}
 }
 
-// TestToolFilterSampleSuite 是 docs/05 4.3 的验收用例：样例集内
+// TestToolFilterSampleSuite 是 4.3 的验收用例：样例集内
 // 长终端输出的字符压缩率全部 ≥ 50%。
 func TestToolFilterSampleSuite(t *testing.T) {
 	st := NewToolFilterStage(ToolFilterConfig{

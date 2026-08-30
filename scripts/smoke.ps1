@@ -1,16 +1,16 @@
 ﻿# ============================================================
 # smoke.ps1 — OmniFusion 全链路本地冒烟测试（PowerShell 版，Windows）
 #
-# 对应 docs/05-工程实施计划.md「工作流纪律」第 3 条，与 scripts/smoke.sh
+# 对应 3 条，与 scripts/smoke.sh
 # 同口径：mockup(127.0.0.1:11434) → ofd(127.0.0.1:20130)，12 项断言
 # 全 PASS 才退出 0。控制台输出用英文，规避中文代码页乱码。
 #
 # 用法（仓库根目录执行）：
-#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\smoke.ps1
+# powershell -NoProfile -ExecutionPolicy Bypass -File scripts\smoke.ps1
 # 前置条件：
-#   1. go 工具链可用（脚本现场构建 mockup 与 ofd 两个二进制）；
-#   2. 本机 11434 与 20130 端口空闲——被占用时直接退出码 1，
-#      请先清理占用进程（脚本不会杀不属于自己的进程）。
+# 1. go 工具链可用（脚本现场构建 mockup 与 ofd 两个二进制）；
+# 2. 本机 11434 与 20130 端口空闲——被占用时直接退出码 1，
+# 请先清理占用进程（脚本不会杀不属于自己的进程）。
 # ============================================================
 
 $ErrorActionPreference = 'Stop'

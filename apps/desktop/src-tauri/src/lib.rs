@@ -1,4 +1,4 @@
-// OmniFusion Desktop companion（M7.3）：
+// OmniFusion Desktop companion:
 // - 网关进程管理（spawn/kill，仅管理自己拉起的实例；外部实例只观测）
 // - /healthz 健康探测（纯 std TcpStream，零 HTTP 依赖）
 // - `ofd gateway-key` 读取网关 key

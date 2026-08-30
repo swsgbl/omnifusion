@@ -1,4 +1,4 @@
-// Package omnifusion 是 OmniFusion 网关的 Go SDK（M7.1，docs/04 预留
+// Package omnifusion 是 OmniFusion 网关的 Go SDK（ 预留
 // `sdk/go/omnifusion`）：OpenAI 兼容面（/v1/chat/completions）的进程外
 // 客户端——非流式 Chat、SSE 流式 ChatStream、类型化 StatusError。
 // 纯标准库、零 internal 依赖，可被任意 Go 项目独立引用。

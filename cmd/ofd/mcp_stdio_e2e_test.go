@@ -1,6 +1,6 @@
-// mcp_stdio_e2e_test.go 是 M5.1/M5.2 stdio 传输端到端验收：编译真实
+// mcp_stdio_e2e_test.go 是 / stdio 传输端到端验收：编译真实
 // `ofd mcp` 子进程，用 SDK 客户端（CommandTransport，Claude Code 以
-// stdio 形态接入的同款路径）连接——启动即 Whoami（M5.2 fail-closed：
+// stdio 形态接入的同款路径）连接——启动即 Whoami（fail-closed：
 // 权限未知不暴露工具）、initialize、tools/list（master 全量 10 工具；
 // scoped token 只见授权工具）、tools/call 走本机假网关全链路。
 package main
@@ -127,7 +127,7 @@ func TestMCPPStdioE2E(t *testing.T) {
 	}
 }
 
-// TestMCPStdioScopedTokenE2E 是 M5.2 stdio 越权验收：scoped token 启动
+// TestMCPStdioScopedTokenE2E 是 stdio 越权验收：scoped token 启动
 // → whoami 只授 health → tools/list 只见 4 工具，call route 工具被拒。
 func TestMCPStdioScopedTokenE2E(t *testing.T) {
 	if testing.Short() {

@@ -155,7 +155,7 @@ func TestRateLimitDoesNotTripBreaker(t *testing.T) {
 	}
 }
 
-// TestIsolationSurvivesRestart 是 M2.2 验收（FreeRide 教训）：
+// TestIsolationSurvivesRestart 是 验收（FreeRide 教训）：
 // 冷却/锁定状态重启不丢。
 func TestIsolationSurvivesRestart(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "iso.db")

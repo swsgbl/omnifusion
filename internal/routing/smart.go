@@ -1,6 +1,6 @@
-// smart.go 是 M6.3 ML 路由路径（docs/05 M6.3，ADR-009）：@smart 指令
+// smart.go 是 ML 路由路径（学习型模型不进默认二进制）：@smart 指令
 // 把候选选择交给逐请求难度分类。Router.Smart 是注入的计划函数（cmd/ofd
-// 从 intelligence.MLRouter 适配而来；L5 与 L3 互不 import，与 M6.1
+// 从 intelligence.MLRouter 适配而来；L5 与 L3 互不 import，与 
 // DispatchFunc 同一注入模式）。计划成员即尝试序列：主档在前、另一档
 // 殿后作 failover；不做 sticky/钉选（逐请求分类是本意——上一问简单
 // 不代表下一问也简单）；窗口过滤照常（难度高 ≠ 装得下）。隔离/配额/
@@ -21,7 +21,7 @@ type SmartPlan struct {
 	Difficulty float64
 }
 
-// WithSmart 选择 ML 路由（M6.3 "@smart" 指令，server 边界转换；
+// WithSmart 选择 ML 路由（"@smart" 指令，server 边界转换；
 // Router.Smart 未装配时回退普通分发并告警——边界已拦 400，此处兜底
 // 保证路由层自洽）。
 func WithSmart() DispatchOption {

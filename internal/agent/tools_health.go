@@ -1,4 +1,4 @@
-// tools_health.go 注册 health scope 工具（M5.2）：providers/keys/
+// tools_health.go 注册 health scope 工具：providers/keys/
 // models/health 四个只读视图。
 package agent
 

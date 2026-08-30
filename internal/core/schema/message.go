@@ -1,6 +1,6 @@
 // Package schema 定义三协议互译的中枢 IR（UnifiedRequest/UnifiedResponse）。
 // 形状以 OpenAI Chat Completions 为基准；任何方向翻译不支持的特性必须显式
-// 降级并在响应中标记，禁止静默丢弃（见 docs/04-架构设计 §7）。
+// 降级并在响应中标记，禁止静默丢弃（见 ）。
 package schema
 
 import "encoding/json"

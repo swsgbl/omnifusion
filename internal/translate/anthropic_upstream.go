@@ -1,4 +1,4 @@
-// anthropic_upstream.go 是矩阵的 Anthropic 上游列出站对（M3.2）：
+// anthropic_upstream.go 是矩阵的 Anthropic 上游列出站对：
 // UnifiedRequest → AnthropicRequest（上游 wire），AnthropicResponse →
 // UnifiedResponse。与入站对（anthropic.go）共用同一套 wire 类型，
 // 方向相反语义互补，构成"Anthropic 直通"格的两侧。
@@ -19,9 +19,9 @@ const defaultAnthropicMaxTokens = 4096
 // system 消息抽到顶层 system；文本 part 直接映射；图片 part 映射为
 // Anthropic image block（data-URI→base64 source，http(s)→url source，
 // 经 Part.Raw 透传原形）；assistant 的 tool_calls 转为 tool_use
-// blocks、tool 角色消息转为 user 消息内的 tool_result block（M3.3）。
+// blocks、tool 角色消息转为 user 消息内的 tool_result block。
 // response_format 无原生对应（Messages API 不支持结构化输出），
-// 丢弃并进 degraded 清单（M3.6：显式降级标记，禁止静默丢弃）。
+// 丢弃并进 degraded 清单（显式降级标记，禁止静默丢弃）。
 func ToAnthropicUpstreamRequest(req *schema.UnifiedRequest) (*AnthropicRequest, []string) {
 	out := &AnthropicRequest{
 		Model:         req.Model,

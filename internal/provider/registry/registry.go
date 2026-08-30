@@ -1,5 +1,5 @@
 // Package registry loads the built-in provider declarations (embedded
-// YAML under providers/, per docs/04-架构设计 §2 工程结构) and
+// YAML under providers/, per 工程结构) and
 // instantiates provider.Provider adapters from them. Endpoint, auth
 // and free-tier facts are verified against upstream sources — see the
 // comments in each YAML file.
@@ -23,7 +23,7 @@ import (
 //go:embed providers/*.yaml
 var embedded embed.FS
 
-// 适配器种类（M1 仅 openai_compat；M3.2 起原生 Anthropic/Gemini 协议
+// 适配器种类（仅 openai_compat；随后原生 Anthropic/Gemini 协议
 // 适配器接入，语义翻译收在 internal/translate）。
 const (
 	KindOpenAICompat = "openai_compat"
@@ -42,8 +42,8 @@ type ModelDecl struct {
 }
 
 // RateLimitsDecl declares the free-tier sliding-window quotas of a
-// provider key (M2.3); 0/absent means unlimited. Facts come from each
-// YAML's free_tier notes (verified during M1.3 research).
+// provider key (); 0/absent means unlimited. Facts come from each
+// YAML's free_tier notes (verified during research).
 type RateLimitsDecl struct {
 	RPM int   `yaml:"rpm,omitempty"` // requests / minute
 	RPD int   `yaml:"rpd,omitempty"` // requests / day
@@ -68,7 +68,7 @@ type Entry struct {
 	Path      string `yaml:"path,omitempty"`
 	AuthStyle string `yaml:"auth_style,omitempty"`
 	// KeyEnv names the environment variable the key is read from when
-	// not supplied through the keyring (M1.7).
+	// not supplied through the keyring ().
 	KeyEnv string `yaml:"key_env,omitempty"`
 	// URLVars lists {placeholder} names that must be substituted into
 	// BaseURL; VarsEnv maps each to an environment variable name.
@@ -201,7 +201,7 @@ func (e Entry) resolveBaseURL(creds Credentials) (string, error) {
 
 // StaticModels converts the declared model list into catalog entries.
 // It backs the /v1/models surface when an adapter returns
-// provider.ErrNotSupported, until live catalog sync lands (M6).
+// provider.ErrNotSupported, until live catalog sync lands ().
 func (e Entry) StaticModels() []provider.ModelInfo {
 	out := make([]provider.ModelInfo, 0, len(e.Models))
 	for _, m := range e.Models {

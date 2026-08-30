@@ -1,4 +1,4 @@
-// guardrails.go 是 server 侧 Guardrails 接线（M5.4）：三协议入站端点
+// guardrails.go 是 server 侧 Guardrails 接线：三协议入站端点
 // 在翻译后、路由分发前扫描正文文本——PII 命中按配置拦截（协议各自的
 // 400 错误形状），注入模式命中默认告警放行（结构化日志，规则名+计数，
 // 不落原文）。未装配（nil）即未启用，热路径零开销。
@@ -43,7 +43,7 @@ func (s *Server) guardAction(kind string) string {
 }
 
 // applyGuardrails 是三端点共用的检测挂点：返回 false 表示已拦截（协议
-// 错误响应已由 errw 写出）；warn 命中记日志后放行。M5.5：发现即计
+// 错误响应已由 errw 写出）；warn 命中记日志后放行。发现即计
 // 指标（kind/rule/action 无原文），拦截请求落一行审计（provider=none）。
 func (s *Server) applyGuardrails(path string, req *schema.UnifiedRequest,
 	errw func(code int, msg string)) bool {

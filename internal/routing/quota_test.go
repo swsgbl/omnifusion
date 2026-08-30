@@ -21,7 +21,7 @@ func newQuotaWithClock(t *testing.T) (*QuotaTracker, *fakeClock) {
 	return qt, fc
 }
 
-// TestQuotaMinuteWindowFlips 是 M2.3 验收：分钟窗口翻转正确。
+// TestQuotaMinuteWindowFlips 是 验收：分钟窗口翻转正确。
 func TestQuotaMinuteWindowFlips(t *testing.T) {
 	qt, fc := newQuotaWithClock(t)
 	qt.SetLimit("p", QuotaLimits{RPM: 2})
@@ -126,7 +126,7 @@ func TestQuotaUsageSnapshot(t *testing.T) {
 	}
 }
 
-// TestQuotaSnapshots 验证 M4.8 Dashboard 读 API：设限与仅有用量的
+// TestQuotaSnapshots 验证 Dashboard 读 API：设限与仅有用量的
 // key 都出现在快照里，字段取值正确，无流量 key 不占位。
 func TestQuotaSnapshots(t *testing.T) {
 	qt, _ := newQuotaWithClock(t)

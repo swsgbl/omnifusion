@@ -1,4 +1,4 @@
-// dashboard_test.go 覆盖 M4.8 Dashboard v0：鉴权（Bearer / ?key=、
+// dashboard_test.go 覆盖 Dashboard v0：鉴权（Bearer / ?key=、
 // bare 401）、三页 HTML、根重定向保 key、未知路径 404，以及三个
 // JSON 端点的数据形状（router/catalog/scorer/cooldowns、keySources ∪
 // connections、Quota 滑窗 + 语义缓存计数）。

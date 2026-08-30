@@ -28,7 +28,7 @@ type Response struct {
 	ProviderName string `json:"-"`
 }
 
-// UnifiedResponse 是 docs/04-架构设计 §4.1 冻结接口使用的名称。
+// UnifiedResponse 是 冻结接口使用的名称。
 type UnifiedResponse = Response
 
 // ResponseChoice 是非流式响应中的一条候选。
@@ -92,7 +92,7 @@ func NewChunk(id, model string, created int64) *Chunk {
 }
 
 // NewResponseFromReader 解析上游非流式聚合响应体。未知字段按
-// encoding/json 默认行为忽略（响应面不做透传建模，M1 口径）。
+// encoding/json 默认行为忽略（响应面不做透传建模， 口径）。
 func NewResponseFromReader(r io.Reader) (*Response, error) {
 	var resp Response
 	if err := json.NewDecoder(r).Decode(&resp); err != nil {

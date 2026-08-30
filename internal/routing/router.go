@@ -1,5 +1,5 @@
 // Package routing is L3：把归一化请求分发到有序候选 provider 列表。
-// M1 用固定顺序（注册序）；M2 起接入 Strategy 排序、隔离状态机与配额。
+// 用固定顺序（注册序）；随后接入 Strategy 排序、隔离状态机与配额。
 package routing
 
 import (
@@ -15,16 +15,16 @@ import (
 	"github.com/swsgbl/omnifusion/internal/provider"
 )
 
-// Attempt 记录一次 provider 尝试的结果，供观测与错误分类（M1.6+）。
+// Attempt 记录一次 provider 尝试的结果，供观测与错误分类（+）。
 type Attempt struct {
 	Provider string
 	// Model 是实际发往该上游的模型 id（别名重写后）。
 	Model string
 	// Err 非 nil 表示该次尝试失败。
 	Err error
-	// Kind 是 Err 的归一化类别（M2.1 Classify 结果；成功为空）。
+	// Kind 是 Err 的归一化类别（Classify 结果；成功为空）。
 	Kind ErrorKind
-	// Degraded 是该次出站翻译丢弃的请求字段（M3.6）；server 并入
+	// Degraded 是该次出站翻译丢弃的请求字段；server 并入
 	// X-OmniFusion-Degraded 头。仅成功尝试的清单有效。
 	Degraded []string
 }
@@ -46,29 +46,29 @@ func (e *DispatchError) Error() string {
 
 // Router 按固定顺序尝试候选 provider：Translate → HTTP → Parse；
 // 任一环节失败即切换下一家（buffer-first-chunk 之前的阶段都允许切换，
-// 见 docs/01 item12 / docs/04 §4.2）。
+// 见 item12 / ）。
 type Router struct {
 	Providers []provider.Provider
 	Log       *slog.Logger
-	// Isolation 是三层隔离状态机（M2.2）；nil 表示未启用（M1 行为）。
+	// Isolation 是三层隔离状态机；nil 表示未启用（行为）。
 	Isolation *Isolation
-	// Quota 是 per-key 配额滑动窗口（M2.3）；nil 表示不预防性限流。
+	// Quota 是 per-key 配额滑动窗口；nil 表示不预防性限流。
 	Quota *QuotaTracker
-	// Scoring 是打分排序器（M2.4）；nil 表示固定注册序（M1 行为）。
+	// Scoring 是打分排序器；nil 表示固定注册序（行为）。
 	Scoring *Scorer
-	// Sessions 是 sticky session 绑定表（M2.7）；nil 表示不启用。
+	// Sessions 是 sticky session 绑定表；nil 表示不启用。
 	Sessions *SessionTracker
-	// Windows 是 (provider, model) 上下文窗口查询（M4.5 跨层）；
+	// Windows 是 (provider, model) 上下文窗口查询（跨层）；
 	// nil 表示不过滤（无目录时的降级行为）。
 	Windows WindowResolver
 	// Models 是 (provider, model) 可服务性判定（模型成员过滤，
-	// docs/00 §4.5 遗留项落地）：裸模型请求排除目录明确不服务的
+	// 遗留项落地）：裸模型请求排除目录明确不服务的
 	// 候选；nil 表示不过滤。生产装配同 Windows（Catalog 双实现）。
 	Models ModelMembership
-	// Combos 是命名模型组（M4.7）：model 内嵌 "@combo:NAME" 选择；
+	// Combos 是命名模型组：model 内嵌 "@combo:NAME" 选择；
 	// nil/未收录名 = 普通分发。装配自 YAML（cmd/ofd）。
 	Combos map[string]Combo
-	// Smart 是 ML 路由计划函数（M6.3 "@smart" 指令）：输入归一化请求，
+	// Smart 是 ML 路由计划函数（"@smart" 指令）：输入归一化请求，
 	// 输出弱/强分档的尝试计划（主档在前）。nil = 未装配（请求边界 400）。
 	// 装配自 cmd/ofd（intelligence.MLRouter 适配；L5/L3 互不 import）。
 	Smart func(req *schema.UnifiedRequest) SmartPlan
@@ -84,16 +84,16 @@ type Router struct {
 }
 
 // Dispatch 执行分发，成功时返回聚合响应与全部尝试记录；
-// opts 可逐请求覆盖策略（WithStrategyName，M2.5）。
+// opts 可逐请求覆盖策略（WithStrategyName，）。
 func (r *Router) Dispatch(ctx context.Context, req *schema.UnifiedRequest, opts ...DispatchOption) (*schema.Response, []Attempt, error) {
 	if len(r.Providers) == 0 {
 		return nil, nil, errors.New("routing: no providers configured")
 	}
 	cfg := resolveOptions(opts)
-	if cfg.targetProvider != "" { // M6.1 定向分发（Fusion 原语）
+	if cfg.targetProvider != "" { // 定向分发（Fusion 原语）
 		return r.dispatchTarget(ctx, cfg, req)
 	}
-	cands := r.candidatesFor(cfg, req) // M6.3：smart 指令在此分流到 ML 计划
+	cands := r.candidatesFor(cfg, req) // smart 指令在此分流到 ML 计划
 	attempts := make([]Attempt, 0, len(r.Providers))
 	for _, c := range cands {
 		if ctx.Err() != nil {
@@ -124,7 +124,7 @@ func (r *Router) Dispatch(ctx context.Context, req *schema.UnifiedRequest, opts 
 }
 
 // tryOne 对单个候选执行 Translate → HTTP → Parse；model 是实际发往
-// 该上游的模型名（组合成员模型，M4.7）——浅拷贝请求改写，不污染
+// 该上游的模型名（组合成员模型，）——浅拷贝请求改写，不污染
 // 调用方的 req（缓存键/日志面仍取原始 Model）。
 func (r *Router) tryOne(ctx context.Context, p provider.Provider, model string, req *schema.UnifiedRequest) (*schema.Response, Attempt) {
 	att := Attempt{Provider: p.Name()}
@@ -168,7 +168,7 @@ func (r *Router) tryOne(ctx context.Context, p provider.Provider, model string, 
 	return parsed, att
 }
 
-// dispatchTarget 定向分发（M6.1 Fusion 扇出/合成原语）：跳过候选选择
+// dispatchTarget 定向分发（Fusion 扇出/合成原语）：跳过候选选择
 // 与策略排序，直接尝试 (targetProvider, targetModel)。隔离/配额/打分
 // 观测与普通路径完全一致；无 failover（定向语义：成员失败由调用方
 // Fusion 层的门控/降级接管）。

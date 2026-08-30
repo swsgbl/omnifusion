@@ -2,7 +2,7 @@
 // 序列：response.created → output_item.added(message) → content_part.added
 // → output_text.delta* → output_text.done → content_part.done →
 // output_item.done → [function_call items] → response.completed。
-// Codex CLI 按此序列消费；EOF 与断流都经 Finish 收尾（M3.4 优雅收尾的
+// Codex CLI 按此序列消费；EOF 与断流都经 Finish 收尾（优雅收尾的
 // 入站侧）。帧形如 "event: <type>\ndata: <json>\n\n"。
 package translate
 

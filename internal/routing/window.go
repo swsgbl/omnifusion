@@ -1,4 +1,4 @@
-// window.go 是 M4.5 跨层接口（docs/04 §4.3 跨层协同）：L4 压缩管线
+// window.go 是 跨层接口（ 跨层协同）：L4 压缩管线
 // 输出的压缩后 token 估算喂给 L3——窗口装不下的候选模型被排除出尝试
 // 序列；压缩把请求缩小后，原本装不下的小上下文（免费层）模型进入
 // 候选。窗口是硬边界但保守：目录未收录的模型不过滤，全部候选都
@@ -35,11 +35,11 @@ func (r *Router) filterByWindow(cands []provider.Provider, tokens int64, model s
 	return kept
 }
 
-// candidates 计算一次分发的最终尝试序列：组合路径（M4.7）走成员
-// 声明序；普通路径策略/打分排序 → 模型成员过滤（docs/00 §4.5，
+// candidates 计算一次分发的最终尝试序列：组合路径走成员
+// 声明序；普通路径策略/打分排序 → 模型成员过滤（，
 // 排除目录明确不服务该模型的家——绑定到不可服务家的 sticky 无意义，
 // 故过滤在前）→ sticky 提前 → 窗口过滤（cfg.promptTokens 为 L4
-// 压缩后 token）→ 钉选提前（M5.2，运维显式意图压过 sticky）。
+// 压缩后 token）→ 钉选提前（运维显式意图压过 sticky）。
 // 每个候选携带实际发往上游的模型名（组合成员模型 / 裸模型名）。
 func (r *Router) candidates(cfg dispatchConfig, model string) []candidate {
 	if cfg.comboName != "" {
@@ -56,7 +56,7 @@ func (r *Router) candidates(cfg dispatchConfig, model string) []candidate {
 	return out
 }
 
-// applyPin 把钉选 provider 提到候选首位（M5.2 全局路由钉选）：不在
+// applyPin 把钉选 provider 提到候选首位（全局路由钉选）：不在
 // 候选中则原样返回（钉选不引入新候选——没装配的 provider 钉了也白钉）。
 func (r *Router) applyPin(cands []provider.Provider, pinned string) []provider.Provider {
 	if pinned == "" || len(cands) < 2 {

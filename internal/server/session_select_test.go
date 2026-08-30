@@ -73,7 +73,7 @@ func postWithSession(t *testing.T, url, body, session string) *http.Response {
 	return resp
 }
 
-// TestSessionStickinessViaHeader 是 M2.7 验收：X-Session-Id 从 HTTP
+// TestSessionStickinessViaHeader 是 验收：X-Session-Id 从 HTTP
 // 边界流到路由——同会话粘住首次命中的 provider，压过后来的策略序；
 // 无头的请求仍按策略序走。
 func TestSessionStickinessViaHeader(t *testing.T) {

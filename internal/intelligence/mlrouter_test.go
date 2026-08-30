@@ -1,5 +1,5 @@
-// mlrouter_test.go 覆盖 M6.3：启发式特征升降档、阈值决策、分类器
-// 可互换（ADR-009：ONNX 未来同接口）、Totals 计数，以及验收要求的
+// mlrouter_test.go 覆盖 启发式特征升降档、阈值决策、分类器
+// 可互换（ONNX 未来同接口）、Totals 计数，以及验收要求的
 // 「对比规则路由的 A/B 报告」（规则路由恒定选强档 vs ML 按难度分流
 // 的成本差）。
 package intelligence
@@ -118,7 +118,7 @@ func TestRouteTierDecisions(t *testing.T) {
 	}
 }
 
-// fixedClassifier 是可互换性证明（ADR-009）：任意实现（未来 ONNX）
+// fixedClassifier 是可互换性证明：任意实现（未来 ONNX）
 // 注入即接管分档。
 type fixedClassifier struct{ v float64 }
 
@@ -157,7 +157,7 @@ type abCase struct {
 	req  *schema.UnifiedRequest
 }
 
-// TestMLABReportVsRuleRouting 是 M6.3 验收面：规则路由（恒定选首家
+// TestMLABReportVsRuleRouting 是 验收面：规则路由（恒定选首家
 // =强档计价）vs ML 路由（按难度分流）。成本单位 weak=1 / strong=10。
 func TestMLABReportVsRuleRouting(t *testing.T) {
 	cases := []abCase{
@@ -186,7 +186,7 @@ func TestMLABReportVsRuleRouting(t *testing.T) {
 
 	const weakCost, strongCost = 1, 10
 	ruleCost, mlCost := 0, 0
-	t.Logf("M6.3 A/B 报告：规则路由（恒定强档）vs ML 路由（启发式分档，阈值 %.2f）", ml.EffectiveThreshold())
+	t.Logf("A/B 报告：规则路由（恒定强档）vs ML 路由（启发式分档，阈值 %.2f）", ml.EffectiveThreshold())
 	t.Logf("%-8s %9s %6s %6s", "case", "difficulty", "rule", "ml")
 	for _, c := range cases {
 		d := ml.Route(c.req)

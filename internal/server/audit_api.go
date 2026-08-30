@@ -1,4 +1,4 @@
-// audit_api.go 是 M5.5 审计查询端点：GET /dashboard/api/audit
+// audit_api.go 是 审计查询端点：GET /dashboard/api/audit
 // ?limit=&since=&provider=&endpoint=——request_log 倒序分页读取，
 // scope=audit（与 health/usage 等并列的第五个作用域）。
 package server

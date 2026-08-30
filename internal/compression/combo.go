@@ -1,4 +1,4 @@
-// combo.go 是压缩组合工厂（M4.7）：按阶段名列表构造管线，供 YAML
+// combo.go 是压缩组合工厂：按阶段名列表构造管线，供 YAML
 // 配置装配（压缩组合绑定路由组合——per-path 压缩策略）。
 package compression
 

@@ -1,4 +1,4 @@
-// pin_test.go 验证 M5.2 全局路由钉选：钉选 provider 提到尝试序列
+// pin_test.go 验证 全局路由钉选：钉选 provider 提到尝试序列
 // 首位（压过策略排序与 sticky），不在候选则忽略；组合路径不受影响；
 // Isolation.Clear 人工清除隔离后 provider 立即回到候选。
 package routing

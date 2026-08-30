@@ -2,7 +2,7 @@
 // （遗留清单第 3 项，2026-08-29）：Codex CLI 与新一代 OpenAI SDK 默认走
 // 该协议。请求侧 input（字符串或 item 数组）→ IR 消息；响应侧 IR →
 // output items（message/function_call）。无 IR 对应的字段记入降级清单
-// （调用方标记进 X-OmniFusion-Degraded），禁止静默丢弃（docs/04 §7）。
+// （调用方标记进 X-OmniFusion-Degraded），禁止静默丢弃。
 package translate
 
 import (

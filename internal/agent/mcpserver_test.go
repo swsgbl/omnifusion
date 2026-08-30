@@ -1,5 +1,5 @@
 // mcpserver_test.go 以 MCP 客户端（InMemory 传输，SDK 同款连接路径）
-// 验证 M5.1/M5.2/M5.5 工具集：全量 11 工具、scope 过滤后 tools/list 只见
+// 验证 // 工具集：全量 11 工具、scope 过滤后 tools/list 只见
 // 授权工具、越权 call 被 SDK 以 tool-not-found 拒绝、授权工具回传
 // 网关数据。
 package agent
@@ -69,7 +69,7 @@ func TestMCPServerExposesFullToolset(t *testing.T) {
 	}
 }
 
-// TestMCPServerScopeFiltersToolset 是 M5.2 核心验收（工具面收敛）：
+// TestMCPServerScopeFiltersToolset 是 核心验收（工具面收敛）：
 // health-only scope 只见 4 个 health 工具；直接 call route 工具被
 // SDK 拒绝（tool not found——未注册即不可调）。
 func TestMCPServerScopeFiltersToolset(t *testing.T) {
@@ -201,7 +201,7 @@ func TestMCPServerToolErrorOnUnreachableGateway(t *testing.T) {
 }
 
 // TestAuditScopeToolsetAndCall：audit-only scope 只注册 audit_recent，
-// 工具调用经 GatewayView 回读 dashboard API（M5.5）。
+// 工具调用经 GatewayView 回读 dashboard API。
 func TestAuditScopeToolsetAndCall(t *testing.T) {
 	up, _ := newFakeGateway(t, 200)
 	s := NewMCPServer(NewGatewayView(up.URL, "tok", nil), "test", []string{ScopeAudit})

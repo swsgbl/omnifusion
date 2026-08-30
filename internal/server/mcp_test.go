@@ -1,4 +1,4 @@
-// mcp_test.go 是 M5.1 Streamable HTTP 端到端验收：用 SDK 客户端
+// mcp_test.go 是 Streamable HTTP 端到端验收：用 SDK 客户端
 // （StreamableClientTransport，与 Claude Code 同款传输）连真网关的
 // /mcp——initialize、tools/list、tools/call 全链路，外加鉴权
 // （Bearer 通过、bare 401）。
@@ -27,7 +27,7 @@ func (b bearerClient) RoundTrip(r *http.Request) (*http.Response, error) {
 // newMCPGateway 起一个挂了 /mcp 的被测网关。MCP 工具的 GatewayView
 // 需要网关自身地址（httptest 随机端口），故先起服务拿 URL、再装配
 // /mcp 并重挂 handler——与 main.go 的顺序（全部 Set 后才 Handler()）
-// 语义一致。M5.2 起 /mcp 用 ScopedHTTPHandler（按请求 token scope
+// 语义一致。随后 /mcp 用 ScopedHTTPHandler（按请求 token scope
 // 构造 server），master key 即全量工具。
 func newMCPGateway(t *testing.T) string {
 	t.Helper()
@@ -68,7 +68,7 @@ func TestMCPEndpointStreamableHTTPE2E(t *testing.T) {
 	}
 }
 
-// TestMCPEndpointScopedTokenE2E 是 M5.2 Streamable HTTP 越权验收：
+// TestMCPEndpointScopedTokenE2E 是 Streamable HTTP 越权验收：
 // health-only scoped token 能 initialize/tools-list（只见 4 个 health
 // 工具），直接 call route 工具被拒（未注册）。
 func TestMCPEndpointScopedTokenE2E(t *testing.T) {

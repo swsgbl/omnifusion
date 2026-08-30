@@ -32,7 +32,7 @@
 
 ## [v0.1.0] - 2026-08-29
 
-首个功能完整版：MVP → 三协议互译 → 压缩与缓存 → 弹性与可观测 → 智能路由，M0–M6 全量收官 + M7 3 项 + 工程化收尾。
+首个功能完整版：聚合网关 → 三协议互译 → 压缩与缓存 → 弹性与可观测 → 智能路由，全部核心能力一次到位。
 
 > EN: First feature-complete release — aggregation core, three-layer resilience, multi-protocol translation, token compression + semantic cache, MCP/A2A/CLI, Fusion + ML routing.
 

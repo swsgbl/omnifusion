@@ -1,9 +1,9 @@
-// mlrouter.go 是 M6.3 ML Router v1（docs/05：默认纯 Go 启发式，学
+// mlrouter.go 是 ML Router v1（：默认纯 Go 启发式，学
 // RouteLLM 的弱/强二分 + 置信度阈值；ONNX 分类器是可选构建对比项，
-// 不进默认二进制——ADR-009）。请求难度经 DifficultyClassifier 打分
+// 不进默认二进制）。请求难度经 DifficultyClassifier 打分
 // （0..1，1=需强模型）：≥ 阈值走强档，否则弱档；主档在前、另一档
 // 殿后作 failover（隔离/配额/打分等弹性机制在路由主循环照常生效）。
-// 本包不依赖 routing（L5→L3 跨层经显式接口注入，与 M6.1 同模式）。
+// 本包不依赖 routing（L5→L3 跨层经显式接口注入，与 同模式）。
 package intelligence
 
 import (
@@ -37,8 +37,8 @@ type RouteDecision struct {
 	Members    []MLTarget
 }
 
-// MLRouter 执行弱/强二分路由（M6.3）。零值不可用：经 NewMLRouter
-// 构造。Classifier 可替换（ADR-009：启发式与 ONNX 实现互换同接口）。
+// MLRouter 执行弱/强二分路由。零值不可用：经 NewMLRouter
+// 构造。Classifier 可替换（启发式与 ONNX 实现互换同接口）。
 type MLRouter struct {
 	Weak       MLTarget
 	Strong     MLTarget
@@ -72,7 +72,7 @@ func (m *MLRouter) Route(req *schema.UnifiedRequest) RouteDecision {
 	}
 }
 
-// MLTotals 是 ML 路由的累计观测（M6.3 验收面：A/B 报告对比规则路由
+// MLTotals 是 ML 路由的累计观测（验收面：A/B 报告对比规则路由
 // 的分流与成本差异）。
 type MLTotals struct {
 	Decisions int

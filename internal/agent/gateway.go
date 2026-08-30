@@ -1,5 +1,5 @@
-// gateway.go 是 MCP 工具集访问网关运行态的数据通道（M5.1）：复用
-// Dashboard v0 的 JSON API（/dashboard/api/*，M4.8），Bearer 网关 key
+// gateway.go 是 MCP 工具集访问网关运行态的数据通道：复用
+// Dashboard v0 的 JSON API（/dashboard/api/*，），Bearer 网关 key
 // 鉴权。stdio 模式的 MCP server 是独立进程（无 router/QuotaTracker
 // 内存态），挂网关进程的 Streamable HTTP 模式亦走同一视图——工具
 // 实现单一、数据口径与浏览器一致；个人网关规模下环回一跳可忽略。
@@ -150,7 +150,7 @@ func (g *GatewayView) Keys(ctx context.Context) ([]KeyInfo, error) {
 	return out.Keys, nil
 }
 
-// Audit 返回最近请求审计行（M5.5；limit<=0 用默认 20）。
+// Audit 返回最近请求审计行（；limit<=0 用默认 20）。
 func (g *GatewayView) Audit(ctx context.Context, limit int, provider, endpoint string) (*AuditResult, error) {
 	if limit <= 0 {
 		limit = 20

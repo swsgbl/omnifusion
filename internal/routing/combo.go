@@ -1,5 +1,5 @@
-// combo.go 是 M4.7 命名模型组（路由组合）：有序 (provider, model)
-// 成员 + 绑定的压缩组合名（per-path 压缩策略，docs/02「压缩组合可绑定
+// combo.go 是 命名模型组（路由组合）：有序 (provider, model)
+// 成员 + 绑定的压缩组合名（per-path 压缩策略，「压缩组合可绑定
 // 到路由组合，免费层路径用激进压缩」）。请求经 model 内嵌 "@combo:NAME"
 // 指令选择；成员声明序即尝试优先级，逐尝试把 req.Model 改写为成员模型。
 package routing
@@ -41,7 +41,7 @@ func (r *Router) providerByName(name string) provider.Provider {
 
 // candidate 是一次分发尝试的执行单元：目标 provider 与实际发往
 // 上游的模型名（组合成员模型；普通路径为裸模型名）。逐尝试改写
-// req.Model 的责任在 Dispatch/DispatchStream（M4.7）。
+// req.Model 的责任在 Dispatch/DispatchStream。
 type candidate struct {
 	p     provider.Provider
 	model string

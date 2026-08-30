@@ -1,4 +1,4 @@
-// metrics.go 是 M5.5 Prometheus 指标面：数据面请求计数/时延直方图、
+// metrics.go 是 Prometheus 指标面：数据面请求计数/时延直方图、
 // 流式 TTFT、token 用量、guardrails 发现与逐 attempt 上游失败。指标族
 // 面向 Grafana 常规看板（rate/histogram_quantile 直接可用）；标签基数
 // 受控（endpoint×provider×status/kind，无自由文本）。/metrics 经
@@ -17,7 +17,7 @@ import (
 )
 
 // LLM 时延分桶：首 token 与整请求共用两个尺度——免费上游慢尾明显，
-// 上探到 5 分钟（docs/04 流式 300s 上限）。
+// 上探到 5 分钟（ 流式 300s 上限）。
 var (
 	durationBuckets = []float64{0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60, 120, 300}
 	ttftBuckets     = []float64{0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30}
@@ -115,7 +115,7 @@ func (m *Metrics) RecordGuardrail(kind, rule, action string) {
 }
 
 // RecordAttemptFailure 记一次失败的上游尝试（全部候选耗尽前的逐家
-// 失败都在此，赢家之前的轮空；kind 是 M2.1 ErrorKind 词表）。
+// 失败都在此，赢家之前的轮空；kind 是 ErrorKind 词表）。
 func (m *Metrics) RecordAttemptFailure(provider, kind string) {
 	if m == nil {
 		return

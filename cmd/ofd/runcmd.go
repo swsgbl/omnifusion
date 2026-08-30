@@ -1,4 +1,4 @@
-// runcmd.go 实现 `ofd run <claude|codex|gemini> [args...]`（M5.3，
+// runcmd.go 实现 `ofd run <claude|codex|gemini> [args...]`（
 // FreeRide bind 移植）：解析网关地址与 key → 探测 /healthz → 本机
 // 未起网关则 autospawn 本二进制（serve 形态，8s 等待）→ 注入目标
 // CLI 的环境变量后拉起（参数透传、退出码透传）。

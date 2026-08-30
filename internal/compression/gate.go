@@ -1,4 +1,4 @@
-// gate.go 是压缩管线的尾置保真门（docs/04 §4.3）：每个阶段的产出
+// gate.go 是压缩管线的尾置保真门：每个阶段的产出
 // 必须通过全部确定性规则，否则产出被丢弃、请求回退该阶段输入。
 // 第一版规则只做结构保全（不比语义相似度）——文本可变短，骨架不可动。
 package compression
@@ -35,7 +35,7 @@ func NewFidelityGate(rules ...Rule) *FidelityGate {
 	return &FidelityGate{rules: rules}
 }
 
-// DefaultFidelityGate 返回默认规则集（M4.1 确定性第一版）。
+// DefaultFidelityGate 返回默认规则集（确定性第一版）。
 func DefaultFidelityGate() *FidelityGate {
 	return NewFidelityGate(
 		Rule{Name: "messages_non_empty", Check: messagesNonEmpty},

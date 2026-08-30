@@ -29,7 +29,7 @@ func TestSpecValidation(t *testing.T) {
 	}
 }
 
-// TestTransportsUseEnvProxy 钉住 L2 分级代理的全局层接线（docs/04）：
+// TestTransportsUseEnvProxy 钉住 L2 分级代理的全局层接线：
 // 两个 client 的 Transport 必须挂 ProxyFromEnvironment，否则
 // HTTPS_PROXY/HTTP_PROXY 形式的分级代理对区域封锁上游（Groq
 // CN/HK 403）失效。行为面由 1.9 双源冒烟实测覆盖。

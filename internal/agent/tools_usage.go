@@ -1,4 +1,4 @@
-// tools_usage.go 注册 usage scope 工具（M5.2）：配额滑窗用量统计。
+// tools_usage.go 注册 usage scope 工具：配额滑窗用量统计。
 package agent
 
 import (

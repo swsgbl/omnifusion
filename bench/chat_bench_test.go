@@ -1,5 +1,5 @@
 // 非流式 chat 基准：稳态缓存命中（BenchmarkChatNonStream）与强制 miss
-// （BenchmarkChatCacheMiss）对照，二者 ns/op 之差即 docs/05 要求的
+// （BenchmarkChatCacheMiss）对照，二者 ns/op 之差即 要求的
 // 「缓存命中延迟」。本文件同时存放各基准共用的请求助手。
 package bench_test
 

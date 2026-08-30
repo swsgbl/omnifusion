@@ -1,5 +1,5 @@
-// pipeline.go 是压缩管线执行器（docs/04 §4.3）：顺序执行阶段链，
-// 每个阶段产出过 Fidelity Gate 才被采纳；阶段失败（含 panic，docs/04
+// pipeline.go 是压缩管线执行器：顺序执行阶段链，
+// 每个阶段产出过 Fidelity Gate 才被采纳；阶段失败（含 panic，
 // §5 规则 3）或被拦截都回退到该阶段输入继续——压缩永不阻断请求。
 package compression
 
@@ -23,7 +23,7 @@ func NewPipeline(gate *FidelityGate, stages ...CompressionStage) *Pipeline {
 	return &Pipeline{stages: stages, gate: gate}
 }
 
-// StageNames 返回阶段名链（M5.2 控制面组合清单展示用）。
+// StageNames 返回阶段名链（控制面组合清单展示用）。
 func (p *Pipeline) StageNames() []string {
 	out := make([]string, 0, len(p.stages))
 	for _, st := range p.stages {

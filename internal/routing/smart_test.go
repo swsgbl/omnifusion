@@ -1,4 +1,4 @@
-// smart_test.go 覆盖 M6.3 ML 路由路径：WithSmart 配置位、计划成员
+// smart_test.go 覆盖 ML 路由路径：WithSmart 配置位、计划成员
 // 解析（顺序/未装配跳过/窗口过滤）、无 sticky 无钉选语义、Smart 未
 // 装配回退、Dispatch 级 failover（主档失败换另一档）。
 package routing

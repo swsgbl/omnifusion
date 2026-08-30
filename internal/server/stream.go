@@ -13,7 +13,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/routing"
 )
 
-// sseFramePool 复用 SSE 事件帧缓冲（docs/04 §5 item 2：转发 buffer
+// sseFramePool 复用 SSE 事件帧缓冲（ item 2：转发 buffer
 // 走 sync.Pool，热路径不逐请求 make）。
 var sseFramePool = sync.Pool{
 	New: func() any { return bytes.NewBuffer(make([]byte, 0, 1024)) },
@@ -22,7 +22,7 @@ var sseFramePool = sync.Pool{
 // handleChatStream 处理 stream=true：buffer-first-chunk 已在路由层完成，
 // 走到这里说明首事件已落地，直接开 200 并逐事件转发，不整体缓冲。
 // 首事件之后的断流不再切换（"cannot un-ship bytes"），但客户端会收到
-// 合成收尾帧 + [DONE] 的优雅收尾（M3.4）。
+// 合成收尾帧 + [DONE] 的优雅收尾。
 func (s *Server) handleChatStream(w http.ResponseWriter, r *http.Request,
 	req *schema.UnifiedRequest, opts []routing.DispatchOption, audit *streamAudit) {
 	stream, attempts, err := s.router.DispatchStream(r.Context(), req, opts...)
@@ -55,7 +55,7 @@ func (s *Server) handleChatStream(w http.ResponseWriter, r *http.Request,
 }
 
 // streamTail 跟踪流式转发的收尾状态：流元数据与每个 choice 的
-// 已见/已完成标记，供断流时合成收尾帧（M3.4）。
+// 已见/已完成标记，供断流时合成收尾帧。
 type streamTail struct {
 	id, model string
 	created   int64
@@ -103,9 +103,9 @@ func (t *streamTail) unfinished() []int {
 }
 
 // forwardSSE 把归一化事件流逐帧写给客户端：每个 chunk 立即 Flush
-// （TTFT 验收面，见 docs/05 M1.5）。上游正常收尾补 [DONE]；中途断流
+// （TTFT 验收面，见 ）。上游正常收尾补 [DONE]；中途断流
 // 则为未完成的 choice 合成 finish_reason=stop 收尾帧再补 [DONE]——
-// 客户端拿到优雅收尾而非悬挂连接（M3.4，与 anthropic end_turn /
+// 客户端拿到优雅收尾而非悬挂连接（与 anthropic end_turn /
 // gemini STOP 的断流收尾口径一致）。
 func (s *Server) forwardSSE(w io.Writer, flusher http.Flusher, stream provider.ChunkStream,
 	r *http.Request, audit *streamAudit, winner string) {
@@ -135,7 +135,7 @@ func (s *Server) forwardSSE(w io.Writer, flusher http.Flusher, stream provider.C
 			audit.finish(http.StatusOK, winner, "stream_broken")
 			return
 		}
-		audit.firstChunk() // M5.5 TTFT（幂等保最早）
+		audit.firstChunk() // TTFT（幂等保最早）
 		audit.observe(chunk)
 		tail.observe(chunk)
 		if !writeSSEFrame(w, chunk) {

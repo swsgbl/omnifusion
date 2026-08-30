@@ -1,4 +1,4 @@
-// modelfilter_test.go 验证模型成员过滤（docs/00 §4.5 遗留项落地）：
+// modelfilter_test.go 验证模型成员过滤（ 遗留项落地）：
 // 裸模型请求只尝试目录声明可服务该模型的 provider——候选序中被墙/
 // 不可达家不再吃满上游超时才回退（bench 实证：每新会话首请求 ~25s）。
 // 保守边界与 filterByWindow 同哲学：无快照不过滤、全排除回退未过滤。

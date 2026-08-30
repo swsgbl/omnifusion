@@ -17,7 +17,7 @@ func newSessionRouter(t *testing.T) *Router {
 	return r
 }
 
-// TestStickySessionHoldsAcrossStrategyShift 是 M2.7 验收（同会话粘住
+// TestStickySessionHoldsAcrossStrategyShift 是 验收（同会话粘住
 // 同 provider）：策略序已偏向 b，但同会话仍先打绑定的 a。
 func TestStickySessionHoldsAcrossStrategyShift(t *testing.T) {
 	r := newSessionRouter(t)
@@ -52,7 +52,7 @@ func TestStickySessionHoldsAcrossStrategyShift(t *testing.T) {
 	}
 }
 
-// TestStickySessionUntilBlocked 是 M2.7 验收（直至冷却）：绑定的 a 被
+// TestStickySessionUntilBlocked 是 验收（直至冷却）：绑定的 a 被
 // 配额阻断后让位给 b，且会话重绑到 b。
 func TestStickySessionUntilBlocked(t *testing.T) {
 	r := newSessionRouter(t)

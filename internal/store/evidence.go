@@ -1,4 +1,4 @@
-// evidence.go 是 M6.5 社区众测协议的证据面：按 (provider, model)
+// evidence.go 是 社区众测协议的证据面：按 (provider, model)
 // 聚合 request_log 的真实流量结果，供 feed 维护者裁决众测条目升降级
 // （`ofd catalog report` 消费）。
 package store

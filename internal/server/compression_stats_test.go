@@ -1,4 +1,4 @@
-// compression_stats_test.go 覆盖 M5.6 压缩统计面：combo 请求后
+// compression_stats_test.go 覆盖 压缩统计面：combo 请求后
 // /dashboard/api/compression/stats 聚合正确（组合与阶段两级、saved 为
 // 正）、scope 鉴权（route-scoped 403 / compression-scoped 200）、
 // 未装配组合时空态。

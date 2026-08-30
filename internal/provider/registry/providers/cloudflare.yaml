@@ -13,7 +13,7 @@ providers:
       input: [text, image]
       output: [text]
       features: [tools]
-    # OmniRoute #8717：已下线的模型 id（llama-3.3-70b-instruct、llama-3.1-8b-instruct、
+    # 已知上游问题：已下线的模型 id（llama-3.3-70b-instruct、llama-3.1-8b-instruct、
     # gemma-3-12b-it、qwen2.5-coder-15b-instruct）不声明，上游会 400/403/410。
     free_tier: 10K neurons/天（约 150 次 LLM 响应）
     rate_limits: {rpd: 150} # 近似：10K neurons ≈ 150 次响应（官方口径）

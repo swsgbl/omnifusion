@@ -1,4 +1,4 @@
-// bind.go 实现 CLI 包装（M5.3，移植自 FreeRide `freeride run <cli>`）：
+// bind.go 实现 CLI 包装（移植自 FreeRide `freeride run <cli>`）：
 // 为 claude/codex/gemini CLI 子进程注入网关环境变量——一条命令把
 // 官方 CLI 指向本网关（ofd run claude）。目标→环境变量映射、健康
 // 探测与进程拉起都在本文件；网关地址/token 解析在 cmd/ofd 层。
@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// cliTargets 是受支持的 CLI 目标（M5.3 验收：claude|codex|gemini）。
+// cliTargets 是受支持的 CLI 目标（验收：claude|codex|gemini）。
 var cliTargets = []string{"claude", "codex", "gemini"}
 
 // CLITargets 返回受支持目标（有序）。
@@ -27,9 +27,9 @@ func CLITargets() []string {
 // TargetEnv 定义每个目标的注入变量：baseURL 是网关基地址（无尾斜杠），
 // token 是网关 API key。三个官方 CLI 的追加规则与网关挂载点对齐：
 //
-//	claude: {base}/v1/messages              （ANTHROPIC_AUTH_TOKEN 发 Bearer）
-//	codex:  {base}/v1/chat/completions      （OPENAI_BASE_URL 需含 /v1）
-//	gemini: {base}/v1beta/models/{m}:...    （GEMINI_API_KEY 发 x-goog-api-key）
+//	claude: {base}/v1/messages （ANTHROPIC_AUTH_TOKEN 发 Bearer）
+//	codex: {base}/v1/chat/completions （OPENAI_BASE_URL 需含 /v1）
+//	gemini: {base}/v1beta/models/{m}:... （GEMINI_API_KEY 发 x-goog-api-key）
 func TargetEnv(target, baseURL, token string) ([]string, error) {
 	switch target {
 	case "claude":

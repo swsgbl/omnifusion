@@ -1,5 +1,5 @@
 // breaker.go 是三层隔离的第三层：provider 级熔断器
-// （docs/04 §4.4：closed → open(错误率阈值) → half-open(探测) → closed）。
+// （ → open(错误率阈值) → half-open(探测) → closed）。
 // 只计入"上游病了"类错误（5xx/net/stream_broken）；限流/配额/鉴权是
 // 容量与凭据语义，由冷却/锁定层处理，不进熔断窗口。
 package routing

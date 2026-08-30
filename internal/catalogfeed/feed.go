@@ -1,4 +1,4 @@
-// Package catalogfeed 承载 M6.5 签名目录 feed：社区维护的模型目录
+// Package catalogfeed 承载 签名目录 feed：社区维护的模型目录
 // 补充数据（上下文窗口/免费层说明/众测状态）经 Ed25519 验签 + 版本
 // 防回滚后供网关采用（学 FreeLLMAPI catalog-sync：pinned 公钥对原始
 // 字节验签、失败即丢弃、防回滚基线）。签名是 detached 的（对 feed

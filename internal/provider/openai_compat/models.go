@@ -1,4 +1,4 @@
-// models.go 实现 openai_compat 的实时模型目录拉取（M3.5 catalog sync
+// models.go 实现 openai_compat 的实时模型目录拉取（catalog sync
 // 消费）：GET {base}/models 是 OpenAI 兼容标准面，各家字段口径在
 // context 长度上略有出入（OpenRouter context_length / Groq
 // context_window），两个都收，取非零值。

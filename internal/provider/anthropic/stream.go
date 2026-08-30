@@ -1,4 +1,4 @@
-// stream.go 是 Anthropic 上游的流式适配（M3.2）：把 Messages SSE 事件
+// stream.go 是 Anthropic 上游的流式适配：把 Messages SSE 事件
 // 序列归一为 IR chunk 流。状态机按 data JSON 的 type 字段分派——
 // message_start → 基础 chunk（role + input usage）；content_block_delta
 // text_delta → 文本增量；message_delta → finish + output usage；

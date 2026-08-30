@@ -1,7 +1,7 @@
-// catalog_feed.go 是 M6.5 签名 feed 在目录层的落点：已验签 feed 的
+// catalog_feed.go 是 签名 feed 在目录层的落点：已验签 feed 的
 // 上下文窗口与众测状态并入 Catalog。核心价值在窗口补齐——provider
 // 的 /models 清单几乎不报 context_length，注册表静态值覆盖有限，
-// 社区维护的 feed 是窗口过滤（M4.5）数据的第三来源；probation 状态
+// 社区维护的 feed 是窗口过滤数据的第三来源；probation 状态
 // 只做观测标注，不参与路由决策（众测协议：降级裁决靠发新 feed）。
 package routing
 

@@ -18,10 +18,10 @@ import (
 const maxChatRequestBody = 32 << 20 // 32 MiB
 
 // handleChatCompletions 实现 POST /v1/chat/completions：
-// stream=false 走 M1.4 聚合路径；stream=true 走 M1.5 SSE 路径
+// stream=false 走 聚合路径；stream=true 走 SSE 路径
 // （buffer-first-chunk failover 在路由层，见 routing.DispatchStream）。
 func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
-	start := time.Now() // M5.5 审计时延口径：端点入口→响应完成
+	start := time.Now() // 审计时延口径：端点入口→响应完成
 	if s.router == nil || len(s.router.Providers) == 0 {
 		writeAPIError(w, http.StatusServiceUnavailable,
 			"no upstream providers configured; set API keys or configure providers",
@@ -49,13 +49,13 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "messages must not be empty", "invalid_request_error", "")
 		return
 	}
-	// M5.4 Guardrails：翻译完成后、路由分发前扫描正文（未装配零开销）。
+	// Guardrails：翻译完成后、路由分发前扫描正文（未装配零开销）。
 	if !s.applyGuardrails("/v1/chat/completions", &req, func(code int, msg string) {
 		writeAPIError(w, code, msg, "invalid_request_error", "")
 	}) {
 		return
 	}
-	// M6.4 会话记忆召回（opt-in 头）：命中注入 system 消息，永不阻断。
+	// 会话记忆召回（opt-in 头）：命中注入 system 消息，永不阻断。
 	s.memoryRecall(w, r, &req)
 	opts, comboName, fusionReq, err := s.dispatchOptions(r, &req)
 	if err != nil {
@@ -63,11 +63,11 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	opts = append(opts, sessionOption(r)...)
-	opts = append(opts, s.pinOption()...) // M5.2 全局路由钉选
+	opts = append(opts, s.pinOption()...) // 全局路由钉选
 	if comboName != "" {
 		opts = append(opts, s.comboCompress(r, &req, comboName)...)
 	}
-	if fusionReq { // M6.1 @fusion：扇出合成短路（流式在其中 400）
+	if fusionReq { // @fusion：扇出合成短路（流式在其中 400）
 		s.handleFusion(w, r, &req, "chat", req.Model, comboName, start,
 			func(status int, msg string) {
 				typ := "invalid_request_error"
@@ -84,7 +84,7 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// L5 语义缓存查询（M4.6）：命中直接返回，不经压缩/路由/上游。
+	// L5 语义缓存查询：命中直接返回，不经压缩/路由/上游。
 	if resp, ok := s.cache.Lookup(r.Context(), &req); ok {
 		w.Header().Set("X-OmniFusion-Cache", "hit")
 		writeJSON(w, http.StatusOK, resp)
@@ -102,20 +102,20 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	setDegradedHeader(w, attemptDegraded(attempts))
 	writeJSON(w, http.StatusOK, resp)
 	s.auditDone("chat", req.Model, comboName, start, resp.ProviderName, resp.Usage, false)
-	// L5 缓存异步回写：WithoutCancel 防客户端断开中断回写（M4.6）。
+	// L5 缓存异步回写：WithoutCancel 防客户端断开中断回写。
 	go s.cache.WriteBack(context.WithoutCancel(r.Context()), &req, resp)
-	// M6.4 会话记忆记录（opt-in 头）：非流式成功后旁路记录回合。
+	// 会话记忆记录（opt-in 头）：非流式成功后旁路记录回合。
 	go s.memoryRecord(r, &req, resp)
 }
 
 // logDispatchFailure 把逐家尝试的失败原因写进日志（排障关键面），
-// 值前缀 M2.1 归一化错误类别（kind: err）。
+// 值前缀 归一化错误类别（kind: err）。
 func (s *Server) logDispatchFailure(req *schema.UnifiedRequest, attempts []routing.Attempt, err error) {
 	fields := make([]any, 0, len(attempts)*2+2)
 	fields = append(fields, "model", req.Model)
 	for _, a := range attempts {
 		fields = append(fields, a.Provider, a.Kind.Label(errString(a.Err)))
-		if a.Err != nil { // M5.5：逐 attempt 上游失败指标（赢家之前的轮空）
+		if a.Err != nil { // 逐 attempt 上游失败指标（赢家之前的轮空）
 			s.metrics.RecordAttemptFailure(a.Provider, string(a.Kind))
 		}
 	}

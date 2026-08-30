@@ -104,7 +104,7 @@ func assertGeminiBody(t *testing.T, body []byte) {
 		t.Error("model must not appear in the body (it lives in the URL path)")
 	}
 	if _, ok := raw["tools"]; ok {
-		t.Error("tools must not be sent before M3.3")
+		t.Error("tools must not be sent for tool-less requests")
 	}
 }
 

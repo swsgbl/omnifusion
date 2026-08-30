@@ -45,7 +45,7 @@ func (c *Config) Validate() error {
 	return c.validateCatalog()
 }
 
-// validateCatalog 校验签名 feed 段（M6.5）：双空 = 未启用放行；
+// validateCatalog 校验签名 feed 段：双空 = 未启用放行；
 // 只配一边 fail-fast；url 限 http(s)；pubkey 限 64 hex（ed25519）。
 func (c *Config) validateCatalog() error {
 	fc := c.Catalog
@@ -99,7 +99,7 @@ func (c *Config) validateCombos() error {
 	return nil
 }
 
-// validateFusion 校验 Fusion 段（M6.1）：空 members = 未启用，放行；
+// validateFusion 校验 Fusion 段：空 members = 未启用，放行；
 // 启用时成员字段齐全且 ≥2 个（扇出+门控才有意义）、quorum 落在
 // [2, members] 区间、judge 字段齐全。
 func (c *Config) validateFusion() error {
@@ -128,7 +128,7 @@ func (c *Config) validateFusion() error {
 	return nil
 }
 
-// validateSemantic 校验语义压缩段（M6.2）：rate=0 合法（取默认 0.5），
+// validateSemantic 校验语义压缩段：rate=0 合法（取默认 0.5），
 // 其余值须落 (0,1]；sidecar_url 启用时必须是合法 http(s) URL。
 // 更细的钳位（0.1–0.9）由 compression.ConfigureSemantic 完成——
 // 装配期归一而非启动失败，配置面保持宽松。
@@ -147,7 +147,7 @@ func (c *Config) validateSemantic() error {
 	return nil
 }
 
-// validateMLRouter 校验 ML 路由段（M6.3）：双双为空 = 未启用放行；
+// validateMLRouter 校验 ML 路由段：双双为空 = 未启用放行；
 // 只配一边 fail-fast（弱/强二分缺一不可）；成员字段齐全；threshold
 // 落 (0,1)（0 = 默认 0.55）。
 func (c *Config) validateMLRouter() error {

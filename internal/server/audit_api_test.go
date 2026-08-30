@@ -1,4 +1,4 @@
-// audit_api_test.go 是 M5.5 查询 API 验收：scope 矩阵（401/403/200）
+// audit_api_test.go 是 查询 API 验收：scope 矩阵（401/403/200）
 // 与 limit/provider/endpoint/since 过滤、TS RFC3339 形状。
 package server
 

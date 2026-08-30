@@ -100,7 +100,7 @@ func TestParseStreamNon2xx(t *testing.T) {
 	}
 }
 
-// TestParseStreamFunctionCall 覆盖 M3.3 工具流：帧内 functionCall parts
+// TestParseStreamFunctionCall 覆盖 工具流：帧内 functionCall parts
 // 归一为 delta.tool_calls（args 为完整对象字符串、index 递增），
 // finishReason STOP 有调用时强制 finish=tool_calls。
 func TestParseStreamFunctionCall(t *testing.T) {

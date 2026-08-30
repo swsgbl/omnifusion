@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// testGatewayToken 是测试用网关统一 API Key（M1.8）：凡打到数据面的
+// testGatewayToken 是测试用网关统一 API Key：凡打到数据面的
 // 请求都必须带 `Authorization: Bearer testGatewayToken`。
 const testGatewayToken = "ofg-" +
 	"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"

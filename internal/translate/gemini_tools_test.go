@@ -1,4 +1,4 @@
-// gemini_tools_test.go 钉住 M3.3 Gemini 工具面互译：tools/toolConfig
+// gemini_tools_test.go 钉住 Gemini 工具面互译：tools/toolConfig
 // 各模式映射、functionCall/functionResponse parts 双向（含 snake_case
 // 解析）、上游聚合响应的 functionCall 解析、入站流编码器的整帧下发。
 package translate

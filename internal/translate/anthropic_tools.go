@@ -1,4 +1,4 @@
-// anthropic_tools.go 承载 Anthropic 工具面互译（M3.3）：tools 数组、
+// anthropic_tools.go 承载 Anthropic 工具面互译：tools 数组、
 // tool_choice 与消息内的 tool_use / tool_result blocks 双向映射。
 // 出站侧 blocks 经 Part.Raw 原样序列化（复用 schema.Part 的透传机制）。
 package translate

@@ -12,5 +12,5 @@ providers:
       features: [tools]
     free_tier: 本地推理，无配额限制
     # 模型目录完全动态（取决于用户 ollama pull 了什么），静态列表留空；
-    # M1.9 冒烟时以 `ollama list` 实际输出为准。
+    # 冒烟时以 `ollama list` 实际输出为准。
     models: []

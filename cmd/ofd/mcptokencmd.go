@@ -1,4 +1,4 @@
-// mcptokencmd.go 实现 `ofd mcp-token`（M5.2）：从 keyring 主密钥派生
+// mcptokencmd.go 实现 `ofd mcp-token`：从 keyring 主密钥派生
 // scoped token——HMAC(master, scope 集)，确定性、无存储，随时可重新
 // 生成（作废只能换 master，即 keyring 重置）。scoped token 供 MCP
 // 客户端（ofd mcp --token / Streamable HTTP Bearer）以最小权限接入。

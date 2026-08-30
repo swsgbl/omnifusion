@@ -2,17 +2,17 @@
 # OmniFusion 网关配置模板（config.yaml.example）
 #
 # 用法：复制为 config.yaml 按需修改后启动：
-#     ofd -config config.yaml
+# ofd -config config.yaml
 # 本文件与 internal/config/config.go 的 yaml 字段严格一致，且保持为合法
 # 可加载配置（即内置默认值版本），可直接验证：
-#     ofd -config config.yaml.example
+# ofd -config config.yaml.example
 #
 # 安全约定（务必先读）：
-#   - 任何上游 API 密钥【不入此文件】：用 `ofd key add <provider>` 交互
-#     录入，加密入库（基于机器身份派生，非明文落盘）。
-#   - 客户端访问数据面统一用网关 key：`ofd gateway-key` 打印，请求带
-#     `Authorization: Bearer <key>`。
-#   - 值支持 ${VAR} 环境变量展开（未定义则保留原样，由启动校验报错）。
+# - 任何上游 API 密钥【不入此文件】：用 `ofd key add <provider>` 交互
+# 录入，加密入库（基于机器身份派生，非明文落盘）。
+# - 客户端访问数据面统一用网关 key：`ofd gateway-key` 打印，请求带
+# `Authorization: Bearer <key>`。
+# - 值支持 ${VAR} 环境变量展开（未定义则保留原样，由启动校验报错）。
 # =============================================================================
 
 # HTTP 监听。host 默认 127.0.0.1（仅本机可达）是安全红线：改绑非回环
@@ -39,28 +39,28 @@ combos:
   compression: {}
   # 示例（去掉注释并替换为已配置的真实 provider/model 后生效）：
   # routing:
-  #   free-path:                   # 客户端 model 传 "…@combo:free-path"
-  #     members:                   # 有序成员：声明序即尝试优先级
-  #       - provider: ollama
-  #         model: qwen3:4b
-  #       - provider: openrouter
-  #         model: deepseek/deepseek-chat-v3.1:free
-  #     compression: aggressive    # 绑定下方压缩组合名（可省略）
+  # free-path: # 客户端 model 传 "…@combo:free-path"
+  # members: # 有序成员：声明序即尝试优先级
+  # - provider: ollama
+  # model: qwen3:4b
+  # - provider: openrouter
+  # model: deepseek/deepseek-chat-v3.1:free
+  # compression: aggressive # 绑定下方压缩组合名（可省略）
   # compression:
-  #   aggressive: [dedup, semantic, caveman]
+  # aggressive: [dedup, semantic, caveman]
 
 # Fusion 扇出合成（model 内嵌 "@fusion" 选择）：并行扇出异构成员 →
 # QUORUM 门控 → 轻量 Judge 合成。空 members = 未启用（@fusion 请求 400）。
 fusion:
   members: []          # 启用时至少 2 个（扇出+门控才有意义），建议 3–5 个异构
   # members:
-  #   - provider: openrouter
-  #     model: deepseek/deepseek-chat-v3.1:free
-  #   - provider: ollama
-  #     model: qwen3:4b
-  # judge:              # 合成 Judge；缺省用 members[0]
-  #   provider: openrouter
-  #   model: google/gemini-2.5-flash
+  # - provider: openrouter
+  # model: deepseek/deepseek-chat-v3.1:free
+  # - provider: ollama
+  # model: qwen3:4b
+  # judge: # 合成 Judge；缺省用 members[0]
+  # provider: openrouter
+  # model: google/gemini-2.5-flash
   quorum: 2            # 成功扇出数下限（Judge 合成的前置条件）；0 = 默认 2
 
 # 语义压缩段：rate 是句保留率（0.1–0.9，0 = 默认 0.5）；配置 sidecar_url
@@ -73,12 +73,12 @@ semantic:
 # ML 路由（model 内嵌 "@smart" 选择）：难度分 ≥ threshold 走强档，否则
 # 弱档；另一档殿后作 failover。weak/strong 必须成对配置，双双留空 = 未启用。
 mlrouter:
-  # weak:              # 弱档目标（小/免费模型，承接简单请求）
-  #   provider: ollama
-  #   model: qwen3:4b
-  # strong:            # 强档目标（大模型，承接高难度请求）
-  #   provider: openrouter
-  #   model: deepseek/deepseek-chat-v3.1:free
+  # weak: # 弱档目标（小/免费模型，承接简单请求）
+  # provider: ollama
+  # model: qwen3:4b
+  # strong: # 强档目标（大模型，承接高难度请求）
+  # provider: openrouter
+  # model: deepseek/deepseek-chat-v3.1:free
   threshold: 0.55      # 难度阈值；0 = 默认 0.55，合法区间 (0,1)
 
 # 签名目录 feed（社区维护的上下文窗口/限流众测数据源）：feed_url 与

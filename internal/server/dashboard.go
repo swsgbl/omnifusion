@@ -1,4 +1,4 @@
-// dashboard.go 承载 M4.8 Dashboard v0：三张自包含静态 HTML（go:embed，
+// dashboard.go 承载 Dashboard v0：三张自包含静态 HTML（go:embed，
 // 无 Vite/React 构建链——个人网关的最小可用观测面）+ JSON 活数据。
 // 页面本身用 fetch 相对路径 api/<page>?key=… 取数，浏览器无法带
 // Bearer 头，故鉴权同时接受 ?key= 查询参数（默认回环监听可接受）。
@@ -45,8 +45,8 @@ func (s *Server) dashboardKeyOK(r *http.Request) bool {
 	return tokenEqual(strings.TrimPrefix(h, bearerPrefix), s.gatewayToken)
 }
 
-// handleDashboard 是 /dashboard/ 前缀的 HTML 页面分发（M4.8 三页 +
-// M5.6 compression/resilience 两页 + 对话页 chat + M5.2 起与 JSON API
+// handleDashboard 是 /dashboard/ 前缀的 HTML 页面分发（三页 +
+// compression/resilience 两页 + 对话页 chat + 随后与 JSON API
 // 分离）：{providers,keys,usage,compression,resilience,chat} 出 HTML，
 // 其余 404；同时收 ".html" 后缀形态（页面互链用 providers.html 相对
 // 链接——第三轮小白友好审计发现的历史 404）。JSON 控制面在

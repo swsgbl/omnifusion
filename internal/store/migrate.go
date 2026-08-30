@@ -3,21 +3,21 @@ package store
 import "fmt"
 
 // migrations 是有序的迁移脚本；追加新表时只能往末尾加，不许修改历史项。
-// 后续里程碑的表结构见 docs/04-架构设计 §6。
+// 后续里程碑的表结构见 。
 var migrations = []string{
 	// v1: 元数据表 —— 验证迁移机制的最小表
 	`CREATE TABLE meta (
 		key   TEXT PRIMARY KEY,
 		value TEXT NOT NULL
 	)`,
-	// v2: BYOK 连接（docs/04 §6）——密钥只存 AES-256-GCM 密文（R5 对策 3）。
+	// v2: BYOK 连接——密钥只存 AES-256-GCM 密文（R5 对策 3）。
 	`CREATE TABLE connections (
 		provider   TEXT PRIMARY KEY,
 		key_cipher BLOB NOT NULL,
 		label      TEXT NOT NULL DEFAULT '',
 		updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 	)`,
-	// v3: 三层隔离状态（docs/04 §4.4/§6 cooldowns 表）——重启不丢
+	// v3: 三层隔离状态（ cooldowns 表）——重启不丢
 	//（FreeRide 教训：冷却状态丢失 = 冷启动再踩一轮 429）。
 	`CREATE TABLE cooldowns (
 		scope_type TEXT NOT NULL CHECK (scope_type IN ('connection','model')),
@@ -28,8 +28,8 @@ var migrations = []string{
 		updated_at TEXT NOT NULL DEFAULT (datetime('now')),
 		PRIMARY KEY (scope_type, provider, model)
 	)`,
-	// v4: 模型目录（docs/04 §6 models 表）——catalog sync 的持久化
-	// 目标（M3.5）：校验和判变更，变更才整组替换。
+	// v4: 模型目录（ models 表）——catalog sync 的持久化
+	// 目标：校验和判变更，变更才整组替换。
 	`CREATE TABLE models (
 		provider   TEXT NOT NULL,
 		id         TEXT NOT NULL,
@@ -38,17 +38,17 @@ var migrations = []string{
 		updated_at TEXT NOT NULL DEFAULT (datetime('now')),
 		PRIMARY KEY (provider, id)
 	)`,
-	// v5: 语义缓存（docs/04 §6 semantic_cache 表）——M4.6 精确层：
+	// v5: 语义缓存（ semantic_cache 表）—— 精确层：
 	// hash 主键（CacheKey = 确定性序列化请求的 SHA-256）、payload 存
 	// 序列化的 UnifiedResponse、ts 为写入时刻（TTL 判定）。
-	// embedding_blob 为 M6 近似层（sqlite-vec，opt-in）预留，v1 恒 NULL。
+	// embedding_blob 为 近似层（sqlite-vec，opt-in）预留，v1 恒 NULL。
 	`CREATE TABLE semantic_cache (
 		hash           TEXT PRIMARY KEY,
 		payload        BLOB NOT NULL,
 		embedding_blob BLOB,
 		ts             INTEGER NOT NULL
 	)`,
-	// v6: 请求审计日志（docs/04 §6 request_log 表）——M5.5：每次数据面
+	// v6: 请求审计日志（ request_log 表）——每次数据面
 	// 请求一行（含护栏拦截），查询走 ts 倒序索引；strategy 列以
 	// endpoint+combo 口径落地（路由策略是内部状态）。ttft_ms<0 表非流式。
 	`CREATE TABLE request_log (
@@ -68,7 +68,7 @@ var migrations = []string{
 	)`,
 	// v7: 审计查询索引（ts 倒序扫描面）。
 	`CREATE INDEX idx_request_log_ts ON request_log (ts)`,
-	// v8: 会话记忆（docs/05 M6.4）——FTS5 全文检索。unicode61 分词
+	// v8: 会话记忆——FTS5 全文检索。unicode61 分词
 	// 把 CJK 连续串切成单 token（中文词检索失效），故被索引列 tokens
 	// 存调用方预处理的「拉丁小写词 + CJK bigram」空格串，原文存
 	// UNINDEXED 列 content；写入/查询两侧走同一预处理

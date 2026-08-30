@@ -1,4 +1,4 @@
-// gemini_test.go 验收 Gemini 入站面（M3.2）：上游按 stream 开关回
+// gemini_test.go 验收 Gemini 入站面：上游按 stream 开关回
 // OpenAI 形响应，入站经 Gemini 翻译往返——与 messages_test.go 同构的
 // 验收路径，外加路径拆分与 Google 形错误面的单测。
 package server
@@ -203,7 +203,7 @@ func TestGeminiStreamRoundTrip(t *testing.T) {
 	}
 }
 
-// TestGeminiStreamMidStreamBreak 验收 M3.4：首帧落地后上游断流，
+// TestGeminiStreamMidStreamBreak 验收 首帧落地后上游断流，
 // Gemini 入站侧仍补 finishReason=STOP 收尾帧，客户端拿到优雅结束
 // 而非悬挂连接。
 func TestGeminiStreamMidStreamBreak(t *testing.T) {

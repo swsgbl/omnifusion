@@ -1,7 +1,7 @@
 name: Release
 
-# docs/05 纪律 7：里程碑收官打 annotated tag，goreleaser 出多平台产物。
-# 推 v* tag 触发；配置见 .goreleaser.yaml（6 目标：win/linux/darwin × amd64/arm64）。
+# Pushing a v* tag runs the full test suite, then goreleaser builds
+# six-platform archives (win/linux/darwin × amd64/arm64) and publishes a release.
 on:
   push:
     tags:

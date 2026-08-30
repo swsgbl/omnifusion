@@ -1,4 +1,4 @@
-// gateway_control.go 是 GatewayView 的控制面通道（M5.2）：路由钉选/
+// gateway_control.go 是 GatewayView 的控制面通道：路由钉选/
 // 隔离清除/默认压缩组合的写操作与组合清单、钉选状态查询，走网关
 // scope 化控制 API（Bearer token 决定权限——越权时网关 403，错误
 // 以工具错误面回传客户端）。

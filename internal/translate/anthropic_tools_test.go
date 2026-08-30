@@ -1,4 +1,4 @@
-// anthropic_tools_test.go 钉住 M3.3 Anthropic 工具面互译：tools/
+// anthropic_tools_test.go 钉住 Anthropic 工具面互译：tools/
 // tool_choice 各模式映射、消息内 tool_use/tool_result blocks 双向、
 // 上游聚合响应的 tool_use 解析、入站流编码器的工具块事件序列。
 package translate

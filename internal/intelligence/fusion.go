@@ -1,9 +1,9 @@
-// fusion.go 是 M6.1 Fusion（docs/02「多模型扇出 + 轻量 Judge 合成」，
+// fusion.go 是 Fusion（「多模型扇出 + 轻量 Judge 合成」，
 // 学 FreeLLMAPI QUORUM 门控）：@fusion 请求并行扇出到 N 个异构成员，
 // 成功数 ≥ QUORUM（且 ≥2）时由 Judge 模型合成终稿；不足门控但 ≥1
 // 成功时降级直通首个成功成员；全失败上抛错误。分发原语经 DispatchFunc
 // 注入（server 层走 router.WithTarget，隔离/配额/打分照常生效），
-// 本包不依赖 routing（L5→L3 跨层经显式接口，docs/04 §1）。
+// 本包不依赖 routing（L5→L3 跨层经显式接口，）。
 package intelligence
 
 import (

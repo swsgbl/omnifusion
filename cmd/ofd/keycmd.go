@@ -45,7 +45,7 @@ func parseInterleaved(fs *flag.FlagSet, args []string) ([]string, error) {
 	return positional, nil
 }
 
-// runKeyCommand 处理 `ofd key add|list|remove`（M1.7）：
+// runKeyCommand 处理 `ofd key add|list|remove`：
 // 密钥经 AES-256-GCM 加密后落 SQLite connections 表，明文不出终端。
 func runKeyCommand(cfg *config.Config, args []string) error {
 	if len(args) == 0 {
@@ -210,7 +210,7 @@ func readKeyInteractive(providerID string) (string, error) {
 	return strings.TrimSpace(line), nil
 }
 
-// runGatewayKeyCommand 打印网关统一 API Key（M1.8）：派生自主密钥，
+// runGatewayKeyCommand 打印网关统一 API Key：派生自主密钥，
 // 确定性、不落盘；客户端以 `Authorization: Bearer <key>` 访问数据面。
 func runGatewayKeyCommand() error {
 	kr, err := security.Open("")

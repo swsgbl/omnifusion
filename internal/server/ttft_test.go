@@ -15,7 +15,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/routing"
 )
 
-// TestStreamingTTFTOverhead 验收 docs/05 M1.5：流式首包时间与直连上游
+// TestStreamingTTFTOverhead 验收 流式首包时间与直连上游
 // 的差 < 5ms（本机基准）。用本地 mock 上游隔离网络波动，只测网关自身
 // 开销（路由 + 翻译 + SSE 转发）。两侧都以收到首个 "data:" 字节为准。
 func TestStreamingTTFTOverhead(t *testing.T) {

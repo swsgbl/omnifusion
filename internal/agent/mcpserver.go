@@ -1,4 +1,4 @@
-// mcpserver.go 是 MCP Server 构造层（M5.1 骨架 + M5.2 作用域权限）：
+// mcpserver.go 是 MCP Server 构造层（骨架 + 作用域权限）：
 // NewMCPServer 按 token 的 scope 集注册工具——越权工具不出现在
 // tools/list，直接 call 得到 SDK 的 tool-not-found 错误（最小暴露）。
 // 传输层双形态：stdio（`ofd mcp` 独立进程，RunStdio——启动时先

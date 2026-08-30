@@ -1,4 +1,4 @@
-// sessions.go 实现 M2.7 sticky session（docs/05 2.7）：同一
+// sessions.go 实现 sticky session（ 2.7）：同一
 // X-Session-Id 的请求粘住最近成功的 provider，30 分钟滑动过期（每次
 // 成功续期）。绑定的 provider 被隔离/配额阻断时自动让位——本请求走
 // 正常候选序，成功后重绑到新赢家（"同会话粘住同 provider 直至冷却"）。

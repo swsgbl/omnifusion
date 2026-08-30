@@ -1,7 +1,7 @@
-// Package translate 实现三协议互译的纯函数对（docs/04 §7 翻译矩阵），
+// Package translate 实现三协议互译的纯函数对（ 翻译矩阵），
 // 以 schema.UnifiedRequest/Response 为中枢 IR。任何方向翻译不支持的
 // 特性必须显式降级并在响应中标记（FromAnthropicMessages 返回降级清单），
-// 禁止静默丢弃。M3.1 先落 Anthropic Messages 入站两个方向。
+// 禁止静默丢弃。 先落 Anthropic Messages 入站两个方向。
 package translate
 
 import (
@@ -25,8 +25,8 @@ type AnthropicRequest struct {
 	StopSequences []string             `json:"stop_sequences,omitempty"`
 	Stream        bool                 `json:"stream,omitempty"`
 	Metadata      json.RawMessage      `json:"metadata,omitempty"`
-	Tools         []AnthropicTool      `json:"tools,omitempty"`       // M3.3 工具互译
-	ToolChoice    *AnthropicToolChoice `json:"tool_choice,omitempty"` // M3.3
+	Tools         []AnthropicTool      `json:"tools,omitempty"`       // 工具互译
+	ToolChoice    *AnthropicToolChoice `json:"tool_choice,omitempty"` // 
 }
 
 // AnthropicMessage 是一条会话消息（role 仅 user/assistant）。
@@ -81,11 +81,11 @@ type AnthropicResponse struct {
 	Usage        AnthropicUsage   `json:"usage"`
 }
 
-// AnthropicBlock 是响应内容块：text 或 tool_use（M3.3）。
+// AnthropicBlock 是响应内容块：text 或 tool_use。
 type AnthropicBlock struct {
 	Type string `json:"type"`
 	Text string `json:"text,omitempty"`
-	// tool_use 专属（M3.3）：input 是参数对象。
+	// tool_use 专属：input 是参数对象。
 	ID    string          `json:"id,omitempty"`
 	Name  string          `json:"name,omitempty"`
 	Input json.RawMessage `json:"input,omitempty"`

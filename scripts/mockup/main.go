@@ -1,9 +1,9 @@
 // mockup — OpenAI 兼容的最小 mock 上游（约 25 QPS 假负载，零依赖）。
 //
 // 用途：无真实 API key 环境下的全链路验证——
-//   - 冒烟脚本 scripts/smoke.{sh,ps1} 的上游
-//   - Docker compose `mock` profile 的 sidecar（与网关共享网络命名空间，
-//     使 ollama provider 的硬编码 http://localhost:11434/v1 指向本 mock）
+// - 冒烟脚本 scripts/smoke.{sh,ps1} 的上游
+// - Docker compose `mock` profile 的 sidecar（与网关共享网络命名空间，
+// 使 ollama provider 的硬编码 http://localhost:11434/v1 指向本 mock）
 //
 // 监听 127.0.0.1:11434 时，网关内置 ollama provider（optional_key）自动装配。
 package main

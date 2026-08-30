@@ -1,4 +1,4 @@
-// tools.go 承载 MCP 工具的共享 helper（M5.2）：TextContent 序列化
+// tools.go 承载 MCP 工具的共享 helper：TextContent 序列化
 // （客户端兼容面最广，结构化数据由 AddTool 的 Out 类型参数下发）。
 package agent
 

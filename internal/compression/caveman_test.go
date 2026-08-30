@@ -33,7 +33,7 @@ func cavemanSamples() []struct {
 	}
 }
 
-// TestCavemanSampleSuite 是 docs/05 4.4 的验收：样例集节省率报告
+// TestCavemanSampleSuite 是 4.4 的验收：样例集节省率报告
 // （t.Logf 输出报告），冗长样例达标、任何样例不膨胀。
 func TestCavemanSampleSuite(t *testing.T) {
 	for _, s := range cavemanSamples() {

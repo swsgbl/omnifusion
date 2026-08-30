@@ -1,5 +1,5 @@
 // Package gemini 是 Google Gemini generateContent 协议的原生上游适配
-// 器（M3.2）：Translate 调 translate.ToGeminiUpstreamRequest，Parse 调
+// 器：Translate 调 translate.ToGeminiUpstreamRequest，Parse 调
 // FromGeminiUpstreamResponse——协议语义收在 internal/translate 纯函数对
 // 里，本包只做 HTTP 壳。model 在 URL 路径里（非流式 :generateContent、
 // 流式 :streamGenerateContent?alt=sse），鉴权走 x-goog-api-key 头。
@@ -102,7 +102,7 @@ func (a *Adapter) Capabilities() provider.Capability { return a.spec.Cap }
 func (a *Adapter) HTTPClient() *http.Client { return a.client }
 
 // ListModels implements provider.Provider. The static registry list
-// serves M3; live catalog sync lands M6.
+// serves ; live catalog sync lands .
 func (a *Adapter) ListModels(ctx context.Context) ([]provider.ModelInfo, error) {
 	return nil, provider.ErrNotSupported
 }

@@ -1,5 +1,5 @@
 // Package provider defines the frozen Provider interface and its
-// supporting types, per docs/04-架构设计.md §4.1. Adapters
+// supporting types, per Adapters
 // (declarative openai_compat or hand-written native) live in
 // subpackages and are instantiated by the registry.
 package provider
@@ -19,14 +19,14 @@ import (
 var ErrNotSupported = errors.New("provider does not support this operation")
 
 // Capability declares what a provider can do. The router's semantic
-// matching (M2) and capability routing (M5) consume this; M1 only
+// matching () and capability routing () consume this; only
 // records it.
 type Capability struct {
 	// InputModalities accepted by the provider, e.g. "text", "image",
 	// "audio", "video", "file".
 	InputModalities []string
-	// OutputModalities the provider can emit. M1 is text-only; audio
-	// output arrives with the Realtime layer (M8).
+	// OutputModalities the provider can emit. is text-only; audio
+	// output arrives with the Realtime layer ().
 	OutputModalities []string
 	// Features are capability flags such as "tools", "json_schema",
 	// "reasoning".
@@ -34,7 +34,7 @@ type Capability struct {
 }
 
 // Capabilities is the name used by the frozen interface sketch in
-// docs/04-架构设计.md §4.1; Capability is the implementing struct.
+// ; Capability is the implementing struct.
 type Capabilities = Capability
 
 // HasFeature reports whether the capability set contains the named
@@ -75,16 +75,16 @@ type ProviderCall struct {
 	Model string
 	// Original carries the unified request so Parse can merge back
 	// fields that providers omit from responses (tools, tool_choice,
-	// response_format, reasoning_effort, per docs/03 ADR-002).
+	// response_format, reasoning_effort — kept for upstream compatibility).
 	Original *schema.UnifiedRequest
 	// Degraded lists request fields this upstream cannot honor and the
-	// translator dropped (M3.6, e.g. response_format on Anthropic). The
+	// translator dropped (, e.g. response_format on Anthropic). The
 	// server merges it into the X-OmniFusion-Degraded response header —
-	// never drop silently (docs/04 §7).
+	// never drop silently ().
 	Degraded []string
 }
 
-// Provider is the adapter contract frozen in docs/03 §4.1. Every
+// Provider is the adapter contract frozen in Every
 // upstream — declarative or native — implements exactly this surface.
 type Provider interface {
 	// Name returns the registry provider id.
@@ -103,12 +103,12 @@ type Provider interface {
 	ListModels(ctx context.Context) ([]ModelInfo, error)
 	// HTTPClient returns the provider-dedicated client. One client per
 	// provider avoids the cross-provider P99 coupling documented in
-	// the Bifrost postmortem (docs/01 item 1).
+	// the Bifrost postmortem ( item 1).
 	HTTPClient() *http.Client
 }
 
 // ModelInfo describes one catalog entry. Fields grow as the router
-// needs them; M1 keeps the identity and sizing basics.
+// needs them; keeps the identity and sizing basics.
 type ModelInfo struct {
 	ID            string `json:"id"`
 	ContextWindow int64  `json:"context_window,omitempty"`
@@ -124,7 +124,7 @@ type Price struct {
 	Out float64
 }
 
-// UpstreamError is a non-2xx upstream result. The router (M1.6+) uses
+// UpstreamError is a non-2xx upstream result. The router (+) uses
 // Status and Provider to classify failures for fallback; Body keeps
 // the provider's original payload for logging and debugging.
 type UpstreamError struct {

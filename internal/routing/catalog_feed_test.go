@@ -17,9 +17,9 @@ func feedFor(version int64, models map[string][]catalogfeed.ModelEntry) *catalog
 	return &catalogfeed.Feed{Version: version, GeneratedAt: 1_700_000_000, Providers: providers}
 }
 
-// TestApplyFeedFillsWindows 是 M6.5 窗口补齐验收：live 非零窗口优先，
+// TestApplyFeedFillsWindows 是 窗口补齐验收：live 非零窗口优先，
 // live 收录但 ctx=0 回落 feed，live 未收录同样由 feed 补上——三者
-// 共同构成窗口过滤（M4.5）的数据来源。
+// 共同构成窗口过滤的数据来源。
 func TestApplyFeedFillsWindows(t *testing.T) {
 	up := newModelsUpstream(t,
 		upstreamModel{id: "m-live", ctx: 8192},

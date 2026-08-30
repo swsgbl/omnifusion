@@ -1,4 +1,4 @@
-// memory.go 承载 M6.4 会话记忆 v1（docs/05 6.4）：SQLite FTS5 会话
+// memory.go 承载 会话记忆 v1（ 6.4）：SQLite FTS5 会话
 // 记忆——回合级写入（末条 user + assistant 回复），自然语言检索召回
 // 注入 system 消息。隐私红线：记忆默认关闭，仅当请求头
 // X-OmniFusion-Memory: on（server 层判定）时记录与召回，头缺席 =

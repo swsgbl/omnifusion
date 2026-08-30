@@ -99,7 +99,7 @@ func servedModel(t *testing.T, resp *http.Response) string {
 	return out.Model
 }
 
-// TestStrategySelectViaModelDirective 是 M2.5 验收之一：策略可经
+// TestStrategySelectViaModelDirective 是 验收之一：策略可经
 // model 内嵌 @指令 选择，且上游收到的是重写后的裸模型名。
 func TestStrategySelectViaModelDirective(t *testing.T) {
 	_, gw, gotModel := newStrategyFixture(t)
@@ -118,7 +118,7 @@ func TestStrategySelectViaModelDirective(t *testing.T) {
 	}
 }
 
-// TestStrategySelectViaHeader 是 M2.5 验收之二：策略可经 header 选择。
+// TestStrategySelectViaHeader 是 验收之二：策略可经 header 选择。
 func TestStrategySelectViaHeader(t *testing.T) {
 	_, gw, _ := newStrategyFixture(t)
 

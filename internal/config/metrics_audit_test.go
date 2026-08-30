@@ -1,4 +1,4 @@
-// metrics_audit_test.go 覆盖 metrics/audit 段（M5.5）：加载与默认开启。
+// metrics_audit_test.go 覆盖 metrics/audit 段：加载与默认开启。
 package config
 
 import (

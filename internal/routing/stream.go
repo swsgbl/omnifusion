@@ -13,26 +13,26 @@ import (
 	"github.com/swsgbl/omnifusion/internal/provider"
 )
 
-// streamTimeout 约束单条流的整体寿命（docs/04 §5 item 4：流 300s）。
+// streamTimeout 约束单条流的整体寿命（ item 4：流 300s）。
 const streamTimeout = 300 * time.Second
 
 // ErrStreamUnsupported 记录候选不支持 stream=true 的跳过原因。
 var ErrStreamUnsupported = errors.New("routing: provider does not support streaming")
 
 // DispatchStream 按固定顺序尝试候选，执行 buffer-first-chunk 语义
-// （docs/01 item12 / docs/04 §3）：
-//   - 首 chunk 落地前：连接失败、非 2xx、空体/坏体都允许切换下一家；
-//   - 首 chunk 落地后：返回的事件流已不可撤回，中途断流由调用方记日志，
-//     不再切换（"cannot un-ship bytes"）。
+// （ item12 / ）：
+// - 首 chunk 落地前：连接失败、非 2xx、空体/坏体都允许切换下一家；
+// - 首 chunk 落地后：返回的事件流已不可撤回，中途断流由调用方记日志，
+// 不再切换（"cannot un-ship bytes"）。
 //
 // 成功返回的事件流第一个 Next 必定回放缓冲的首 chunk。
-// opts 可逐请求覆盖策略（WithStrategyName，M2.5）。
+// opts 可逐请求覆盖策略（WithStrategyName，）。
 func (r *Router) DispatchStream(ctx context.Context, req *schema.UnifiedRequest, opts ...DispatchOption) (provider.ChunkStream, []Attempt, error) {
 	if len(r.Providers) == 0 {
 		return nil, nil, errors.New("routing: no providers configured")
 	}
 	cfg := resolveOptions(opts)
-	cands := r.candidatesFor(cfg, req) // M6.3：smart 指令在此分流到 ML 计划
+	cands := r.candidatesFor(cfg, req) // smart 指令在此分流到 ML 计划
 	attempts := make([]Attempt, 0, len(r.Providers))
 	for _, c := range cands {
 		if ctx.Err() != nil {
@@ -140,8 +140,8 @@ func (r *Router) tryOneStream(ctx context.Context, p provider.Provider, sp provi
 	}, att
 }
 
-// midStreamReporter 产出 bufferedStream 的流中断裂回调（M3.4，
-// docs/04 §3/§4.4："cannot un-ship bytes"——已发出的流不可撤回，
+// midStreamReporter 产出 bufferedStream 的流中断裂回调（
+// un-ship bytes"——已发出的流不可撤回，
 // 不切换，只记日志 + 健康降分 + 隔离回报；stream_broken 计入熔断
 // 窗口，反复断流的家最终会被熔断拦下）。
 func (r *Router) midStreamReporter(name, model string) func(error) {
@@ -160,7 +160,7 @@ func (r *Router) midStreamReporter(name, model string) func(error) {
 
 // bufferedStream 回放缓冲的首 chunk 后透传内层事件流；Close 同时释放
 // 流级 context，并把流中见到的 usage（取最大值，防累计型/终值型差异）
-// 补记进配额 token 窗口（M2.3）。
+// 补记进配额 token 窗口。
 type bufferedStream struct {
 	first    *schema.Chunk
 	inner    provider.ChunkStream
@@ -168,7 +168,7 @@ type bufferedStream struct {
 	quota    *QuotaTracker
 	provider string
 	tokens   int64
-	onBreak  func(error) // 流中断裂回调（M3.4）；nil 表示不回报
+	onBreak  func(error) // 流中断裂回调；nil 表示不回报
 	reported bool        // 回调只触发一次
 }
 

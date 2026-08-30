@@ -1,4 +1,4 @@
-// requestlog.go 是 M5.5 请求审计日志的持久化：docs/04 §6 request_log 表
+// requestlog.go 是 请求审计日志的持久化： request_log 表
 // （落地产出列——strategy 是路由内部状态，审计以入站端点+赢家口径）。
 // 只增不改：每次数据面请求一行（含护栏拦截的 400），查询按 ts 倒序，
 // Prune 按配置上限裁最旧行防无限增长。
@@ -21,7 +21,7 @@ type RequestLog struct {
 	LatencyMS float64 // 端点入口到响应完成
 	TTFTMS    float64 // 首 chunk 时延；<0 = 非流式或未知
 	CacheHit  bool
-	ErrKind   string // M2.1 ErrorKind / "guardrails"；成功空
+	ErrKind   string // ErrorKind / "guardrails"；成功空
 	Combo     string // 命中的命名组合（可空）
 }
 

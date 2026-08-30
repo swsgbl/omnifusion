@@ -116,7 +116,7 @@ func TestSemanticCacheHit(t *testing.T) {
 	second, elapsed := awaitCacheHit(t, url+"/v1/chat/completions", body)
 	defer second.Body.Close()
 
-	// 验收（docs/05 4.6）：重复请求 TTFT < 10ms（此处以客户端实测
+	// 验收（ 4.6）：重复请求 TTFT < 10ms（此处以客户端实测
 	// 往返近似，命中路径不含上游）。CI 共享 runner（GITHUB_ACTIONS）
 	// 调度抖动可达数十毫秒，放宽到 100ms——断言意图是「命中显著快于
 	// 上游往返（秒级）」而非微观时延（本机实测命中 ~0.6ms，见 bench）。

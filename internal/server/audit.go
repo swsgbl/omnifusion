@@ -1,4 +1,4 @@
-// audit.go 是 M5.5 审计+指标的单挂点：三协议数据面端点的每个出口
+// audit.go 是 审计+指标的单挂点：三协议数据面端点的每个出口
 // （缓存命中/分发成功/分发失败/护栏拦截/流式收尾）调用一次 recordRequest，
 // 同时驱动 Prometheus 指标（未装配零开销）与 request_log 落库（默认
 // 开启；失败仅记日志，绝不影响请求面，超 max_rows 顺带裁最旧）。
@@ -28,7 +28,7 @@ type auditRecord struct {
 	LatencyMS float64
 	TTFTMS    float64 // <0 = 非流式或未到达首 chunk
 	CacheHit  bool
-	ErrKind   string // M2.1 ErrorKind / guardrails / stream_broken / cancelled；成功空
+	ErrKind   string // ErrorKind / guardrails / stream_broken / cancelled；成功空
 	Combo     string
 }
 
@@ -150,7 +150,7 @@ func attemptWinner(attempts []routing.Attempt) string {
 	return last.Provider
 }
 
-// dispatchErrKind 取聚合失败的末位归一类别（M2.1 词表）。
+// dispatchErrKind 取聚合失败的末位归一类别（词表）。
 func dispatchErrKind(err error) string {
 	var de *routing.DispatchError
 	if errors.As(err, &de) && len(de.Attempts) > 0 {

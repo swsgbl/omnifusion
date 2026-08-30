@@ -2,7 +2,7 @@
 
 ## 容器部署（Docker Compose，推荐）
 
-三档 profile 按需叠加，端口默认只绑宿主回环（安全红线 docs/06 R5）：
+三档 profile 按需叠加，端口默认只绑宿主回环（安全红线）：
 
 ```bash
 # 基础栈：仅网关（先 docker build 或由 compose 自动构建）

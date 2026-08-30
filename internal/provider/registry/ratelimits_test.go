@@ -3,7 +3,7 @@ package registry
 import "testing"
 
 // TestRateLimitsDeclared 断言免费层事实已从 YAML 正确解析进
-// RateLimitsDecl（M2.3：registry 是 rate_limits 的唯一事实来源）。
+// RateLimitsDecl（registry 是 rate_limits 的唯一事实来源）。
 func TestRateLimitsDeclared(t *testing.T) {
 	entries, err := Load()
 	if err != nil {

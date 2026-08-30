@@ -1,5 +1,5 @@
 // Package a2a 实现 Agent2Agent (A2A) 协议 v1.0 的线上类型与转换
-// （docs/04-架构设计 §3 数据面第四协议面）。
+// （ 数据面第四协议面）。
 //
 // 依据：a2aproject/A2A specification v1.0（JSON-RPC 2.0 绑定，camelCase
 // 字段；Part 判别式 = 成员名本身，v1.0 弃用 kind 字段）。

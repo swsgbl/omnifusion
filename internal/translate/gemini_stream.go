@@ -2,7 +2,7 @@
 // GenerateContentResponse 一帧，"data: {json}\r\n\r\n" 与 Google 线上
 // 形一致）。Gemini 流没有 [DONE] 终止符，正常由连接关闭收尾；本编码器
 // 保证 finishReason 一定发出（未见 finish 的断流也补 STOP 优雅收尾）。
-// 工具调用（M3.3）：Gemini 每帧 parts 均为完整形、无片段语义，IR 侧
+// 工具调用：Gemini 每帧 parts 均为完整形、无片段语义，IR 侧
 // arguments 碎片先按调用缓冲，收尾时拼成完整 functionCall 整帧下发。
 package translate
 

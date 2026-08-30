@@ -1,4 +1,4 @@
-// dashboard_api.go 是 Dashboard v0 的三个 JSON 端点（M4.8）：providers
+// dashboard_api.go 是 Dashboard v0 的三个 JSON 端点：providers
 // 聚合 router/catalog/scorer/store 隔离态；keys 合并 cmd 注入的 key 来源
 // 与 connections 表；usage 读 QuotaTracker 滑窗快照与语义缓存计数。
 // 各依赖未装配时按空态返回（端点形状稳定，页面不至于拿到 5xx）。

@@ -1,5 +1,5 @@
-// gemini.go 实现 Gemini generateContent 协议的入站翻译对（M3.2，
-// docs/04 §7 矩阵）：GeminiRequest（wire）→ UnifiedRequest（IR），
+// gemini.go 实现 Gemini generateContent 协议的入站翻译对（
+// 矩阵）：GeminiRequest（wire）→ UnifiedRequest（IR），
 // UnifiedResponse → GeminiResponse。出站对（IR→上游 Gemini wire）在
 // gemini_upstream.go。解析按 proto-JSON 惯例同时接受 camelCase 与
 // snake_case 字段名（Google 官方 SDK 发 camelCase，curl 用户常用原名）。
@@ -17,8 +17,8 @@ type GeminiRequest struct {
 	Contents          []GeminiContent   `json:"contents,omitempty"`
 	SystemInstruction *GeminiContent    `json:"systemInstruction,omitempty"`
 	GenerationConfig  *GeminiGeneration `json:"generationConfig,omitempty"`
-	Tools             []GeminiTools     `json:"tools,omitempty"`      // M3.3 工具互译
-	ToolConfig        *GeminiToolConfig `json:"toolConfig,omitempty"` // M3.3
+	Tools             []GeminiTools     `json:"tools,omitempty"`      // 工具互译
+	ToolConfig        *GeminiToolConfig `json:"toolConfig,omitempty"` // 
 }
 
 // UnmarshalJSON 兼容 proto 原名（snake_case）字段。
@@ -57,7 +57,7 @@ type GeminiContent struct {
 }
 
 // GeminiPart 是内容片段：text、inlineData（内联多模态）或工具面
-// functionCall / functionResponse（M3.3）。
+// functionCall / functionResponse。
 type GeminiPart struct {
 	Text             string                  `json:"text,omitempty"`
 	InlineData       *GeminiInlineData       `json:"inlineData,omitempty"`
@@ -139,7 +139,7 @@ type GeminiGeneration struct {
 	TopK          *int     `json:"topK,omitempty"`
 	MaxOutputTok  *int     `json:"maxOutputTokens,omitempty"`
 	StopSequences []string `json:"stopSequences,omitempty"`
-	// 结构化输出（M3.6）：responseMimeType=application/json +
+	// 结构化输出：responseMimeType=application/json +
 	// responseSchema（OpenAPI 子集），与 IR 的 response_format 互译。
 	ResponseMimeType string          `json:"responseMimeType,omitempty"`
 	ResponseSchema   json.RawMessage `json:"responseSchema,omitempty"`
@@ -184,7 +184,7 @@ func (g *GeminiGeneration) UnmarshalJSON(data []byte) error {
 // FromGeminiGenerateContent 把入站请求归一化为 IR。inlineData 图片
 // 映射为 IR 的 data-URI image_url，音频映射为 input_audio；top_k 无
 // IR 对应字段，进显式降级清单。工具面（tools/toolConfig/
-// functionCall/functionResponse）双向互译（M3.3）。
+// functionCall/functionResponse）双向互译。
 func FromGeminiGenerateContent(model string, in *GeminiRequest, stream bool) (*schema.UnifiedRequest, []string) {
 	req := &schema.UnifiedRequest{Model: model, Stream: stream}
 	if in.SystemInstruction != nil {
@@ -211,7 +211,7 @@ func FromGeminiGenerateContent(model string, in *GeminiRequest, stream bool) (*s
 		if gc.TopK != nil {
 			degraded = append(degraded, "top_k")
 		}
-		// 结构化输出（M3.6）：归一为 IR 的 OpenAI 形 response_format，
+		// 结构化输出：归一为 IR 的 OpenAI 形 response_format，
 		// 跨协议上游（openai_compat/gemini）都能续接语义。
 		if rf := responseFormatFromGemini(gc.ResponseMimeType, gc.ResponseSchema); rf != nil {
 			req.ResponseFormat = rf

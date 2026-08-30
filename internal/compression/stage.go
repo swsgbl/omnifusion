@@ -1,20 +1,20 @@
-// Package compression 是 L4 压缩层（docs/04 §4.3，M4）：管线化的
+// Package compression 是 L4 压缩层（，）：管线化的
 // 请求压缩，尾置 Fidelity Gate 保证保真——任何阶段产出不达标即丢弃
-// 该阶段结果回退原文，压缩失败永不影响请求成功（docs/04 §5 规则 3）。
+// 该阶段结果回退原文，压缩失败永不影响请求成功（ 规则 3）。
 package compression
 
 import (
 	"github.com/swsgbl/omnifusion/internal/core/schema"
 )
 
-// CompressionStage 是压缩管线的一个阶段（docs/04 §4.3 冻结接口）。
+// CompressionStage 是压缩管线的一个阶段（ 冻结接口）。
 // 实现必须纯函数化：不改传入切片，产出新切片。
 type CompressionStage interface {
 	// Name 是阶段标识（stats/配置引用）。
 	Name() string
 	// ShouldRun 自适应触发：上下文不够长/不适用的请求跳过本阶段。
 	ShouldRun(sc *StageContext) bool
-	// Apply 压缩一轮消息，返回新消息与统计（docs/04 §4.3 冻结签名，
+	// Apply 压缩一轮消息，返回新消息与统计（ 冻结签名，
 	// 阶段自需的请求侧信息经 ShouldRun 的 StageContext 判定后自持）。
 	// 错误=本阶段失败，管线回退到本阶段输入继续（原文直传语义）。
 	Apply(msgs []schema.Message) ([]schema.Message, CompressionStats, error)
@@ -24,7 +24,7 @@ type CompressionStage interface {
 type StageContext struct {
 	// Model 是请求目标模型（模型感知的阈值预留位）。
 	Model string
-	// SessionID 是 sticky 会话标识（Session-Dedup 用，M4.2）。
+	// SessionID 是 sticky 会话标识（Session-Dedup 用，）。
 	SessionID string
 	// EstimatedTokens 是进入管线前的粗估 token（触发阈值用）。
 	EstimatedTokens int

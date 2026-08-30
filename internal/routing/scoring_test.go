@@ -72,7 +72,7 @@ func newScoringRouter(t *testing.T, names ...string) *Router {
 }
 
 // TestRankKeepsRegistryOrderWithoutSignal 无观测时稳定排序保持注册序；
-// Scorer 未启用时原样返回（M1 行为）。
+// Scorer 未启用时原样返回（行为）。
 func TestRankKeepsRegistryOrderWithoutSignal(t *testing.T) {
 	r := newScoringRouter(t, "a", "b")
 	got := r.rank()
@@ -103,7 +103,7 @@ func TestRankSinksSlowAndFailed(t *testing.T) {
 	}
 }
 
-// TestDispatchSinks429Provider 是 M2.4 验收（"压测中 429 自动沉底"的
+// TestDispatchSinks429Provider 是 验收（"压测中 429 自动沉底"的
 // 单机缩影）：a 持续 429，一次失败观测后 a 沉底，后续分发不再先打它。
 func TestDispatchSinks429Provider(t *testing.T) {
 	hits := map[string]int{}

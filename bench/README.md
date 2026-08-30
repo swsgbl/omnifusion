@@ -1,7 +1,7 @@
 # OmniFusion 黑盒基准集（bench/）
 
 对网关做端到端黑盒基准：不开 internal 白盒，从「编译出的 `ofd` 二进制 + 进程内
-mock 上游」起一套真实环境，仅凭 HTTP + 默认配置测量。兑现 docs/05 工作流纪律第 4 条
+mock 上游」起一套真实环境，仅凭 HTTP + 默认配置测量。黑盒口径：不依赖任何内部实现
 （提交前跑基线防回退）。
 
 ## 环境自举（TestMain）
@@ -62,7 +62,7 @@ go test ./... -count=1
 | `BenchmarkStreamFull` | 完整 SSE 端到端读尽并校验 `[DONE]` 收尾 |
 | `Test1000ConcurrentConnections` | N goroutine × 3 个内容互异请求（互异防缓存命中），统计成功率 / wall / 吞吐 / p50 / p99 / max，断言成功率 ≥99%（冒烟门槛） |
 
-**缓存命中延迟** = `CacheMiss` 与 `NonStream` 的 ns/op 之差（docs/05 指标 2 的口径）。
+**缓存命中延迟** = `CacheMiss` 与 `NonStream` 的 ns/op 之差（全仓统一口径）。
 `StreamFull` 含 mock 上游 3×2ms 的 chunk 间隔（对齐 `scripts/mockup`），下限即 ~6ms。
 并发压测采用**建连斜坡**（总宽 2s 错峰握手）：Windows 上 1000 个瞬时 SYN 会溢出
 accept 背压被 RST——裸 net/http 对照实验同样 ~77% 被拒，属平台行为而非网关缺陷

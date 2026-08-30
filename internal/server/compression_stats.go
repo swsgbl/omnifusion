@@ -1,4 +1,4 @@
-// compression_stats.go 是 M5.6 压缩统计面：comboCompress 单点聚合每组合
+// compression_stats.go 是 压缩统计面：comboCompress 单点聚合每组合
 // 与每阶段的运行计数（runs/applied/skipped/gate_rejected/errors 与
 // token 前后量），经 /dashboard/api/compression/stats（ScopeCompression）
 // 供 compression 页展示。内存态——与 scorer/quota 同生命周期，重启清零

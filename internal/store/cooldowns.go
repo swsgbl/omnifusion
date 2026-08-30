@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Cooldown 是一条三层隔离状态（docs/04 §6 cooldowns 表）。
+// Cooldown 是一条三层隔离状态（ cooldowns 表）。
 // ScopeType "connection" 表示 Connection 冷却（provider 级）；
 // "model" 表示 Model 锁定（provider+model 级，配额耗尽至重置点）。
 type Cooldown struct {
@@ -67,7 +67,7 @@ func (s *Store) ClearExpiredCooldowns(now time.Time) error {
 	return nil
 }
 
-// ClearCooldowns 删除一个 provider 的全部隔离条目（M5.2 运维清除：
+// ClearCooldowns 删除一个 provider 的全部隔离条目（运维清除：
 // MCP route 工具经控制 API 到 Isolation.Clear）。返回删除行数。
 func (s *Store) ClearCooldowns(provider string) (int64, error) {
 	res, err := s.db.Exec(

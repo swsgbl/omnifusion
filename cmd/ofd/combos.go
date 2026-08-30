@@ -1,6 +1,6 @@
-// combos.go 承载 M4.7 组合装配：YAML 声明的路由组合（命名模型组）
+// combos.go 承载 组合装配：YAML 声明的路由组合（命名模型组）
 // 与压缩组合在此物化为 routing.Combo 表 + server 压缩管线表；
-// M6.1 Fusion 扇出组同文件装配（相邻语义：成员表 → 运行时结构）。
+// Fusion 扇出组同文件装配（相邻语义：成员表 → 运行时结构）。
 package main
 
 import (
@@ -15,9 +15,9 @@ import (
 )
 
 // buildCombos 从配置构建组合层：
-//   - combos：路由组合名 → routing.Combo（成员声明序即尝试优先级）；
-//   - pipes：组合名 → 绑定的压缩管线（nil = 纯路由组合不压缩），
-//     键集合即 server 边界的「已知组合名」。
+// - combos：路由组合名 → routing.Combo（成员声明序即尝试优先级）；
+// - pipes：组合名 → 绑定的压缩管线（nil = 纯路由组合不压缩），
+// 键集合即 server 边界的「已知组合名」。
 //
 // 结构合法性（成员非空、绑定存在）已在 config.Load 校验；阶段名
 // 合法性由 compression.BuildCombo 在此校验——配置语义错误 fail-fast。
@@ -43,7 +43,7 @@ func buildCombos(cfg *config.Config) (map[string]routing.Combo, map[string]*comp
 	return combos, pipes, nil
 }
 
-// buildFusion 物化 M6.1 Fusion 扇出组；空 members 返回 nil（未启用，
+// buildFusion 物化 Fusion 扇出组；空 members 返回 nil（未启用，
 // "@fusion" 请求在 server 边界 400）。合法性已由 config.Validate 校验。
 func buildFusion(fc config.FusionConfig, log *slog.Logger) *intelligence.FusionRunner {
 	if len(fc.Members) == 0 {
@@ -62,10 +62,10 @@ func buildFusion(fc config.FusionConfig, log *slog.Logger) *intelligence.FusionR
 	return fr
 }
 
-// buildMLRouter 物化 M6.3 ML 路由器（"@smart" 指令）；weak/strong
+// buildMLRouter 物化 ML 路由器（"@smart" 指令）；weak/strong
 // 未同时配置返回 nil（未启用，请求在边界 400）。字段与阈值区间已由
 // config.Validate 校验。默认纯 Go 启发式分类器（ONNX 对比项走可选
-// 构建，ADR-009）。
+// 构建，学习型模型不进默认二进制）。
 func buildMLRouter(mc config.MLRouterConfig) *intelligence.MLRouter {
 	if mc.Weak == nil || mc.Strong == nil {
 		return nil
@@ -81,7 +81,7 @@ func buildMLRouter(mc config.MLRouterConfig) *intelligence.MLRouter {
 }
 
 // attachSmartRouter 把 MLRouter 决策翻译为 routing.SmartPlan 注入路由
-// 器（cmd 层装配：L5 intelligence 与 L3 routing 互不 import，与 M6.1
+// 器（cmd 层装配：L5 intelligence 与 L3 routing 互不 import，与 
 // DispatchFunc 注入同一模式）。tier/difficulty 随计划透出（日志面）。
 func attachSmartRouter(router *routing.Router, ml *intelligence.MLRouter, log *slog.Logger) {
 	router.Smart = func(req *schema.UnifiedRequest) routing.SmartPlan {

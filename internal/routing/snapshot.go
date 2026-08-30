@@ -1,6 +1,6 @@
-// snapshot.go 是 Isolation 的只读视图（M5.6 弹性状态可视化）：冷却与
+// snapshot.go 是 Isolation 的只读视图（弹性状态可视化）：冷却与
 // 锁定本就持久化（store.LoadCooldowns 含 reason，dashboard 直读），唯一
-// 缺的读口是仅存内存的熔断器（docs/04 §4.4：重启即重置、30s 级自愈，
+// 缺的读口是仅存内存的熔断器（ 级自愈，
 // 不值得持久化）。本文件只读不推进状态——half-open 转移由 Block() 在
 // 分发路径上完成，快照绝不产生副作用。
 package routing

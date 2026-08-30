@@ -15,7 +15,7 @@ import (
 )
 
 // newMessagesFixture 装配 /v1/messages 测试网关：上游按 stream 开关回
-// OpenAI 形非流式/流式响应，入站经 Anthropic 翻译往返（M3.1 验收路径）。
+// OpenAI 形非流式/流式响应，入站经 Anthropic 翻译往返（验收路径）。
 func newMessagesFixture(t *testing.T, stream bool) *httptest.Server {
 	t.Helper()
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -202,7 +202,7 @@ func TestMessagesStreamSequence(t *testing.T) {
 	}
 }
 
-// TestMessagesStreamMidStreamBreak 验收 M3.4：首帧落地后上游断流，
+// TestMessagesStreamMidStreamBreak 验收 首帧落地后上游断流，
 // Anthropic 入站侧仍以 message_delta + message_stop 完整收尾，
 // 客户端拿到优雅结束而非悬挂连接。
 func TestMessagesStreamMidStreamBreak(t *testing.T) {

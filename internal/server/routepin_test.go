@@ -1,4 +1,4 @@
-// routepin_test.go 覆盖路由钉选的写路径与对真实分发的生效（M5.2）。
+// routepin_test.go 覆盖路由钉选的写路径与对真实分发的生效。
 package server
 
 import (

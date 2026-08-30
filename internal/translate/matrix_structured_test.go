@@ -46,7 +46,7 @@ func geminiStructuredInbound() *GeminiRequest {
 	}
 }
 
-// TestMatrixStructuredOutput 钉结构化输出的跨协议语义（M3.6）：
+// TestMatrixStructuredOutput 钉结构化输出的跨协议语义：
 // Gemini 入站归一为 IR 的 OpenAI 形 response_format；IR 出站到
 // openai_compat（透传）/ gemini（mime+schema，剥离不收键）保语义，
 // 到 anthropic（无原生面）显式降级不静默丢。

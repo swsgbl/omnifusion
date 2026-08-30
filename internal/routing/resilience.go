@@ -1,13 +1,13 @@
-// resilience.go 是 M2.2 三层隔离状态机（docs/04 §4.4）：
+// resilience.go 是 三层隔离状态机：
 //
-//	Connection 冷却  provider 级；rate_limit 30s / auth_invalid 30min（策略表）
-//	Model 锁定       provider+model 级；quota_exhausted 至重置点（reset-aware v1 固定 1h）
-//	Breaker 熔断     provider 级错误率熔断（breaker.go）
+//	Connection 冷却 provider 级；rate_limit 30s / auth_invalid 30min（策略表）
+//	Model 锁定 provider+model 级；quota_exhausted 至重置点（reset-aware v1 固定 1h）
+//	Breaker 熔断 provider 级错误率熔断（breaker.go）
 //
 // 冷却与锁定持久化到 SQLite cooldowns 表，重启恢复（FreeRide 教训）；
 // 熔断退避 30s 级自愈，仅内存。路由层在尝试前问 Block/LockedModel，
 // 尝试后回报 ApplyFailure/ApplySuccess。锁纪律：这两个入口按请求粒度
-// 加锁（每请求一次，非 per-chunk 热路径，不违反 docs/04 §5 item1）。
+// 加锁（每请求一次，非 per-chunk 热路径，不违反 item1）。
 package routing
 
 import (
@@ -22,7 +22,7 @@ import (
 )
 
 // QuotaLockoutDuration 是 quota_exhausted 的默认 Model 锁定时长。
-// reset-aware v1：暂不解析上游 reset 头/响应体，先锁 1h；M2.3 配额
+// reset-aware v1：暂不解析上游 reset 头/响应体，先锁 1h； 配额
 // 窗口接入后按 provider 的真实重置点修正。
 const QuotaLockoutDuration = time.Hour
 
@@ -133,7 +133,7 @@ func (iso *Isolation) ApplySuccess(provider string) {
 	}
 }
 
-// Clear 人工清除一个 provider 的全部隔离态（M5.2 运维动作，MCP
+// Clear 人工清除一个 provider 的全部隔离态（运维动作，MCP
 // route 工具经控制 API 调用）：Connection 冷却、Model 锁定与熔断
 // 计数（内存）+ SQLite cooldowns 行（重启后也不再恢复）。返回清除
 // 的持久化条数；存储失败只降级为内存清除（清除是加速恢复，不因
@@ -200,8 +200,8 @@ func breakerEligible(kind ErrorKind) bool {
 	return false
 }
 
-// skipIfBlocked 检查 provider 级阻断：配额窗口将爆（M2.3）与三层隔离
-// （M2.2 冷却/熔断）；命中时产出 skip 记录（Kind 留空：不是上游错误，
+// skipIfBlocked 检查 provider 级阻断：配额窗口将爆与三层隔离
+// （冷却/熔断）；命中时产出 skip 记录（Kind 留空：不是上游错误，
 // 不参与分类惩罚）。
 func (r *Router) skipIfBlocked(p provider.Provider) (Attempt, bool) {
 	if r.Quota != nil {

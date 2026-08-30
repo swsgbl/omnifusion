@@ -1,4 +1,4 @@
-// tools_audit.go 注册 audit scope 工具（M5.5）：请求审计日志查询。
+// tools_audit.go 注册 audit scope 工具：请求审计日志查询。
 package agent
 
 import (

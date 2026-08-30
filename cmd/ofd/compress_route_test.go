@@ -23,7 +23,7 @@ func (s routeStubWindows) ContextWindow(providerName, model string) (int64, bool
 	return w, ok
 }
 
-// TestCompressionWidensRouterCandidates 是 docs/05 4.5 的验收：
+// TestCompressionWidensRouterCandidates 是 4.5 的验收：
 // L4 压缩管线的产出（压缩后 token）经 WithPromptTokens 喂给 L3 路由，
 // 小上下文模型因压缩进入候选——压缩前装不下被滤除、压缩后成为首选。
 func TestCompressionWidensRouterCandidates(t *testing.T) {

@@ -13,7 +13,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/store"
 )
 
-// TestCatalogKeygenSignVerify 是 M6.5 维护者工具面往返验收：
+// TestCatalogKeygenSignVerify 是 维护者工具面往返验收：
 // keygen 出 seed → sign 出 detached 签名 → verify 验签+结构校验。
 func TestCatalogKeygenSignVerify(t *testing.T) {
 	dir := t.TempDir()
@@ -69,7 +69,7 @@ func TestCatalogKeygenSignVerify(t *testing.T) {
 	}
 }
 
-// TestCatalogReportEvidence 是 M6.5 众测报告验收：feed 条目（probation
+// TestCatalogReportEvidence 是 众测报告验收：feed 条目（probation
 // 标注）× request_log 聚合证据联结成行。
 func TestCatalogReportEvidence(t *testing.T) {
 	dir := t.TempDir()

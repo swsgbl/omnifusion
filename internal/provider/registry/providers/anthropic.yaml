@@ -3,7 +3,7 @@ providers:
     kind: anthropic
     display_name: Anthropic
     # 原生 Messages 协议（/v1/messages，x-api-key + anthropic-version:
-    # 2023-06-01）——M3.2 起由 internal/translate 纯函数对承接互译，
+    # 2023-06-01）——随后由 internal/translate 纯函数对承接互译，
     # 适配器只做 HTTP 壳。BYOK 付费，无免费层（不计滑动窗口）。
     base_url: https://api.anthropic.com
     key_env: ANTHROPIC_API_KEY

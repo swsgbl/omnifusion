@@ -1,9 +1,9 @@
-// semantic.go 是语义压缩规则档（docs/05 6.2，M6）：对长文档文本做
+// semantic.go 是语义压缩规则档（ 6.2，）：对长文档文本做
 // 多语言分句 + 词频信息量打分 + 按保留率裁低信息句，保序重组。
 // 只裁句不造句——被裁句整体消失、保留句逐字不变，保真由结构保证；
 // 尾部 RecencyGuard 条与 system/tool 链不碰（gate 亦保全）。纯 Go
 // 零模型依赖；LLMLingua-2 级神经压缩走可选 sidecar 档
-// （semantic_sidecar.go），默认二进制不阻塞（ADR-009）。
+// （semantic_sidecar.go），默认二进制不阻塞（学习型模型不进默认二进制）。
 package compression
 
 import (

@@ -4,7 +4,7 @@ package config
 // catalog/guardrails/metrics/audit/a2a/server/store/log），加载与校验
 // 逻辑分别在 config.go 与 validate.go。
 
-// A2AConfig 控制 Agent2Agent v1.0 协议面（M7.2）：发现端点
+// A2AConfig 控制 Agent2Agent v1.0 协议面：发现端点
 // /.well-known/agent-card.json + JSON-RPC /rpc（均挂网关 key 之外/之内，
 // 数据面同令牌）。默认开启——与 /v1/** 同鉴权强度，无新增暴露面。
 type A2AConfig struct {
@@ -18,7 +18,7 @@ type A2AConfig struct {
 	DefaultModel string `yaml:"default_model"`
 }
 
-// CatalogConfig 是 M6.5 签名目录 feed：社区维护的窗口/众测数据源。
+// CatalogConfig 是 签名目录 feed：社区维护的窗口/众测数据源。
 // feed_url + feed_pubkey 成对配置才启用（pinned Ed25519 公钥，64 hex）；
 // 双空 = 未启用（默认，零行为变更）。
 type CatalogConfig struct {
@@ -26,7 +26,7 @@ type CatalogConfig struct {
 	FeedPubkey string `yaml:"feed_pubkey"`
 }
 
-// CombosConfig 是命名组合层（M4.7）：路由组合（命名模型组）+ 压缩
+// CombosConfig 是命名组合层：路由组合（命名模型组）+ 压缩
 // 组合（有序阶段名），路由组合可绑定一个压缩组合实现 per-path
 // 压缩策略（免费层路径用激进压缩）。
 type CombosConfig struct {
@@ -50,7 +50,7 @@ type ComboMemberConfig struct {
 	Model    string `yaml:"model"`
 }
 
-// FusionConfig 是 M6.1 Fusion 扇出组（model 内嵌 "@fusion" 指令选择）：
+// FusionConfig 是 Fusion 扇出组（model 内嵌 "@fusion" 指令选择）：
 // 并行扇出异构成员 → QUORUM 门控 → 轻量 Judge 合成。空 members =
 // 未启用（@fusion 请求在边界 400）。
 type FusionConfig struct {
@@ -63,10 +63,10 @@ type FusionConfig struct {
 	Quorum int `yaml:"quorum"`
 }
 
-// SemanticConfig 是 M6.2 语义压缩段：零值 = 不附加配置（规则档
+// SemanticConfig 是 语义压缩段：零值 = 不附加配置（规则档
 // semantic 阶段用内置默认参数，sidecar 档不可用）。配置 sidecar_url
 // 后可选档（semantic_sidecar 阶段）生效——LLMLingua-2 级神经压缩
-// 以 sidecar HTTP 服务进程外部署（ADR-009），默认二进制零模型依赖。
+// 以 sidecar HTTP 服务进程外部署（学习型模型不进默认二进制），默认二进制零模型依赖。
 type SemanticConfig struct {
 	// SidecarURL 是 sidecar 压缩服务地址（POST {texts,rate}→{texts}）。
 	SidecarURL string `yaml:"sidecar_url"`
@@ -74,10 +74,10 @@ type SemanticConfig struct {
 	Rate float64 `yaml:"rate"`
 }
 
-// MLRouterConfig 是 M6.3 ML 路由段（model 内嵌 "@smart" 指令选择）：
+// MLRouterConfig 是 ML 路由段（model 内嵌 "@smart" 指令选择）：
 // 弱/强两档成员 + 难度阈值。双双为空 = 未启用；只配一边 fail-fast。
 // 难度 ≥ 阈值走强档，否则弱档；另一档殿后作 failover。默认纯 Go
-// 启发式分类（ONNX 对比项走可选构建，不进默认二进制——ADR-009）。
+// 启发式分类（ONNX 对比项走可选构建，不进默认二进制）。
 type MLRouterConfig struct {
 	// Weak 是弱档目标（小/免费模型，承接简单请求）。
 	Weak *ComboMemberConfig `yaml:"weak"`
@@ -88,7 +88,7 @@ type MLRouterConfig struct {
 }
 
 // ServerConfig 控制 HTTP 监听。
-// Host 默认 127.0.0.1 是安全红线（docs/06 R5）：改绑非回环地址必须显式配置。
+// Host 默认 127.0.0.1 是安全红线（ R5）：改绑非回环地址必须显式配置。
 type ServerConfig struct {
 	Host string `yaml:"host"`
 	Port int    `yaml:"port"`
@@ -105,7 +105,7 @@ type LogConfig struct {
 	Format string `yaml:"format"` // json|text
 }
 
-// GuardrailsConfig 是规则型护栏（M5.4）：默认关闭（BYOK 个人网关不意外
+// GuardrailsConfig 是规则型护栏：默认关闭（BYOK 个人网关不意外
 // 拦截），显式 enabled: true 启用；处置与规则名合法性在装配期由
 // security.NewGuardrails 校验（fail-fast）。
 type GuardrailsConfig struct {
@@ -127,13 +127,13 @@ type GuardrailsActionConfig struct {
 	Action string `yaml:"action"` // warn|block|off
 }
 
-// MetricsConfig 控制 /metrics 暴露（M5.5）：默认开启——被动观测不改变
+// MetricsConfig 控制 /metrics 暴露：默认开启——被动观测不改变
 // 请求行为，端点挂网关 key 鉴权（与数据面同令牌），不新开匿名信息面。
 type MetricsConfig struct {
 	Enabled bool `yaml:"enabled"`
 }
 
-// AuditConfig 控制请求审计日志（M5.5）：默认开启，每请求一行
+// AuditConfig 控制请求审计日志：默认开启，每请求一行
 // （含护栏拦截的 400），max_rows 上限之外自动裁最旧。
 type AuditConfig struct {
 	Enabled bool `yaml:"enabled"`

@@ -1,4 +1,4 @@
-// statuscmd.go 实现 `ofd status`（M2.6）：provider/key/model 三层健康
+// statuscmd.go 实现 `ofd status`：provider/key/model 三层健康
 // 视图。离线快照——provider 层读 registry 与凭据可达性，key 层读
 // connections 表（含 env 回退），model 层读 SQLite 持久化的冷却/锁定；
 // 网关进程内的熔断计数/配额窗口/打分是内存态，跨进程不可见（脚注注明）。

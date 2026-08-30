@@ -1,4 +1,4 @@
-// models.go 承载 GET /v1/models（M3.5）：把模型目录以 OpenAI list
+// models.go 承载 GET /v1/models：把模型目录以 OpenAI list
 // 形返回（{"object":"list","data":[{"id",...,"owned_by":provider}]}），
 // 数据来自 routing.Catalog 的快照（1h 定时同步 + 校验和判变更）。
 package server

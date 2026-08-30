@@ -2,7 +2,7 @@ providers:
   - id: nvidia
     kind: openai_compat
     display_name: NVIDIA NIM
-    # 聚合面：同一 key 后多路复用多家上游模型（OmniRoute #6773 记录 9 家厂商 17+ 模型）。
+    # 聚合面：同一 key 后多路复用多家上游模型。
     base_url: https://integrate.api.nvidia.com/v1
     auth_style: bearer
     key_env: NVAPI_API_KEY

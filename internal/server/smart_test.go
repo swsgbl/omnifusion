@@ -1,4 +1,4 @@
-// smart_test.go 覆盖 M6.3 @smart 端到端：易/难请求分别落弱/强档
+// smart_test.go 覆盖 @smart 端到端：易/难请求分别落弱/强档
 // （echo 上游按模型回可辨文本）、弱档失败 failover 强档、流式路径、
 // 边界 400（@smart:x / 未装配 / header smart）。
 package server

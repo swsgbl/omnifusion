@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// TestQueryModelEvidence 是 M6.5 众测证据面验收：按 (provider, model)
+// TestQueryModelEvidence 是 众测证据面验收：按 (provider, model)
 // 聚合窗口内的请求结果，空 model 与窗口外/他 provider 不计。
 func TestQueryModelEvidence(t *testing.T) {
 	s, err := Open(filepath.Join(t.TempDir(), "evidence.db"))

@@ -52,7 +52,7 @@ func (s *Server) withProviders(t *testing.T, ups ...provider.Provider) *Server {
 
 // TestChatResponseFormatDegradedHeader：OpenAI 入站带 response_format
 // 打到 Anthropic 上游（无原生结构化输出）→ 200 + 显式降级头，上游
-// wire 不携带该字段（M3.6 验收：不支持的上游显式降级标记）。
+// wire 不携带该字段（验收：不支持的上游显式降级标记）。
 func TestChatResponseFormatDegradedHeader(t *testing.T) {
 	cap := &stringCapture{}
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -1,4 +1,4 @@
-// audit_test.go 是 M5.5 验收（数据面出账）：非流式/流式/失败/护栏拦截
+// audit_test.go 是 验收（数据面出账）：非流式/流式/失败/护栏拦截
 // 四类出口各落一行审计 + 指标双写；audit.enabled=false 只计指标不落库；
 // /metrics 端点鉴权与暴露。
 package server

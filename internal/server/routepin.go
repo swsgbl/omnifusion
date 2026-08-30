@@ -1,4 +1,4 @@
-// routepin.go 承载 M5.2 运行态控制：全局路由钉选（pin）与默认压缩
+// routepin.go 承载 运行态控制：全局路由钉选（pin）与默认压缩
 // 组合（defaultCombo）的存取 + 数据面注入 helper。均为内存态——重启
 // 失效（运维语义：临时切流，与配置文件的声明式事实分离）。
 package server

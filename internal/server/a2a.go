@@ -1,4 +1,4 @@
-// a2a.go 是 A2A v1.0 协议的 HTTP 边界（M7.2）：AgentCard 发现端点
+// a2a.go 是 A2A v1.0 协议的 HTTP 边界：AgentCard 发现端点
 // （公开）+ JSON-RPC 2.0 /rpc（网关 key 鉴权）。网关以「无状态代理
 // agent」形态接入：SendMessage 走 Message-only，流式走任务生命周期流
 // （transient task，事后不可查询）。
@@ -18,7 +18,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/routing"
 )
 
-// SetA2A 注入 A2A AgentCard 与缺省目标模型（M7.2）。未装配（nil card）
+// SetA2A 注入 A2A AgentCard 与缺省目标模型。未装配（nil card）
 // 时不注册 /.well-known/agent-card.json 与 /rpc 路由。
 func (s *Server) SetA2A(card *a2a.AgentCard, defaultModel string) {
 	s.a2aCard = card

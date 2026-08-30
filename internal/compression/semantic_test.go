@@ -7,7 +7,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/core/schema"
 )
 
-// semanticSamples 是 docs/05 6.2 的验收样例集：英文长文档、中文
+// semanticSamples 是 6.2 的验收样例集：英文长文档、中文
 // 部署文档、中英混合带代码块——多语言覆盖；每样例附带关键保真
 // 断言（实体/数字/首末句/代码块必须在产出中存活）。
 func semanticSamples() []struct {
@@ -67,7 +67,7 @@ func semanticSamples() []struct {
 	}
 }
 
-// TestSemanticSampleSuite 是 docs/05 6.2 的验收：多语言样例节省率
+// TestSemanticSampleSuite 是 6.2 的验收：多语言样例节省率
 // 报告 + 关键信息保真断言；任何样例不膨胀。
 func TestSemanticSampleSuite(t *testing.T) {
 	for _, s := range semanticSamples() {

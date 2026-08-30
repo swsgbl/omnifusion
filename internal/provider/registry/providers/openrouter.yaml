@@ -1,6 +1,6 @@
-# OmniFusion 内置 provider 声明（M1.3）。
-# 端点/鉴权/免费层信息核对自 OmniRoute 源码（open-sse/config/providers/registry，
-# 2026-08-28 main 分支，见 scratchpad research/sources/or-providers/）与各官方文档。
+# OmniFusion 内置 provider 声明。
+# 端点/鉴权/免费层信息核对自上游源码与官方文档（核对日期
+# 2026-08-28）与各官方文档。
 # 修改后由 internal/provider/registry 经 go:embed 加载。
 
 providers:

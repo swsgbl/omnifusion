@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// ModelRow 是 models 表的一行（docs/04 §6：目录是 catalog sync 的
+// ModelRow 是 models 表的一行（ catalog sync 的
 // 持久化目标；free_meta 承载 provider 级免费层说明）。
 type ModelRow struct {
 	Provider string

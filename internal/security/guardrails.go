@@ -1,4 +1,4 @@
-// guardrails.go 实现规则型 Guardrails v1（M5.4，docs/04 L2）：入站正文
+// guardrails.go 实现规则型 Guardrails v1（ L2）：入站正文
 // 的 PII 检测（默认拦截）与提示注入模式告警（默认放行+告警）。纯规则、
 // 无外部依赖；Finding 只含规则名与计数、不含命中原文——日志不二次泄漏。
 package security

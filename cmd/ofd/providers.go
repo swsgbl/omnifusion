@@ -12,10 +12,10 @@ import (
 )
 
 // buildRouter 从内置注册表装配分发器：只实例化凭据齐备的 provider。
-// 凭据优先级（M1.7）：keyring（connections 表，AES-256-GCM 密文，
+// 凭据优先级：keyring（connections 表，AES-256-GCM 密文，
 // 取用时才解密）→ 环境变量（key_env / vars_env）。无可用 provider
 // 时返回空 Router，网关仍可启动，/v1/chat/completions 返回 503。
-// 第二返回值是 provider → key 来源描述（M4.8 Dashboard keys 页注入）。
+// 第二返回值是 provider → key 来源描述（Dashboard keys 页注入）。
 func buildRouter(log *slog.Logger, st *store.Store, kr *security.Keyring) (*routing.Router, map[string]string) {
 	entries, err := registry.Load()
 	if err != nil {
@@ -61,7 +61,7 @@ func buildRouter(log *slog.Logger, st *store.Store, kr *security.Keyring) (*rout
 		log.Info("provider ready", "provider", e.ID)
 	}
 
-	// M2.2：三层隔离状态机（冷却/锁定持久化于 SQLite，重启恢复）。
+	// 三层隔离状态机（冷却/锁定持久化于 SQLite，重启恢复）。
 	iso, err := routing.NewIsolation(st, log)
 	if err != nil {
 		log.Error("init isolation state machine; degrade to no isolation", "err", err)
@@ -70,9 +70,9 @@ func buildRouter(log *slog.Logger, st *store.Store, kr *security.Keyring) (*rout
 	return &routing.Router{Providers: providers, Log: log, Isolation: iso, Quota: quota, Scoring: routing.NewScorer(), Sessions: routing.NewSessionTracker()}, keySources
 }
 
-// buildCatalog 装配模型目录（M3.5）：live 拉取用 router 里已实例化的
+// buildCatalog 装配模型目录：live 拉取用 router 里已实例化的
 // provider；静态回落、free_meta 与登记定价取自注册表声明
-//（ErrNotSupported 的原生协议家在 M6 前靠静态清单）。
+//（ErrNotSupported 的原生协议家在 此前靠静态清单）。
 func buildCatalog(log *slog.Logger, st *store.Store, r *routing.Router) *routing.Catalog {
 	static := map[string][]provider.ModelInfo{}
 	freeMeta := map[string]string{}

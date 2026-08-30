@@ -1,4 +1,4 @@
-// validate_test.go 覆盖 fusion/semantic/mlrouter/catalog 各段校验规则（M6.x）。
+// validate_test.go 覆盖 fusion/semantic/mlrouter/catalog 各段校验规则（.x）。
 package config
 
 import (
@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// fusionMembers 是合法的三成员扇出组（M6.1 测试基线）。
+// fusionMembers 是合法的三成员扇出组（测试基线）。
 func fusionMembers() []ComboMemberConfig {
 	return []ComboMemberConfig{
 		{Provider: "a", Model: "model-a"},

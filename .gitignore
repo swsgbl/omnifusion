@@ -25,7 +25,7 @@ _sweep*.ps1
 .idea/
 .vscode/
 
-# 桌面端（M7.3 Tauri）
+# 桌面端（Tauri）
 node_modules/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/

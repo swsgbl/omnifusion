@@ -9,7 +9,7 @@ providers:
       input: [text, image]
       output: [text]
       features: [tools]
-    # OmniRoute #3258：非推理 Llama 模型收到 reasoning_effort 会返回 400。
+    # 已知上游问题：非推理 Llama 模型收到 reasoning_effort 会返回 400。
     # 本网关不主动注入该字段，仅按调用方原样透传（Extra），风险由调用方承担。
     free_tier: 免费层 30 RPM / 14.4K RPD（无卡）
     rate_limits: {rpm: 30, rpd: 14400}
@@ -17,7 +17,7 @@ providers:
     # qwen3-32b 已下线；context_window 取自接口返回值。
     # whisper-*/orpheus-*（语音）与 prompt-guard/safeguard（分类审核）非对话模型，不列。
     # 区域封锁：CN/HK 出口 IP 一律 403（发生在密钥校验前），需配
-    # HTTPS_PROXY 走美/日等出口（docs/04 L2 分级代理·全局层）。
+    # HTTPS_PROXY 走美/日等出口（ L2 分级代理·全局层）。
     # 登记定价口径：免费层内 $0（无卡档）；超层转按量的公开单价不
     # 登记（cheap 对未登记档不惩罚）。
     models:

@@ -13,7 +13,7 @@ type MemoryRow struct {
 	CreatedUnix int64
 }
 
-// InsertSessionMemory 插入一行会话记忆（M6.4）。tokens 是调用方按
+// InsertSessionMemory 插入一行会话记忆。tokens 是调用方按
 // 「拉丁小写词 + CJK bigram」预处理的空格串（见 intelligence 包），
 // content 存原文（UNINDEXED，注入时直接取用）。
 func (s *Store) InsertSessionMemory(sessionID, role, content, tokens string, createdUnix int64) error {

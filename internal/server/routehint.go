@@ -1,4 +1,4 @@
-// routehint.go 在 HTTP 边界解析策略选择（M2.5 验收：策略可经
+// routehint.go 在 HTTP 边界解析策略选择（验收：策略可经
 // model 内嵌 @指令 或 header 选择），重写 req.Model 为裸模型名。
 package server
 
@@ -13,9 +13,9 @@ import (
 
 // dispatchOptions 解析逐请求路由选择：model 内嵌 @指令（in-band）优先于
 // X-OmniFusion-Strategy header（out-of-band）。策略指令把 req.Model 重写
-// 为裸模型名；组合指令（M4.7 "@combo:NAME"）保持原样（逐尝试按成员
+// 为裸模型名；组合指令（"@combo:NAME"）保持原样（逐尝试按成员
 // 模型改写，缓存键亦按组合区分），返回组合名供调用方应用压缩绑定。
-// Fusion 指令（M6.1 "@fusion"）置 fusion=true 短路到 FusionRunner。
+// Fusion 指令（"@fusion"）置 fusion=true 短路到 FusionRunner。
 func (s *Server) dispatchOptions(r *http.Request, req *schema.UnifiedRequest) ([]routing.DispatchOption, string, bool, error) {
 	name, combo := "", ""
 	if directive, bare, err := routing.ParseModelDirective(req.Model); err != nil {
@@ -80,7 +80,7 @@ func (s *Server) dispatchOptions(r *http.Request, req *schema.UnifiedRequest) ([
 		}
 		opts = append(opts, routing.WithStrategyName(name))
 	}
-	if combo == "" { // M5.2 默认压缩组合：请求未显式选组合时应用
+	if combo == "" { // 默认压缩组合：请求未显式选组合时应用
 		if dc := s.defaultCombo(); dc != "" && s.comboKnown(dc) {
 			combo = dc
 			opts = append(opts, routing.WithCombo(dc))
@@ -89,7 +89,7 @@ func (s *Server) dispatchOptions(r *http.Request, req *schema.UnifiedRequest) ([
 	return opts, combo, false, nil
 }
 
-// sessionOption 从 X-Session-Id 提取会话亲和（M2.7）；无头则不加。
+// sessionOption 从 X-Session-Id 提取会话亲和；无头则不加。
 func sessionOption(r *http.Request) []routing.DispatchOption {
 	if id := r.Header.Get(routing.HeaderSession); id != "" {
 		return []routing.DispatchOption{routing.WithSession(id)}

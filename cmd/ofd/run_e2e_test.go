@@ -1,4 +1,4 @@
-// run_e2e_test.go 是 M5.3 CLI 包装的验收：编译真实 ofd 二进制，对
+// run_e2e_test.go 是 CLI 包装的验收：编译真实 ofd 二进制，对
 // 健康网关（假 /healthz）注入正确环境变量并拉起 PATH 里的假 CLI（三
 // 目标参数化）；另覆盖 run 参数校验、waitHealthy 轮询、spawnDetached
 // 后台拉起与 isLoopbackBase 判定。autospawn→真网关全链路走真机冒烟。
@@ -33,12 +33,12 @@ func TestRunCommandValidation(t *testing.T) {
 
 func TestIsLoopbackBase(t *testing.T) {
 	cases := map[string]bool{
-		"http://127.0.0.1:8787":   true,
-		"http://localhost:8787":   true,
-		"http://[::1]:8787":       true,
+		"http://127.0.0.1:8787": true,
+		"http://localhost:8787": true,
+		"http://[::1]:8787": true,
 		"http://192.168.1.5:8787": false,
-		"http://gw.example.com":   false,
-		"://bad":                  false,
+		"http://gw.example.com": false,
+		"://bad": false,
 	}
 	for base, want := range cases {
 		if got := isLoopbackBase(base); got != want {

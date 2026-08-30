@@ -10,7 +10,7 @@ import (
 // gatewayTokenPrefix 让网关 key 可识别、可审计（日志脱敏时也易辨认）。
 const gatewayTokenPrefix = "ofg-"
 
-// GatewayToken 从主密钥派生网关统一 API Key（docs/04 gatewaykey.go：
+// GatewayToken 从主密钥派生网关统一 API Key（ gatewaykey.go：
 // 派生/校验）。确定性派生意味着不落盘、不漂移，信任模型与 keyring
 // 一致；主密钥变（换机/换用户/加 passphrase）则 key 随之而变。
 func (k *Keyring) GatewayToken() (string, error) {

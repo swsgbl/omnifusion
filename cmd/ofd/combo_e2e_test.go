@@ -50,7 +50,7 @@ func (u *comboUpstream) snapshot() (int, string, string) {
 	return u.hits, u.body, u.model
 }
 
-// TestComboYAMLConfigTakesEffect 是 docs/05 4.7 的验收：YAML 声明的
+// TestComboYAMLConfigTakesEffect 是 4.7 的验收：YAML 声明的
 // 路由组合（成员序 + 成员模型）与压缩组合绑定（per-path 压缩策略）
 // 全链路生效——请求 "@combo:free-tier" 走成员 b、按成员模型发上游、
 // 消息按绑定组合被压缩；纯路由组合不压缩；未知组合 400。

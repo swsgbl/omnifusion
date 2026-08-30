@@ -3,10 +3,10 @@ providers:
     kind: gemini
     display_name: Google Gemini
     # 原生 generateContent 协议（/v1beta/models/{model}:generateContent，
-    # x-goog-api-key）——M3.2 起由 internal/translate 纯函数对承接互译，
+    # x-goog-api-key）——随后由 internal/translate 纯函数对承接互译，
     # 适配器只做 HTTP 壳；此前走 /v1beta/openai 兼容面，现切换到原生协议。
-    # 注：本机网络当前无法直连 generativelanguage.googleapis.com，
-    # 需按 docs/06 的网络纪律配置分级代理后使用。
+    # 注：部分网络环境可能无法直连 generativelanguage.googleapis.com，
+    # 需配置代理后使用。
     base_url: https://generativelanguage.googleapis.com
     key_env: GEMINI_API_KEY
     capabilities:

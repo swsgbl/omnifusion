@@ -1,4 +1,4 @@
-// matrix_tools_test.go 钉住工具会话的矩阵一致性（M3.3）：三种入站
+// matrix_tools_test.go 钉住工具会话的矩阵一致性：三种入站
 // wire 对同一 canonical 工具语义（tools+tool_choice+assistant 调用+
 // tool 结果）归一，canonical IR 向三种上游出站再回读语义保持。
 package translate

@@ -1,14 +1,14 @@
 # OmniFusion 网关容器编排。
 #
 # 基础栈（仅网关）：
-#   docker compose -f deploy/docker-compose.yml up -d --build
+# docker compose -f deploy/docker-compose.yml up -d --build
 # 带 mock 上游的无 key 全链路验证（mock 与网关共享网络命名空间，
 # 内置 ollama provider 的 localhost:11434 即 mock）：
-#   docker compose -f deploy/docker-compose.yml --profile mock up -d --build
+# docker compose -f deploy/docker-compose.yml --profile mock up -d --build
 # 带可观测栈（Prometheus + Grafana）：
-#   docker compose -f deploy/docker-compose.yml --profile mock --profile obs up -d --build
+# docker compose -f deploy/docker-compose.yml --profile mock --profile obs up -d --build
 #
-# 端口默认只绑宿主回环（安全红线 docs/06 R5）；对外暴露请自行修改 ports 左侧。
+# 端口默认只绑宿主回环（安全红线 R5）；对外暴露请自行修改 ports 左侧。
 name: omnifusion
 
 services:

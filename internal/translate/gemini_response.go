@@ -1,4 +1,4 @@
-// gemini_response.go 是 Gemini 入站的响应侧翻译（M3.2）：IR 聚合响应
+// gemini_response.go 是 Gemini 入站的响应侧翻译：IR 聚合响应
 // → GeminiResponse wire 形，含 finishReason 双向映射。
 package translate
 
@@ -74,7 +74,7 @@ func MapFinishToGemini(finish string) string {
 		return "MAX_TOKENS"
 	case schema.FinishContentFilt:
 		return "SAFETY"
-	default: // stop / tool_calls（M3.3 前不会出现）按正常收尾
+	default: // stop / tool_calls（前不会出现）按正常收尾
 		return "STOP"
 	}
 }

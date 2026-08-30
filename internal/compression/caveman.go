@@ -1,4 +1,4 @@
-// caveman.go 是 Caveman 规则压缩阶段（docs/05 4.4，docs/02：规则
+// caveman.go 是 Caveman 规则压缩阶段（ 4.4，：规则
 // 文本压缩标准档 ~30%）。对 guard 窗口外的 user/assistant 长文本消息
 // 应用确定性词面规则：冗长短语缩写、填充词删除、空白规整。只动词面
 // 不动结构——system 全文（gate 保全）与 tool 链（结构保全）不碰，

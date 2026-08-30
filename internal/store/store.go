@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	_ "modernc.org/sqlite" // 纯 Go SQLite 驱动（ADR-004）
+	_ "modernc.org/sqlite" // 纯 Go SQLite 驱动（免 CGO）
 )
 
 // Store 封装 SQLite 连接。

@@ -1,4 +1,4 @@
-// scope_test.go 覆盖 M5.2 作用域权限核心：token 派生归一、全部
+// scope_test.go 覆盖 作用域权限核心：token 派生归一、全部
 // 子集的派生→解析往返、master/伪造 token 解析、requireScope 中间件
 // 的 401/403/200 三态。
 package server

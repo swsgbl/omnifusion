@@ -1,5 +1,5 @@
 // Package openai_compat implements the declarative adapter that covers
-// the large majority of OpenAI-shaped providers (docs/04-架构设计
+// the large majority of OpenAI-shaped providers (
 // §4.1). Behavioural differences are expressed as Spec data — headers,
 // auth style, path, model aliases, max_tokens policy — not as forked
 // code paths.
@@ -52,7 +52,7 @@ const (
 )
 
 // MaxTokensPolicy captures the per-provider divergence around
-// max_tokens (docs/04 §4.2).
+// max_tokens ().
 type MaxTokensPolicy string
 
 const (
@@ -66,7 +66,7 @@ const (
 )
 
 // Spec is the declarative description of one OpenAI-compatible
-// provider. The registry builds it from YAML (M1.3); tests build it
+// provider. The registry builds it from YAML (); tests build it
 // directly.
 type Spec struct {
 	ProviderName string
@@ -131,16 +131,16 @@ func New(spec Spec) (*Adapter, error) {
 	if timeout <= 0 {
 		timeout = DefaultTimeout
 	}
-	// One dedicated client per provider (Bifrost lesson, docs/01
+	// One dedicated client per provider (Bifrost lesson, 
 	// item 1): connection pool and timeouts are isolated. The dial
 	// timeout keeps unreachable upstreams from stalling the
 	// fallback chain.
-	// Proxy honors HTTPS_PROXY/HTTP_PROXY/NO_PROXY (docs/04 L2
+	// Proxy honors HTTPS_PROXY/HTTP_PROXY/NO_PROXY ( L2
 	// tiered proxy, global tier): region-blocked upstreams such as
 	// Groq (403 on CN/HK egress before auth) only work through an
 	// env-configured proxy; without it the request goes direct and
 	// the fallback chain handles the failure. Per-provider proxy
-	// tiers land with the L2 proxy.go work (M2+).
+	// tiers land with the L2 proxy.go work (+).
 	transport := func() *http.Transport {
 		return &http.Transport{
 			Proxy:                 http.ProxyFromEnvironment,
@@ -155,7 +155,7 @@ func New(spec Spec) (*Adapter, error) {
 		// Streaming needs a client without a global Timeout: SSE bodies
 		// legitimately outlive any request-level deadline. Header wait
 		// stays bounded by ResponseHeaderTimeout; the overall lifetime
-		// is bounded by the caller's context (docs/04 §5 item 4).
+		// is bounded by the caller's context ( item 4).
 		streamClient: &http.Client{Transport: transport()},
 	}, nil
 }
@@ -169,7 +169,7 @@ func (a *Adapter) Capabilities() provider.Capability { return a.spec.Cap }
 // HTTPClient implements provider.Provider.
 func (a *Adapter) HTTPClient() *http.Client { return a.client }
 
-// ListModels 的实现在 models.go（M3.5 实时目录拉取）。
+// ListModels 的实现在 models.go（实时目录拉取）。
 
 // Translate implements provider.Provider: it rewrites the model id
 // through the alias table, applies the max_tokens policy, serializes
@@ -241,7 +241,7 @@ func (a *Adapter) Translate(ctx context.Context, req *schema.UnifiedRequest) (*p
 // Parse implements provider.Provider for non-streaming responses:
 // non-2xx becomes a typed UpstreamError; 2xx bodies decode into the
 // unified Response with the provider name stamped for observability.
-// The call's Original request stays available for streaming (M1.5)
+// The call's Original request stays available for streaming ()
 // and reconciliation logic.
 func (a *Adapter) Parse(ctx context.Context, call *provider.ProviderCall, resp *http.Response) (*schema.Response, error) {
 	if resp == nil || resp.Body == nil {

@@ -8,7 +8,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/core/schema"
 )
 
-// mustGeminiWire 是出站对的测试便捷形（M3.6 起出站对附带 degraded
+// mustGeminiWire 是出站对的测试便捷形（起出站对附带 degraded
 // 返回值，matrix/tools 测试经此取 wire；Anthropic 侧 fixture 已由
 // 各测试内联，helper 不再保留——CI unused 审计）。
 func mustGeminiWire(t *testing.T, ir *schema.UnifiedRequest) *GeminiRequest {

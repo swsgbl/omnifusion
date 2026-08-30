@@ -15,7 +15,7 @@ var expectedIDs = []string{
 	"siliconflow", "zhipu",
 }
 
-// expectedKinds 声明非 openai_compat 的原生适配器（M3.2）。
+// expectedKinds 声明非 openai_compat 的原生适配器。
 var expectedKinds = map[string]string{
 	"anthropic": KindAnthropic,
 	"gemini":    KindGemini,

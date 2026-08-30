@@ -34,10 +34,10 @@ func main() {
 	}
 }
 
-// dispatchSubcommand 分发 CLI 子命令：ofd key add|list|remove（M1.7）/
-// ofd gateway-key（M1.8）/ ofd status（M2.6）/ ofd mcp（M5.1，stdio MCP
-// server）/ ofd mcp-token（M5.2，scoped token 派生）/ ofd run（M5.3，CLI
-// 包装）/ ofd catalog（M6.5，签名 feed keygen/sign/verify/report）。
+// dispatchSubcommand 分发 CLI 子命令：ofd key add|list|remove/
+// ofd gateway-key/ ofd status/ ofd mcp（stdio MCP
+// server）/ ofd mcp-token（scoped token 派生）/ ofd run（CLI
+// 包装）/ ofd catalog（签名 feed keygen/sign/verify/report）。
 // args 为空返回 (false, nil)：无子命令即进入 serve；未知子命令返回错误
 // 而不是静默启动服务（误敲 ofd help 之类不再意外挂起前台进程）。
 func dispatchSubcommand(cfg *config.Config, cfgPath string, args []string) (bool, error) {
@@ -116,21 +116,21 @@ func run() error {
 	srv := server.New(cfg, logger, st)
 	router, keySources := buildRouter(logger, st, kr)
 	srv.SetRouter(router)
-	srv.SetKeySources(keySources) // M4.8：Dashboard keys 页的来源描述
+	srv.SetKeySources(keySources) // Dashboard keys 页的来源描述
 	printFirstRunGuide(cfg, keySources) // 小白友好（P0）：零密钥时给三步上手指引
 
-	// M3.5：模型目录——启动立即同步一轮，随后 1h 定时刷新（校验和
+	// 模型目录——启动立即同步一轮，随后 1h 定时刷新（校验和
 	// 判变更才落库）；/v1/models 服务于目录快照。
 	catalog := buildCatalog(logger, st, router)
 	srv.SetCatalog(catalog)
 	go catalog.Run(ctx)
 
-	// M4.5 跨层：路由侧经目录查询 (provider, model) 上下文窗口，
+	// 跨层：路由侧经目录查询 (provider, model) 上下文窗口，
 	// 压缩后 token 超窗的候选被排除（压缩把请求缩小后小窗口
 	// 免费模型进入候选）。
 	router.Windows = catalog
 
-	// 模型成员过滤（docs/00 §4.5 遗留项落地）：裸模型请求只尝试
+	// 模型成员过滤（ 遗留项落地）：裸模型请求只尝试
 	// 目录声明可服务该模型的 provider——候选序中被墙/不可达家不再
 	// 吃满上游超时才回退（bench 实证每新会话首请求 ~25s）。
 	router.Models = catalog
@@ -143,12 +143,12 @@ func run() error {
 	// cheap 保持 v1 配额余量语义，不阻断）。
 	router.Price = catalog
 
-	// M4.6：语义缓存精确层——非流式请求命中直接返回（TTFT<10ms），
+	// 语义缓存精确层——非流式请求命中直接返回（TTFT<10ms），
 	// 未命中上游成功后异步回写；TTL 24h、容量 4096 条（每 64 次回写
 	// 触发一次淘汰）。
 	srv.SetCache(intelligence.NewSemCache(st, 24*time.Hour, 4096))
 
-	// M4.7：组合层——路由组合（命名模型组，"@combo:NAME" 选择）+
+	// 组合层——路由组合（命名模型组，"@combo:NAME" 选择）+
 	// 绑定的压缩组合（per-path 压缩策略）。配置语义错误（未知名阶段
 	// 等）在此暴露，fail-fast。
 	combos, comboPipes, err := buildCombos(cfg)
@@ -161,7 +161,7 @@ func run() error {
 		logger.Info("combos loaded", "count", len(combos))
 	}
 
-	// M6.2：语义压缩参数注入（句保留率钳 [0.1,0.9] + 可选 sidecar
+	// 语义压缩参数注入（句保留率钳 [0.1,0.9] + 可选 sidecar
 	// URL）。规则档 semantic 阶段零模型依赖恒可用；sidecar 档仅在
 	// URL 配置时被 ShouldRun 放行（阶段实例在 buildCombos 构造、
 	// 运行时读包级配置）。
@@ -171,7 +171,7 @@ func run() error {
 			"url", cfg.Semantic.SidecarURL, "rate", cfg.Semantic.Rate)
 	}
 
-	// M6.1：Fusion 扇出合成（"@fusion" 指令；空 members = 未启用，
+	// Fusion 扇出合成（"@fusion" 指令；空 members = 未启用，
 	// 请求在边界 400）。成员字段/门控区间已由 config.Validate 校验。
 	if fr := buildFusion(cfg.Fusion, logger); fr != nil {
 		srv.SetFusion(fr)
@@ -179,9 +179,9 @@ func run() error {
 			"members", len(fr.Members), "quorum", cfg.Fusion.Quorum)
 	}
 
-	// M6.3：ML 路由（"@smart" 指令；未配置 mlrouter 段时请求边界
+	// ML 路由（"@smart" 指令；未配置 mlrouter 段时请求边界
 	// 400）。默认纯 Go 启发式难度分档（RouteLLM 思想弱/强二分），
-	// ONNX 对比实现走可选构建（ADR-009）。
+	// ONNX 对比实现走可选构建（学习型模型不进默认二进制）。
 	if ml := buildMLRouter(cfg.MLRouter); ml != nil {
 		attachSmartRouter(router, ml, logger)
 		logger.Info("mlrouter enabled",
@@ -190,13 +190,13 @@ func run() error {
 			"threshold", ml.EffectiveThreshold(), "classifier", "heuristic")
 	}
 
-	// M6.4：会话记忆（FTS5 会话记忆）——恒装配、逐请求 opt-in：请求头
+	// 会话记忆（FTS5 会话记忆）——恒装配、逐请求 opt-in：请求头
 	// X-OmniFusion-Memory: on 开启记录与召回，默认关闭 = 零行为变更、
 	// 零落盘（隐私红线）。v1 仅非流式路径记录；召回对流式/非流式均生效。
 	srv.SetMemory(intelligence.NewMemory(st, logger))
 	logger.Info("session memory ready", "opt_in_header", "X-OmniFusion-Memory: on")
 
-	// M6.5：签名 catalog feed——pinned 公钥对原始字节 Ed25519 验签，
+	// 签名 catalog feed——pinned 公钥对原始字节 Ed25519 验签，
 	// 失败即丢弃保留旧目录；版本基线持久化（meta 表），等值=重放、
 	// 更小=回滚均拒绝。启动立即拉一轮，随后 1h 刷新。
 	if cfg.Catalog.FeedURL != "" {
@@ -236,7 +236,7 @@ func run() error {
 			"url", cfg.Catalog.FeedURL, "interval", catalogfeed.FeedInterval.String())
 	}
 
-	// M5.4：规则型护栏（默认关闭；启用时装配期校验处置/规则名，语义
+	// 规则型护栏（默认关闭；启用时装配期校验处置/规则名，语义
 	// 错误 fail-fast 不静默吞）。PII 默认拦截、注入默认告警放行。
 	if cfg.Guardrails.Enabled {
 		g, err := security.NewGuardrails(security.GuardrailsOptions{
@@ -252,14 +252,14 @@ func run() error {
 			"pii_action", g.PIIAction(), "injection_action", g.InjectionAction())
 	}
 
-	// M5.5：Prometheus 指标（默认开启；/metrics 挂网关 key 鉴权）。
+	// Prometheus 指标（默认开启；/metrics 挂网关 key 鉴权）。
 	// 审计日志无需装配——server 侧按 cfg.Audit 直写 store。
 	if cfg.Metrics.Enabled {
 		srv.SetMetrics(obs.NewMetrics())
 		logger.Info("metrics endpoint enabled", "path", "/metrics", "auth", "gateway key")
 	}
 
-	// M1.8（docs/06 R5 对策 2）：数据面强制网关 key，派生自主密钥，不落盘。
+	// （ R5 对策 2）：数据面强制网关 key，派生自主密钥，不落盘。
 	token, err := kr.GatewayToken()
 	if err != nil {
 		return fmt.Errorf("derive gateway token: %w", err)
@@ -267,7 +267,7 @@ func run() error {
 	srv.SetGatewayToken(token)
 	logger.Info("gateway API key enforced; clients must send Authorization: Bearer <key> (print with: ofd gateway-key)")
 
-	// M5.1：MCP Streamable HTTP 挂 /mcp（Claude Code 等 MCP 客户端）。
+	// MCP Streamable HTTP 挂 /mcp（Claude Code 等 MCP 客户端）。
 	// 工具数据经 GatewayView 环回访问自身 dashboard API——与 stdio 模式
 	// （ofd mcp）共用同一实现与数据口径。
 	mcpView := agent.NewGatewayView(
@@ -275,7 +275,7 @@ func run() error {
 	srv.SetMCPHandler(agent.ScopedHTTPHandler(mcpView, version, srv.ResolveRequestScopes))
 	logger.Info("MCP endpoint enabled", "path", "/mcp", "transport", "streamable-http")
 
-	// M7.2：A2A v1.0 协议面——AgentCard 发现 + JSON-RPC /rpc。网关以
+	// A2A v1.0 协议面——AgentCard 发现 + JSON-RPC /rpc。网关以
 	// 无状态代理 agent 形态接入（SendMessage 走 Message-only，流式走
 	// 任务生命周期流）；缺省模型可含 @smart/@fusion/@combo 指令。
 	if cfg.A2A.Enabled {

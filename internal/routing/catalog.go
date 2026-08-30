@@ -1,7 +1,7 @@
-// catalog.go 是 M3.5 模型目录（docs/04 §6 models 表 / docs/05 3.5）：
+// catalog.go 是 模型目录（ models 表 / 3.5）：
 // 定时（默认 1h）从各 provider 拉取模型清单，按校验和判断变更，
 // 变更才整组落 SQLite；ErrNotSupported 的 provider 回落注册表静态
-// 清单。Ed25519 目录验签（FreeLLMAPI 式）在 M6 接入，本层只做
+// 清单。Ed25519 目录验签（FreeLLMAPI 式）在 接入，本层只做
 // 校验和（内容指纹）与快照语义。
 package routing
 
@@ -21,7 +21,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/store"
 )
 
-// SyncInterval 是定时同步周期（docs/05 3.5 验收：免费模型列表 1h 刷新）。
+// SyncInterval 是定时同步周期（ 3.5 验收：免费模型列表 1h 刷新）。
 const SyncInterval = time.Hour
 
 // 冷启动补齐退避：首轮同步失败且静态回落也为空的 provider（如本地
@@ -57,7 +57,7 @@ type Catalog struct {
 	mu     sync.RWMutex
 	models map[string][]provider.ModelInfo
 	sums   map[string]string
-	// feedWindows/feedProbation/feedCapability 是 M6.5 签名 feed 并入的
+	// feedWindows/feedProbation/feedCapability 是 签名 feed 并入的
 	// 窗口/众测标注/能力分（provider → model → …）；窗口作 live 缺失时的
 	// 回落源，capability 供 quality 策略排序（0=未评级）。
 	feedWindows    map[string]map[string]int64
@@ -152,7 +152,7 @@ func (c *Catalog) syncOne(ctx context.Context, p provider.Provider) bool {
 	case err == nil:
 		list = live
 	case errors.Is(err, provider.ErrNotSupported):
-		list = c.static[name] // 原生协议家（M6 前无实时面）
+		list = c.static[name] // 原生协议家（前无实时面）
 	default:
 		c.mu.RLock()
 		_, have := c.models[name]
@@ -221,7 +221,7 @@ func (c *Catalog) Run(ctx context.Context) {
 	}
 }
 
-// ServesModel 实现模型成员过滤（ModelMembership，docs/00 §4.5 遗留项）：
+// ServesModel 实现模型成员过滤（ModelMembership， 遗留项）：
 // live/静态快照含该模型（精确 id 或「厂商/模型」后缀——OpenRouter 风格
 // 限定 id）视为可服务；无快照（目录未同步）返回 true（不确定不过滤）。
 // 已知局限：registry model_aliases 重写不在此判定（当前零声明）。
@@ -267,9 +267,9 @@ func (c *Catalog) logSync(changed int) {
 }
 
 // ContextWindow 返回 (provider, model) 的上下文窗口；优先 live 清单
-// 的非零值，live 未收录或窗口为零时回落 M6.5 签名 feed（社区维护的
+// 的非零值，live 未收录或窗口为零时回落 签名 feed（社区维护的
 // 窗口数据——provider /models 几乎不报 context_length）。都无则
-// ok=false（调用方不过滤）。实现 WindowResolver（M4.5 跨层）。
+// ok=false（调用方不过滤）。实现 WindowResolver（跨层）。
 func (c *Catalog) ContextWindow(providerName, model string) (int64, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

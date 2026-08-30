@@ -2,7 +2,7 @@
 // message_start → content_block_start → ping → content_block_delta* →
 // content_block_stop → message_delta(stop_reason/usage) → message_stop。
 // Claude Code 按此序列消费流；EOF 与断流都必须经 Finish 收尾，让客户端
-// 拿到完整（即便部分）的消息而非悬挂连接（M3.4 优雅收尾的入站侧）。
+// 拿到完整（即便部分）的消息而非悬挂连接（优雅收尾的入站侧）。
 package translate
 
 import (

@@ -1,4 +1,4 @@
-// matrix_test.go 钉住三协议互译矩阵的一致性（M3.2，docs/04 §7）：
+// matrix_test.go 钉住三协议互译矩阵的一致性：
 // OpenAI / Anthropic / Gemini 三种入站 wire 对同一 canonical 语义归一，
 // canonical IR 向三种上游 wire 出站再回读，语义保持。请求侧覆盖
 // 3 入站 × 3 上游 = 9 格，响应侧覆盖 3 出站渲染 × 3 回读。

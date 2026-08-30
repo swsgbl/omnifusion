@@ -1,7 +1,7 @@
-// resilience_api.go 是 M5.6 弹性状态可视化面：GET /dashboard/api/resilience
-// （ScopeRoute）一屏聚合钉选（M5.2）、三层隔离（store 持久化的冷却/锁定
+// resilience_api.go 是 弹性状态可视化面：GET /dashboard/api/resilience
+// （ScopeRoute）一屏聚合钉选、三层隔离（store 持久化的冷却/锁定
 // 含 reason）、熔断器（仅内存，routing.Breakers()）、provider 健康信号
-// （scorer EWMA）与近期失败请求（M5.5 request_log 审计行按错误类分组）。
+// （scorer EWMA）与近期失败请求（request_log 审计行按错误类分组）。
 // 各依赖未装配时按空态返回（形状稳定）。
 package server
 

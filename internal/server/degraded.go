@@ -1,6 +1,6 @@
-// degraded.go 是 M3.6 的降级标记汇聚面：入站协议字段降级（translate
+// degraded.go 是 的降级标记汇聚面：入站协议字段降级（translate
 // From* 返回）与出站上游能力降级（ProviderCall.Degraded → Attempt）
-// 在 X-OmniFusion-Degraded 响应头合并呈现——禁止静默丢弃（docs/04 §7）。
+// 在 X-OmniFusion-Degraded 响应头合并呈现——禁止静默丢弃。
 package server
 
 import (

@@ -105,7 +105,7 @@ func TestPipelineStagePanicRecovers(t *testing.T) {
 	}
 }
 
-// TestPipelineGateRejectsLossyStage 是 docs/05 4.1 的验收用例：
+// TestPipelineGateRejectsLossyStage 是 4.1 的验收用例：
 // 三种劣化压缩（删 tool 结果 / 删 system / 动 recency 窗口）都必须
 // 被拦截，最终输出与输入完全一致。
 func TestPipelineGateRejectsLossyStage(t *testing.T) {

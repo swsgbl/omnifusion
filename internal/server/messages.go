@@ -1,4 +1,4 @@
-// messages.go 承载 POST /v1/messages（M3.1）：Anthropic Messages 协议
+// messages.go 承载 POST /v1/messages：Anthropic Messages 协议
 // 入站，Claude Code 把本网关当 Anthropic 端点直连（ANTHROPIC_BASE_URL +
 // ANTHROPIC_API_KEY/AUTH_TOKEN），无需改动其配置协议。翻译走
 // internal/translate 纯函数对；策略指令与 sticky 会话头照常生效。
@@ -18,7 +18,7 @@ import (
 
 // handleMessages 实现 Anthropic Messages 入站：归一化 → 分发 → 渲染。
 func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
-	start := time.Now() // M5.5 审计时延口径
+	start := time.Now() // 审计时延口径
 	if s.router == nil || len(s.router.Providers) == 0 {
 		writeAnthropicError(w, http.StatusServiceUnavailable, "api_error",
 			"no upstream providers configured; set API keys or configure providers")
@@ -52,13 +52,13 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req, degraded := translate.FromAnthropicMessages(&in)
-	// M5.4 Guardrails：翻译后、分发前扫描正文（未装配零开销）。
+	// Guardrails：翻译后、分发前扫描正文（未装配零开销）。
 	if !s.applyGuardrails("/v1/messages", req, func(code int, msg string) {
 		writeAnthropicError(w, code, "invalid_request_error", msg)
 	}) {
 		return
 	}
-	// M6.4 会话记忆召回（opt-in 头）：命中注入 system 消息，永不阻断。
+	// 会话记忆召回（opt-in 头）：命中注入 system 消息，永不阻断。
 	s.memoryRecall(w, r, req)
 	opts, comboName, fusionReq, err := s.dispatchOptions(r, req) // @fast:model 指令与策略头同样可用
 	if err != nil {
@@ -66,11 +66,11 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	opts = append(opts, sessionOption(r)...)
-	opts = append(opts, s.pinOption()...) // M5.2 全局路由钉选
+	opts = append(opts, s.pinOption()...) // 全局路由钉选
 	if comboName != "" {
 		opts = append(opts, s.comboCompress(r, req, comboName)...)
 	}
-	if fusionReq { // M6.1 @fusion：扇出合成短路（流式在其中 400）
+	if fusionReq { // @fusion：扇出合成短路（流式在其中 400）
 		s.handleFusion(w, r, req, "messages", req.Model, comboName, start,
 			func(status int, msg string) {
 				typ := "invalid_request_error"
@@ -92,7 +92,7 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// L5 语义缓存查询（M4.6）：键取自 IR，跨协议与 /v1/chat/completions
+	// L5 语义缓存查询：键取自 IR，跨协议与 /v1/chat/completions
 	// 共享命中；翻译期降级标记由入站请求形状决定，命中时照常给出。
 	if resp, ok := s.cache.Lookup(r.Context(), req); ok {
 		w.Header().Set("X-OmniFusion-Cache", "hit")
@@ -112,15 +112,15 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 	setDegradedHeader(w, mergeDegraded(degraded, attemptDegraded(attempts)))
 	writeJSON(w, http.StatusOK, translate.ToAnthropicMessages(resp))
 	s.auditDone("messages", req.Model, comboName, start, resp.ProviderName, resp.Usage, false)
-	// L5 缓存异步回写（M4.6）：WithoutCancel 防客户端断开中断回写。
+	// L5 缓存异步回写：WithoutCancel 防客户端断开中断回写。
 	go s.cache.WriteBack(context.WithoutCancel(r.Context()), req, resp)
-	// M6.4 会话记忆记录（opt-in 头）：非流式成功后旁路记录回合。
+	// 会话记忆记录（opt-in 头）：非流式成功后旁路记录回合。
 	go s.memoryRecord(r, req, resp)
 }
 
 // handleMessagesStream 流式路径：buffer-first-chunk failover 已在路由层
 // 完成，这里把归一化 chunk 流实时编码为 Anthropic SSE 事件序列；断流
-// 也经编码器 Finish 优雅收尾（M3.4 精神的入站侧落地）。
+// 也经编码器 Finish 优雅收尾（精神的入站侧落地）。
 func (s *Server) handleMessagesStream(w http.ResponseWriter, r *http.Request,
 	req *schema.UnifiedRequest, opts []routing.DispatchOption, degraded []string,
 	audit *streamAudit) {

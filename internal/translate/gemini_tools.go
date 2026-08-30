@@ -1,4 +1,4 @@
-// gemini_tools.go 承载 Gemini 工具面互译（M3.3）：tools 数组
+// gemini_tools.go 承载 Gemini 工具面互译：tools 数组
 // （functionDeclarations）、toolConfig（functionCallingConfig）与
 // parts 内的 functionCall / functionResponse 双向映射。
 package translate

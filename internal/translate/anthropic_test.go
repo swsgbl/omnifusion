@@ -56,7 +56,7 @@ func TestFromAnthropicMessages(t *testing.T) {
 }
 
 func TestFromAnthropicMessagesDegraded(t *testing.T) {
-	// M3.3 起 tools/tool_choice 已互译，只剩 metadata 进降级清单。
+	// 随后 tools/tool_choice 已互译，只剩 metadata 进降级清单。
 	raw := `{"model":"m","max_tokens":8,"messages":[{"role":"user","content":"x"}],` +
 		`"tools":[{"name":"f"}],"tool_choice":{"type":"auto"},"metadata":{"user_id":"u"}}`
 	var in AnthropicRequest

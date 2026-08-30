@@ -1,5 +1,5 @@
-// mlrouter_features.go 承载 M6.3 难度分类器：DifficultyClassifier
-// 接口（ADR-009：默认纯 Go 启发式，未来 ONNX 实现同接口互换）与
+// mlrouter_features.go 承载 难度分类器：DifficultyClassifier
+// 接口（默认纯 Go 启发式，未来 ONNX 实现同接口互换）与
 // HeuristicClassifier 的特征打分。特征学 RouteLLM 的可分性信号：
 // 长度、代码、工具调用、多模态、任务动词——每项 ±0.1..0.3 求和后
 // 钳 [0,1]；不追求精确回归，只要弱/强两簇可分。

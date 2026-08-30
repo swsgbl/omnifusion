@@ -1,4 +1,4 @@
-// control_test.go 覆盖 M5.2 控制面：whoami 身份解析、scoped token 的
+// control_test.go 覆盖 控制面：whoami 身份解析、scoped token 的
 // 逐端点越权拒绝（403）、路由钉选/隔离清除/默认压缩组合的写路径，
 // 以及钉选对真实分发的生效（pin 后流量改道钉选 provider 上游）。
 package server
@@ -110,7 +110,7 @@ func TestWhoami(t *testing.T) {
 	}
 }
 
-// TestScopedTokenCrossScopeDenied 是 M5.2 核心验收（越权被拒）：
+// TestScopedTokenCrossScopeDenied 是 核心验收（越权被拒）：
 // health scope 的 token 访问 usage 读端点与 route/compression 写端点
 // 全部 403；自身 scope 的端点 200；伪造 token 一律 401。
 func TestScopedTokenCrossScopeDenied(t *testing.T) {

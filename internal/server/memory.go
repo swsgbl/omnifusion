@@ -1,4 +1,4 @@
-// memory.go 承载 M6.4 会话记忆的 HTTP 挂点。逐请求 opt-in：请求头
+// memory.go 承载 会话记忆的 HTTP 挂点。逐请求 opt-in：请求头
 // X-OmniFusion-Memory: on 同时开启记录与召回，默认关闭 = 零行为变更、
 // 零落盘（隐私红线，无 config 开关——恒装配、惰性生效）。召回注入
 // 在 guardrails 之后（注入内容源自已过护栏的本库数据，且不得绕过对

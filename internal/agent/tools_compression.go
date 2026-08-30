@@ -1,4 +1,4 @@
-// tools_compression.go 注册 compression scope 工具（M5.2）：组合
+// tools_compression.go 注册 compression scope 工具：组合
 // 清单（含压缩阶段绑定）与默认压缩组合切换——「压缩配置」的运维面。
 package agent
 

@@ -1,7 +1,7 @@
-// Package intelligence 承载 L5 智能层（docs/04 §3）：语义缓存 v1 为
+// Package intelligence 承载 L5 智能层：语义缓存 v1 为
 // 「精确匹配」层——缓存键 = 影响生成结果的全部请求字段的确定性序列化
 // （encoding/json 对结构体按声明序、对 map 按键排序编码，序列化确定）
-// → SHA-256。近似层（sqlite-vec embedding 相似命中）M6 预留：表列
+// → SHA-256。近似层（sqlite-vec embedding 相似命中） 预留：表列
 // embedding_blob v1 恒 NULL。
 package intelligence
 
@@ -53,9 +53,9 @@ func CacheKey(req *schema.UnifiedRequest) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// SemCache 是精确层语义缓存（docs/04 §3 L5：查询→命中直接返回；
+// SemCache 是精确层语义缓存（ L5：查询→命中直接返回；
 // 未命中→响应成功后异步回写）。v1 直查 SQLite：本地 WAL 点查
-// <1ms 级，满足 docs/05 4.6 重复请求 TTFT<10ms 验收。
+// <1ms 级，满足 4.6 重复请求 TTFT<10ms 验收。
 type SemCache struct {
 	st         *store.Store
 	ttl        time.Duration

@@ -1,9 +1,9 @@
-// response_format.go 是 M3.6 结构化输出互译的共享面：IR 采用 OpenAI
+// response_format.go 是 结构化输出互译的共享面：IR 采用 OpenAI
 // 形 response_format（{"type":"json_object"} / {"type":"json_schema",
 // "json_schema":{"schema":{...}}}），Gemini 面是 generationConfig 的
 // responseMimeType + responseSchema（OpenAPI 3.0 schema 子集）。
 // Anthropic Messages API 无原生结构化输出——出站丢弃并进显式降级
-// 清单（docs/05 3.6：不支持的上游显式降级标记，禁止静默丢弃）。
+// 清单（ 3.6：不支持的上游显式降级标记，禁止静默丢弃）。
 package translate
 
 import (

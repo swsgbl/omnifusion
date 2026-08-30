@@ -1,8 +1,8 @@
-// semantic_sidecar.go 是语义压缩可选档（docs/05 6.2，M6）：LLMLingua-2
-// 级神经压缩经 sidecar HTTP 服务（ADR-009 允许的进程外依赖形态），
+// semantic_sidecar.go 是语义压缩可选档（ 6.2，）：LLMLingua-2
+// 级神经压缩经 sidecar HTTP 服务（学习型模型一律进程外部署），
 // 默认二进制零模型依赖红线不动。装配期 ConfigureSemantic 注入 sidecar
 // URL 与保留率；URL 未配置时本阶段 ShouldRun 恒 false（纯规则档工作）；
-// sidecar 网络/协议失败时 Apply 报错——管线回退原文直传（docs/04 §5
+// sidecar 网络/协议失败时 Apply 报错——管线回退原文直传（
 // 规则 3），压缩失败永不阻断请求。
 package compression
 

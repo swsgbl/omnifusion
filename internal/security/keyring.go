@@ -1,5 +1,5 @@
-// Package security 是 L2：密钥保管与网关鉴权（docs/04 §2 目录）。
-// M1.7 落地 keyring（AES-256-GCM 静态加密，R5 对策 3）。
+// Package security 是 L2：密钥保管与网关鉴权（ 目录）。
+// 落地 keyring（AES-256-GCM 静态加密，R5 对策 3）。
 package security
 
 import (

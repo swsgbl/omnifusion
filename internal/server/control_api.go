@@ -1,4 +1,4 @@
-// control_api.go 是 M5.2 控制面：dashboard API 的 scope 化扩展——
+// control_api.go 是 控制面：dashboard API 的 scope 化扩展——
 // 读端点（whoami/models/health/combos/route status）与写端点
 // （route pin/unpin/隔离清除、默认压缩组合）。外层 requireAnyScope
 // 挡伪造 token（401），内层逐端点 requireScope 收敛权限（越权 403）。

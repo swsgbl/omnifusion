@@ -1,5 +1,5 @@
 // Package anthropic 是 Anthropic Messages 协议的原生上游适配器
-// （M3.2，docs/04 §4.1 的"手写原生"分支）：Translate 调
+// （ 的"手写原生"分支）：Translate 调
 // translate.ToAnthropicUpstreamRequest，Parse 调 FromAnthropicUpstream
 // Response——协议语义全部收在 internal/translate 纯函数对里，本包只做
 // HTTP 壳（URL、鉴权头、超时、错误归一）。
@@ -107,7 +107,7 @@ func (a *Adapter) Capabilities() provider.Capability { return a.spec.Cap }
 func (a *Adapter) HTTPClient() *http.Client { return a.client }
 
 // ListModels implements provider.Provider. Anthropic exposes a models
-// endpoint but the static registry list serves M3; live sync lands M6.
+// endpoint but the static registry list serves ; live sync lands .
 func (a *Adapter) ListModels(ctx context.Context) ([]provider.ModelInfo, error) {
 	return nil, provider.ErrNotSupported
 }

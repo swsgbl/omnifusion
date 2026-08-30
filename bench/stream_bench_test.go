@@ -1,4 +1,4 @@
-// 流式基准（docs/05 指标 1）：TTFT —— 从发请求到读到首个 data: 行的
+// 流式基准（ 指标 1）：TTFT —— 从发请求到读到首个 data: 行的
 // 耗时（ttft-ns/op 自定义指标）；整流 —— 完整 SSE 到 [DONE] 的端到端
 // 耗时（ns/op，含 mock 上游 3×2ms chunk 间隔，口径对齐 scripts/mockup）。
 package bench_test

@@ -6,8 +6,7 @@
 >
 > 以 Bifrost 级性能底座（Go，µs 级开销）承载 OmniRoute 级功能深度（多策略路由、三层弹性隔离、Token 压缩管线、MCP）。
 
-**状态**：✅ M0–M6 全部完成（MVP / 三层弹性 / 四协议入站 / 压缩+语义缓存 / MCP+CLI+可观测 / Fusion+ML 路由+记忆） → 🚧 M7 按需推进 6 项 + i18n（Go SDK、A2A v1.0、Tauri 桌面端、Responses API 入站、quality 能力排序、**小白友好轮：对话页/首启引导/桌面密钥管理/捆绑网关**已交付；**国内三件套 + cheap 真成本路由**已落地，内置 12 家提供商；K8s/WASM 暂缓）；`v0.1.2` 已发版
-> 部署链就绪：Docker 两阶段镜像 + compose 三档 profile（含零 key 全链路 mock 验证栈）+ systemd 单元；本地冒烟 `sh scripts/smoke.sh` 17 断言。
+**一句话**：把 12 家 LLM 提供商的免费额度聚合成一个本地端点（OpenAI / Anthropic / Gemini / Responses 四协议入站），自带对话页、双语控制台、桌面应用与 CLI——装完即聊，永不断流。
 
 ## 它解决什么问题
 
@@ -22,7 +21,7 @@
 ## 文档
 
 - 用户可感知的变更见 [CHANGELOG.md](CHANGELOG.md)；
-- 部署与编排：[deploy/README.md](deploy/README.md)（Docker/compose/systemd/Prometheus/Grafana）；
+- 部署与编排：[deploy/README.md](deploy/README.md)（Docker/compose/systemd/Prometheus/Grafana，含零密钥 mock 验证栈与冒烟脚本）；
 - 桌面端构建：[apps/desktop](apps/desktop)（build.cmd）。
 
 ## 快速开始

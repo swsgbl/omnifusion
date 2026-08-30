@@ -1,4 +1,4 @@
-// guardrails_test.go 覆盖 M5.4 规则引擎：每条 PII 规则正/负样本（含
+// guardrails_test.go 覆盖 规则引擎：每条 PII 规则正/负样本（含
 // 校验和防误报）、注入模式 EN/CN、处置动作矩阵、构造校验、Finding
 // 不泄漏原文、Luhn 与 GB11643 校验函数。
 package security

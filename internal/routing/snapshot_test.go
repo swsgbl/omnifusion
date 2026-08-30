@@ -2,7 +2,7 @@ package routing
 
 import "testing"
 
-// TestBreakersSnapshotExportsStates 验证 M5.6 读口：熔断器三种状态导出
+// TestBreakersSnapshotExportsStates 验证 读口：熔断器三种状态导出
 // 为字符串行（closed/open/half-open），只读不推进。
 func TestBreakersSnapshotExportsStates(t *testing.T) {
 	iso, fc := newTestIsolation(t)

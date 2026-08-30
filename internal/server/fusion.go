@@ -1,4 +1,4 @@
-// fusion.go 是 M6.1 "@fusion" 指令的 HTTP 边界（三端点共用）：
+// fusion.go 是 "@fusion" 指令的 HTTP 边界（三端点共用）：
 // 未装配 400、流式 400（v1 合成是批操作）、缓存查询/回写复用
 // SemCache 语义（模型命名空间 "@fusion"），扇出经 router.WithTarget
 // 定向分发（隔离/配额/打分照常生效）。协议形态由端点注入
@@ -30,7 +30,7 @@ func (s *Server) handleFusion(w http.ResponseWriter, r *http.Request, req *schem
 			"fusion does not support streaming (v1); resend with stream=false")
 		return
 	}
-	// L5 语义缓存（M4.6 语义同三端点）：@fusion 是独立模型命名空间。
+	// L5 语义缓存（语义同三端点）：@fusion 是独立模型命名空间。
 	if resp, ok := s.cache.Lookup(r.Context(), req); ok {
 		w.Header().Set("X-OmniFusion-Cache", "hit")
 		writeResp(resp)

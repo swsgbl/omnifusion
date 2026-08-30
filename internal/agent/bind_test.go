@@ -1,4 +1,4 @@
-// bind_test.go 覆盖 M5.3 CLI 包装的纯逻辑面：目标→环境变量映射、
+// bind_test.go 覆盖 CLI 包装的纯逻辑面：目标→环境变量映射、
 // 健康探测、进程拉起（环境注入 + 退出码透传，helper process 技巧）。
 package agent
 

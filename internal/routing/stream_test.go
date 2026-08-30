@@ -174,7 +174,7 @@ func TestDispatchStreamNoProviders(t *testing.T) {
 }
 
 // breakUpstream 发一个 chunk 后不带 [DONE] 直接收工：网关读侧得到
-// StreamEndedWithoutDone，即"首 chunk 后断流"的注入器（M3.4 验收）。
+// StreamEndedWithoutDone，即"首 chunk 后断流"的注入器（验收）。
 func breakUpstream(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	io.WriteString(w, "data: "+chunkPayload("x")+"\n\n")

@@ -1,4 +1,4 @@
-// mcpcmd.go 实现 `ofd mcp`（M5.1）：stdio 传输的 MCP server，供
+// mcpcmd.go 实现 `ofd mcp`：stdio 传输的 MCP server，供
 // Claude Code 等 MCP 客户端以命令行形态接入（claude mcp add ofd --
 // ofd mcp）。数据经 GatewayView 走本机网关 dashboard API；网关 key
 // 默认从 keyring 派生（与网关进程同源），--token/OFD_GATEWAY_TOKEN
@@ -54,7 +54,7 @@ func runMCPCommand(cfg *config.Config, args []string) error {
 	defer stop()
 
 	view := agent.NewGatewayView(base, tok, nil)
-	// M5.2：启动即向网关查询本 token 的 scope（whoami）并按 scope
+	// 启动即向网关查询本 token 的 scope（whoami）并按 scope
 	// 注册工具——越权工具不出现在 tools/list。查询失败（网关未起/
 	// token 无效）则 fail-closed 退出：权限未知不暴露任何工具。
 	who, err := view.Whoami(ctx)

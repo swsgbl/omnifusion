@@ -1,7 +1,7 @@
-// quota.go 是 M2.3 per-key 配额滑动窗口（docs/04 §6 quota_counters 的
+// quota.go 是 per-key 配额滑动窗口（ quota_counters 的
 // 运行时形态）：RPM/RPD/TPM/TPD 四窗口，按事件日志实现真滑动（非固定
 // 窗口对齐），到点自然滑出。预防性限流——在 429 发生之前把快爆的 key
-// 沉到候选列表后面跳过；429 之后的兜底隔离由 M2.2 状态机负责。
+// 沉到候选列表后面跳过；429 之后的兜底隔离由 状态机负责。
 //
 // 记账纪律：RecordRequest 在成功建立响应后提交（在途请求不计数，
 // 个人网关规模下突发超限的误差可接受，openai/groq 的 429 兜底会纠偏）；
@@ -188,7 +188,7 @@ type QuotaSnapshot struct {
 	Headroom float64
 }
 
-// Snapshots 返回全部有配额声明或有已提交用量的 key 视图（M4.8
+// Snapshots 返回全部有配额声明或有已提交用量的 key 视图（
 // Dashboard usage 页的数据源）。只读、锁外组装，不阻塞记账。
 func (t *QuotaTracker) Snapshots() map[string]QuotaSnapshot {
 	t.mu.Lock()
@@ -217,7 +217,7 @@ func (t *QuotaTracker) Snapshots() map[string]QuotaSnapshot {
 }
 
 // Headroom 返回该 key 四窗口中最紧的剩余配额比例（0=已耗尽，
-// 1=余量充足或未设限），供打分路由（M2.4）把快爆的 key 沉底。
+// 1=余量充足或未设限），供打分路由把快爆的 key 沉底。
 func (t *QuotaTracker) Headroom(key string) float64 {
 	t.mu.Lock()
 	l, limited := t.limits[key]

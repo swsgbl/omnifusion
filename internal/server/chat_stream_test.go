@@ -158,7 +158,7 @@ func TestChatCompletionsStreamingFailover(t *testing.T) {
 }
 
 func TestChatCompletionsStreamingMidStreamBreak(t *testing.T) {
-	// M3.4 验收：首帧落地后上游断流——已发出的 200 与首帧保持，
+	// 验收：首帧落地后上游断流——已发出的 200 与首帧保持，
 	// 客户端收到合成 finish 帧与 [DONE] 的优雅收尾，而非悬挂连接。
 	broken := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hj, ok := w.(http.Hijacker)

@@ -14,11 +14,11 @@ import (
 var ErrNoContent = errors.New("a2a: message has no usable content parts")
 
 // ToUnified 把 A2A user 消息翻译为中枢 IR：
-//   - role：ROLE_USER→user，ROLE_AGENT→assistant，其余拒绝；
-//   - 内容：text 片段直取；data 片段序列化为 JSON 文本；file 片段
-//     以引用占位（v1 不上传二进制）；全部拼接为单条纯文本消息；
-//   - 模型：message.metadata.model（可含 @smart/@fusion/@combo 指令），
-//     缺省回落 defaultModel。
+// - role：ROLE_USER→user，ROLE_AGENT→assistant，其余拒绝；
+// - 内容：text 片段直取；data 片段序列化为 JSON 文本；file 片段
+// 以引用占位（v1 不上传二进制）；全部拼接为单条纯文本消息；
+// - 模型：message.metadata.model（可含 @smart/@fusion/@combo 指令），
+// 缺省回落 defaultModel。
 func ToUnified(m *Message, defaultModel string) (*schema.UnifiedRequest, error) {
 	role := ""
 	switch m.Role {
