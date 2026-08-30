@@ -159,7 +159,7 @@ func openKeyDeps(cfg *config.Config) (*store.Store, *security.Keyring, func(), e
 			return nil, nil, nil, fmt.Errorf("create data dir: %w", err)
 		}
 	}
-	st, err := store.Open(cfg.Store.Path)
+	st, err := openStore(cfg)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("open store: %w", err)
 	}

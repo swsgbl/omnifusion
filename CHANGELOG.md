@@ -2,6 +2,20 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [Unreleased]
+
+### 改进
+
+- **数据存储归一（"若无必要勿增实体"）**：数据目录默认改为每用户规范位置（Windows `%LOCALAPPDATA%\OmniFusion\data`、macOS `~/Library/Application Support/OmniFusion/data`、Linux `~/.local/share/OmniFusion/data`）——终端、桌面端、任何启动方式读写**同一份**数据库，密钥/隔离状态/缓存只有一份正本，不再随工作目录漂移；首次运行自动把旧位置最新的库迁入规范位置（幂等，显式配置 `store.path` 者不受影响）；
+- **桌面端启动自动读取网关令牌**：应用打开时 key 字段为空则静默从捆绑 ofd 读取并持久化——iframe 不再出现裸 JSON 401，「装完即用」成立；
+- 服务端对浏览器形态的未鉴权页面请求回双语 HTML 指引页（桌面端点「从 ofd 读取 Key」/ `?key=` / `ofd gateway-key`），页面内 fetch 保持 JSON。
+
+### 修复
+
+- **桌面端重启后首启失败**：首次运行过杀毒扫描致冷启动超过原 8s 健康窗——放宽到 20s（进程存活即持续轮询、超时不杀进程）；网关输出落盘 `data/gateway.log`，失败错误直接附日志尾部，不再黑箱。
+
+> EN: Single canonical per-user data directory (auto-migrating legacy stores) shared by terminal & desktop; desktop auto-reads the gateway token at launch; friendly HTML auth page for browser navigations; cold-boot desktop start fix with gateway log capture.
+
 ## [v0.1.3] - 2026-08-30
 
 ### 新增

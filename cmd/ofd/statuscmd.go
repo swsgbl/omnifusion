@@ -165,7 +165,7 @@ func runStatusCommand(cfg *config.Config) error {
 			return fmt.Errorf("create data dir: %w", err)
 		}
 	}
-	st, err := store.Open(cfg.Store.Path)
+	st, err := openStore(cfg)
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
 	}

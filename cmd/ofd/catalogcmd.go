@@ -155,7 +155,7 @@ func catalogReport(cfg *config.Config, days int) ([]reportRow, error) {
 	if days <= 0 {
 		days = 7
 	}
-	st, err := store.Open(cfg.Store.Path)
+	st, err := openStore(cfg)
 	if err != nil {
 		return nil, err
 	}

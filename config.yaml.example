@@ -22,9 +22,14 @@ server:
   host: 127.0.0.1
   port: 20130
 
-# SQLite 落盘位置（相对路径基于 ofd 进程工作目录）。
-store:
-  path: data/omnifusion.db
+# SQLite 落盘位置。默认为每用户规范路径（与启动方式无关的唯一一处）：
+#   Windows  %LOCALAPPDATA%\OmniFusion\data\omnifusion.db
+#   macOS    ~/Library/Application Support/OmniFusion/data/omnifusion.db
+#   Linux    ~/.local/share/OmniFusion/data/omnifusion.db
+# 下面一行示例是显式覆盖（相对路径基于 ofd 进程工作目录）；想用默认值
+# 就整段删除。旧版数据首次启动会自动迁入规范位置。
+# store:
+#   path: data/omnifusion.db
 
 # 结构化日志：level ∈ debug|info|warn|error；format ∈ json|text。
 log:

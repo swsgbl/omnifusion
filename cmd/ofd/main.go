@@ -22,7 +22,6 @@ import (
 	"github.com/swsgbl/omnifusion/internal/obs"
 	"github.com/swsgbl/omnifusion/internal/security"
 	"github.com/swsgbl/omnifusion/internal/server"
-	"github.com/swsgbl/omnifusion/internal/store"
 )
 
 var version = "dev"
@@ -99,7 +98,7 @@ func run() error {
 			return fmt.Errorf("create data dir: %w", err)
 		}
 	}
-	st, err := store.Open(cfg.Store.Path)
+	st, err := openStore(cfg)
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
 	}

@@ -4,7 +4,9 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
+	"runtime"
 
 	"gopkg.in/yaml.v3"
 )
@@ -29,10 +31,12 @@ type Config struct {
 //（仓库 catalog/feed.json + .sig 边车，公钥 pin 死）：@quality 能力
 // 排序与窗口数据开箱即用；摄取失败只降级不阻断（feed 是增强数据），
 // 内网/离线场景可在配置里显式置空两项关闭。
+// Store 路径默认为每用户规范位置（DefaultStorePath）——终端、桌面端、
+// 任何启动方式都读写同一份数据（密钥/隔离/缓存单一正本）。
 func Default() *Config {
 	return &Config{
 		Server:  ServerConfig{Host: "127.0.0.1", Port: 20130},
-		Store:   StoreConfig{Path: "data/omnifusion.db"},
+		Store:   StoreConfig{Path: DefaultStorePath()},
 		Log:     LogConfig{Level: "info", Format: "json"},
 		Metrics: MetricsConfig{Enabled: true},
 		Audit:   AuditConfig{Enabled: true, MaxRows: 10000},
@@ -42,6 +46,43 @@ func Default() *Config {
 			FeedPubkey: "0ac49b691b1632cbd9c121bc79dbbff2a6c69243134ff6ce5c78eafc8cd46de8",
 		},
 	}
+}
+
+// DefaultStorePath 返回每用户规范数据路径（与启动方式/工作目录无关的
+// 唯一一处）：
+//
+//	Windows  %LOCALAPPDATA%\OmniFusion\data\omnifusion.db
+//	macOS    ~/Library/Application Support/OmniFusion/data/omnifusion.db
+//	其他     $XDG_DATA_HOME/OmniFusion/data/omnifusion.db（缺省 ~/.local/share）
+//
+// 解析失败（极端环境）回落旧的相对默认 data/omnifusion.db——跟随工作
+// 目录，行为与历史一致。显式配置 store.path 的用户不受本函数影响。
+func DefaultStorePath() string {
+	base := ""
+	switch runtime.GOOS {
+	case "windows":
+		base = os.Getenv("LOCALAPPDATA")
+		if base == "" {
+			if ucfg, err := os.UserConfigDir(); err == nil {
+				base = ucfg
+			}
+		}
+	case "darwin":
+		if home, err := os.UserHomeDir(); err == nil {
+			base = filepath.Join(home, "Library", "Application Support")
+		}
+	default:
+		base = os.Getenv("XDG_DATA_HOME")
+		if base == "" {
+			if home, err := os.UserHomeDir(); err == nil {
+				base = filepath.Join(home, ".local", "share")
+			}
+		}
+	}
+	if base == "" {
+		return "data/omnifusion.db"
+	}
+	return filepath.Join(base, "OmniFusion", "data", "omnifusion.db")
 }
 
 // Load 加载配置：path 为空时使用默认值，否则读取 YAML（先展开 ${VAR}）。

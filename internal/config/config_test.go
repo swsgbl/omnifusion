@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -41,9 +42,12 @@ log:
 	if cfg.Log.Level != "debug" || cfg.Log.Format != "text" {
 		t.Errorf("yaml 覆盖失败: %+v", cfg.Log)
 	}
-	// 未覆盖字段保留默认值
-	if cfg.Store.Path != "data/omnifusion.db" {
-		t.Errorf("默认值丢失: %q", cfg.Store.Path)
+	// 未覆盖字段保留默认值（store 为每用户规范绝对路径）。
+	if !filepath.IsAbs(cfg.Store.Path) {
+		t.Errorf("默认 store 路径应为绝对路径（每用户规范位置）: %q", cfg.Store.Path)
+	}
+	if want := filepath.Join("OmniFusion", "data", "omnifusion.db"); !strings.HasSuffix(filepath.ToSlash(cfg.Store.Path), filepath.ToSlash(want)) {
+		t.Errorf("默认 store 路径缺少规范尾段 %q: %q", want, cfg.Store.Path)
 	}
 }
 
