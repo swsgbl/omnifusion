@@ -25,7 +25,10 @@ type Config struct {
 	A2A        A2AConfig        `yaml:"a2a"`
 }
 
-// Default 返回内置默认配置。
+// Default 返回内置默认配置。Catalog feed 默认指向官方签名目录
+//（仓库 catalog/feed.json + .sig 边车，公钥 pin 死）：@quality 能力
+// 排序与窗口数据开箱即用；摄取失败只降级不阻断（feed 是增强数据），
+// 内网/离线场景可在配置里显式置空两项关闭。
 func Default() *Config {
 	return &Config{
 		Server:  ServerConfig{Host: "127.0.0.1", Port: 20130},
@@ -34,6 +37,10 @@ func Default() *Config {
 		Metrics: MetricsConfig{Enabled: true},
 		Audit:   AuditConfig{Enabled: true, MaxRows: 10000},
 		A2A:     A2AConfig{Enabled: true},
+		Catalog: CatalogConfig{
+			FeedURL: "https://raw.githubusercontent.com/swsgbl/omnifusion/main/catalog/feed.json",
+			FeedPubkey: "0ac49b691b1632cbd9c121bc79dbbff2a6c69243134ff6ce5c78eafc8cd46de8",
+		},
 	}
 }
 

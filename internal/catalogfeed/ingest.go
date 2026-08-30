@@ -102,7 +102,9 @@ func (g *Ingestor) Ingest(raw []byte, sigHex string) (*Feed, error) {
 	return f, nil
 }
 
-// Fetch 从 URL 拉取 feed 原始字节与 x-catalog-signature 签名头。
+// Fetch 从 URL 拉取 feed 原始字节与签名。签名优先取 x-catalog-signature
+// 响应头（自建分发面）；静态托管（如 raw.githubusercontent）无法自定义
+// 响应头，回退拉取 <url>.sig 边车文件（内容为 128 hex 签名）。
 func (g *Ingestor) Fetch(ctx context.Context, url string) ([]byte, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -116,15 +118,39 @@ func (g *Ingestor) Fetch(ctx context.Context, url string) ([]byte, string, error
 	if resp.StatusCode != http.StatusOK {
 		return nil, "", fmt.Errorf("catalogfeed: fetch: status %d", resp.StatusCode)
 	}
-	sig := strings.TrimSpace(resp.Header.Get(SignatureHeader))
-	if sig == "" {
-		return nil, "", fmt.Errorf("catalogfeed: fetch: missing %s header", SignatureHeader)
-	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxFeedBytes))
 	if err != nil {
 		return nil, "", fmt.Errorf("catalogfeed: fetch: read body: %w", err)
 	}
+	sig := strings.TrimSpace(resp.Header.Get(SignatureHeader))
+	if sig == "" {
+		sig, err = g.fetchSidecar(ctx, url+".sig")
+		if err != nil {
+			return nil, "", fmt.Errorf("catalogfeed: fetch: missing %s header and sidecar: %w", SignatureHeader, err)
+		}
+	}
 	return raw, sig, nil
+}
+
+// fetchSidecar 拉取签名边车文件（≤4KB 纯文本 hex）。
+func (g *Ingestor) fetchSidecar(ctx context.Context, url string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := g.hc.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("sidecar status %d", resp.StatusCode)
+	}
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(b)), nil
 }
 
 // Refresh 拉取 + 摄取（serve 周期循环用）。

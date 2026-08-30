@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "generated_at": 1788084000,
+  "providers": {
+    "zhipu": {
+      "models": [
+        {"id": "glm-4.5-flash", "ctx_len": 131072, "status": "probation", "capability": 70, "price_in": 0, "price_out": 0},
+        {"id": "glm-4.7-flash", "ctx_len": 131072, "status": "probation", "capability": 72, "price_in": 0, "price_out": 0},
+        {"id": "glm-4.5", "ctx_len": 131072, "status": "probation", "capability": 74},
+        {"id": "glm-4.5-air", "ctx_len": 131072, "status": "probation", "capability": 68},
+        {"id": "glm-4.7", "ctx_len": 131072, "status": "probation", "capability": 76},
+        {"id": "glm-5", "status": "probation", "capability": 82},
+        {"id": "glm-5.1", "status": "probation", "capability": 84},
+        {"id": "glm-5.2", "status": "probation", "capability": 85},
+        {"id": "glm-5.3", "status": "probation", "capability": 86},
+        {"id": "glm-5.3-flash", "status": "probation", "capability": 80}
+      ]
+    },
+    "deepseek": {
+      "models": [
+        {"id": "deepseek-v4-pro", "status": "probation", "capability": 88},
+        {"id": "deepseek-v4-flash", "status": "probation", "capability": 80}
+      ]
+    },
+    "qwen": {
+      "models": [
+        {"id": "qwen3.8-max", "status": "probation", "capability": 86},
+        {"id": "qwen-plus", "status": "probation", "capability": 78},
+        {"id": "qwen-flash", "status": "probation", "capability": 72}
+      ]
+    },
+    "mimo": {
+      "models": [
+        {"id": "mimo-v2.5-pro", "status": "probation", "capability": 76}
+      ]
+    },
+    "groq": {
+      "models": [
+        {"id": "openai/gpt-oss-120b", "ctx_len": 131072, "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
+        {"id": "openai/gpt-oss-20b", "ctx_len": 131072, "status": "probation", "capability": 66, "price_in": 0, "price_out": 0},
+        {"id": "groq/compound", "ctx_len": 131072, "status": "probation", "capability": 66, "price_in": 0, "price_out": 0},
+        {"id": "groq/compound-mini", "ctx_len": 131072, "status": "probation", "capability": 62, "price_in": 0, "price_out": 0},
+        {"id": "qwen/qwen3.8-27b", "ctx_len": 131042, "status": "probation", "capability": 64, "price_in": 0, "price_out": 0},
+        {"id": "qwen/qwen3.6-27b", "ctx_len": 131072, "status": "probation", "capability": 63, "price_in": 0, "price_out": 0}
+      ]
+    },
+    "nvidia": {
+      "models": [
+        {"id": "moonshotai/kimi-k2.6", "status": "probation", "capability": 78, "price_in": 0, "price_out": 0},
+        {"id": "deepseek-ai/deepseek-v4-flash-0731", "status": "probation", "capability": 80, "price_in": 0, "price_out": 0},
+        {"id": "openai/gpt-oss-120b", "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
+        {"id": "google/gemma-4-31b-it", "status": "probation", "capability": 65, "price_in": 0, "price_out": 0}
+      ]
+    },
+    "modelscope": {
+      "models": [
+        {"id": "Qwen/Qwen3-235B-A22B-Instruct-2507", "status": "probation", "capability": 76, "price_in": 0, "price_out": 0},
+        {"id": "deepseek-ai/DeepSeek-V4-Flash-0731", "status": "probation", "capability": 80, "price_in": 0, "price_out": 0},
+        {"id": "ZhipuAI/GLM-4.7-Flash", "status": "probation", "capability": 72, "price_in": 0, "price_out": 0},
+        {"id": "Qwen/Qwen3-Next-80B-A3B-Instruct", "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
+        {"id": "stepfun-ai/Step-3.5-Flash", "status": "probation", "capability": 70, "price_in": 0, "price_out": 0}
+      ]
+    },
+    "siliconflow": {
+      "models": [
+        {"id": "Qwen/Qwen3-8B", "status": "probation", "capability": 58, "price_in": 0, "price_out": 0},
+        {"id": "THUDM/GLM-4-9B-0414", "status": "probation", "capability": 55, "price_in": 0, "price_out": 0}
+      ]
+    },
+    "cerebras": {
+      "models": [
+        {"id": "gpt-oss-120b", "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
+        {"id": "zai-glm-4.7", "status": "probation", "capability": 76, "price_in": 0, "price_out": 0},
+        {"id": "gemma-4-31b", "status": "probation", "capability": 65, "price_in": 0, "price_out": 0}
+      ]
+    },
+    "cloudflare": {
+      "models": [
+        {"id": "@cf/moonshotai/kimi-k2.6", "ctx_len": 262144, "status": "probation", "capability": 78, "price_in": 0, "price_out": 0},
+        {"id": "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b", "status": "probation", "capability": 62, "price_in": 0, "price_out": 0},
+        {"id": "@cf/meta/llama-3.3-70b-instruct-fp8-fast", "status": "probation", "capability": 60, "price_in": 0, "price_out": 0}
+      ]
+    },
+    "openrouter": {
+      "models": [
+        {"id": "minimax/minimax-m3:free", "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
+        {"id": "minimax/minimax-m2.7:free", "status": "probation", "capability": 72, "price_in": 0, "price_out": 0},
+        {"id": "inclusionai/ling-3.0-flash-fin:free", "status": "probation", "capability": 68, "price_in": 0, "price_out": 0},
+        {"id": "google/gemma-4-31b-it:free", "status": "probation", "capability": 65, "price_in": 0, "price_out": 0},
+        {"id": "google/gemma-4-26b-a4b-it:free", "status": "probation", "capability": 62, "price_in": 0, "price_out": 0},
+        {"id": "cohere/north-mini-code:free", "status": "probation", "capability": 62, "price_in": 0, "price_out": 0},
+        {"id": "dots-studio/dots-3-note-preview:free", "status": "probation", "capability": 60, "price_in": 0, "price_out": 0},
+        {"id": "liquid/lfm-2.5-2.6b:free", "status": "probation", "capability": 45, "price_in": 0, "price_out": 0}
+      ]
+    },
+    "huggingface": {
+      "models": [
+        {"id": "deepseek-ai/DeepSeek-V3", "status": "probation", "capability": 80, "price_in": 0, "price_out": 0},
+        {"id": "google/gemma-2-9b-it", "status": "probation", "capability": 52, "price_in": 0, "price_out": 0},
+        {"id": "meta-llama/llama-3.1-8b-instruct", "status": "probation", "capability": 50, "price_in": 0, "price_out": 0},
+        {"id": "Qwen/Qwen2.5-7B-Instruct", "status": "probation", "capability": 48, "price_in": 0, "price_out": 0}
+      ]
+    },
+    "ark": {
+      "models": [
+        {"id": "doubao-pro-128k-240628", "ctx_len": 131072, "status": "probation", "capability": 71},
+        {"id": "doubao-pro-32k-240828", "ctx_len": 32768, "status": "probation", "capability": 70}
+      ]
+    }
+  }
+}
