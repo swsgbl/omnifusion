@@ -73,13 +73,54 @@ fn http_get(base: &str, path: &str) -> Option<String> {
     Some(raw.split_once("\r\n\r\n").map(|(_, b)| b.to_string()).unwrap_or_default())
 }
 
-/// 无窗口启动辅助（Windows 控制台不闪窗）。
-fn spawn_no_window(bin: &str, args: &[String]) -> Result<Child, String> {
+/// gateway_log_path 解析网关日志文件（安装目录 data/gateway.log）：
+/// spawn 的网关 stdout/stderr 重定向到这里——无窗口进程的失败只有
+/// 落盘才可见（冷启动早期退出排障的唯一线索）。
+fn gateway_log_path() -> Result<std::path::PathBuf, String> {
+    let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
+    let dir = exe
+        .parent()
+        .ok_or("current_exe has no parent")?
+        .join("data");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir {dir:?}: {e}"))?;
+    Ok(dir.join("gateway.log"))
+}
+
+/// 读取日志尾部（early_exit/超时错误里附上，排障关键）。
+fn log_tail(path: &std::path::Path, max: usize) -> String {
+    use std::io::{Read, Seek, SeekFrom};
+    let Ok(mut f) = std::fs::File::open(path) else {
+        return String::new();
+    };
+    let len = f.metadata().map(|m| m.len()).unwrap_or(0);
+    let start = len.saturating_sub(max as u64);
+    if f.seek(SeekFrom::Start(start)).is_err() {
+        return String::new();
+    }
+    let mut buf = String::new();
+    let _ = f.read_to_string(&mut buf);
+    buf.trim().to_string()
+}
+
+/// 无窗口启动辅助：stdout/stderr 重定向到日志文件（无窗口进程的
+/// 失败只有落盘才可见）。
+fn spawn_no_window(bin: &str, args: &[String], log: Option<&std::path::Path>) -> Result<Child, String> {
     let mut cmd = Command::new(bin);
-    cmd.args(args)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    cmd.args(args).stdin(Stdio::null());
+    match log {
+        Some(path) => {
+            let f = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)
+                .map_err(|e| format!("open log {path:?}: {e}"))?;
+            let err = f.try_clone().map_err(|e| format!("clone log fd: {e}"))?;
+            cmd.stdout(Stdio::from(f)).stderr(Stdio::from(err));
+        }
+        None => {
+            cmd.stdout(Stdio::null()).stderr(Stdio::null());
+        }
+    }
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NO_WINDOW);
     cmd.spawn().map_err(|e| format!("spawn_failed: {bin}: {e}"))
@@ -143,7 +184,11 @@ fn gateway_start(
         args.push("-config".into());
         args.push(config.trim().to_string());
     }
-    let child = spawn_no_window(&bin, &args)?;
+    // 网关日志落盘（安装目录 data/gateway.log）：无窗口进程的失败
+    // 只有在这里才可见；早退/超时错误附尾部原文。
+    let log_path = gateway_log_path()?;
+    let _ = std::fs::write(&log_path, b""); // 每次启动截断，尾部即本次
+    let child = spawn_no_window(&bin, &args, Some(&log_path))?;
     let pid = child.id();
     {
         let mut guard = state.child.lock().map_err(|e| e.to_string())?;
@@ -156,18 +201,37 @@ fn gateway_start(
         if let Some(c) = guard.as_mut() {
             if let Ok(Some(status)) = c.try_wait() {
                 *guard = None;
-                return Err(format!("early_exit: code={}", status.code().unwrap_or(-1)));
+                return Err(format!(
+                    "early_exit: code={} {}",
+                    status.code().unwrap_or(-1),
+                    log_tail(&log_path, 600)
+                ));
             }
         }
     }
-    // 健康等待：最多 8s（对齐 ofd run 的 waitHealthy 口径）。
-    for _ in 0..50 {
+    // 健康等待：20s——重启后首次运行要过杀毒扫描，冷启动可能远超
+    // 之前 8s 的窗口（进程活着就继续等；超时不杀，状态栏会自行追上）。
+    for _ in 0..100 {
         if http_get(&base, "/healthz").is_some() {
             return Ok(format!("started (pid={pid})"));
         }
-        std::thread::sleep(Duration::from_millis(160));
+        // 等待期间若进程退出，立即报早退而非干等满窗。
+        {
+            let mut guard = state.child.lock().map_err(|e| e.to_string())?;
+            if let Some(c) = guard.as_mut() {
+                if let Ok(Some(status)) = c.try_wait() {
+                    *guard = None;
+                    return Err(format!(
+                        "early_exit: code={} {}",
+                        status.code().unwrap_or(-1),
+                        log_tail(&log_path, 600)
+                    ));
+                }
+            }
+        }
+        std::thread::sleep(Duration::from_millis(200));
     }
-    Err("health_timeout".into())
+    Err(format!("health_timeout: {}", log_tail(&log_path, 600)))
 }
 
 #[tauri::command]

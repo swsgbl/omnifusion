@@ -29,7 +29,7 @@
   .grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
   input { background: #0d1117; border: 1px solid var(--border); color: var(--fg); border-radius: 6px; padding: 6px 10px; font-size: 13px; width: 100%; }
   .row2 { display: grid; grid-template-columns: 2fr 1.4fr auto auto; gap: 8px; align-items: end; margin-top: 8px; }
-  .msg { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+  .msg { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; white-space: pre-wrap; word-break: break-all; }
   .msg.err { color: var(--danger); }
   .msg.ok { color: var(--accent); }
   nav.tabs { display: flex; gap: 4px; padding: 8px 18px 0; background: var(--panel); border-bottom: 1px solid var(--border); }
@@ -127,8 +127,9 @@ const I18N = {
     gwDown: "网关未运行<br>点击右上「启动网关」即可开始（安装包自带网关，无需另外下载）",
     detail: { managed: "运行中（本应用托管）", external: "运行中（外部启动，本应用仅观测）", stopped: "未运行" },
     err: {
-      spawn_failed: "启动进程失败", early_exit: "网关进程立即退出：请检查二进制路径与配置文件",
-      health_timeout: "网关已拉起但 8s 内 /healthz 未就绪（端口或配置可能不符）",
+      spawn_failed: "启动进程失败",
+      early_exit: "网关进程立即退出（附日志尾部）：请检查二进制路径与配置文件",
+      health_timeout: "网关已拉起但 20s 内未就绪（重启后首次运行过杀毒扫描可能较慢；进程仍在运行，稍候点「刷新状态」查看）。日志尾部：",
       not_managed: "当前实例非本应用托管（外部启动），请自行停止",
       gateway_key_failed: "ofd gateway-key 退出码非 0", gateway_key_empty: "ofd gateway-key 输出为空",
     },
@@ -152,8 +153,9 @@ const I18N = {
     gwDown: "Gateway not running<br>Click \"Start Gateway\" at the top right to begin (the gateway is bundled — nothing else to install)",
     detail: { managed: "Running (managed by this app)", external: "Running (started externally, observed only)", stopped: "Stopped" },
     err: {
-      spawn_failed: "Failed to spawn process", early_exit: "Gateway exited immediately: check the binary path and config file",
-      health_timeout: "Gateway started but /healthz not ready within 8s (port or config mismatch)",
+      spawn_failed: "Failed to spawn process",
+      early_exit: "Gateway exited immediately (log tail attached): check the binary path and config file",
+      health_timeout: "Gateway started but not ready within 20s (first run after a reboot may be slowed by antivirus scanning; the process is still running — click \"Refresh Status\" in a moment). Log tail: ",
       not_managed: "Current instance is not managed by this app (started externally); stop it yourself",
       gateway_key_failed: "ofd gateway-key exited non-zero", gateway_key_empty: "ofd gateway-key output is empty",
     },
