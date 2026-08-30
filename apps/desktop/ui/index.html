@@ -35,7 +35,10 @@
   nav.tabs { display: flex; gap: 4px; padding: 8px 18px 0; background: var(--panel); border-bottom: 1px solid var(--border); }
   nav.tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0; background: transparent; color: var(--muted); padding: 7px 14px; }
   nav.tabs button.active { color: var(--fg); border-bottom-color: var(--accent2); }
+  #frameWrap { position: relative; flex: 1; display: flex; }
   iframe { flex: 1; width: 100%; border: none; background: #fff; }
+  #gwDown { position: absolute; inset: 0; display: none; place-items: center;
+    background: var(--bg); color: var(--muted); font-size: 15px; text-align: center; line-height: 2; }
 </style>
 </head>
 <body>
@@ -96,7 +99,10 @@
 </section>
 
 <nav class="tabs" id="tabs"></nav>
-<iframe id="frame" title="OmniFusion Dashboard"></iframe>
+<div id="frameWrap">
+  <iframe id="frame" title="OmniFusion Dashboard"></iframe>
+  <div id="gwDown"></div>
+</div>
 
 <script>
 const { invoke } = window.__TAURI__.core;
@@ -114,6 +120,7 @@ const I18N = {
     keyAddHint: "在弹出的控制台窗口中粘贴密钥（输入隐藏），完成后窗口自动可关",
     msgKeyAddOk: "已打开密钥录入控制台（完成后刷新状态）", msgKeyAddFail: "拉起录入失败: ",
     tabs: { chat: "对话", providers: "提供商", keys: "密钥", usage: "用量", compression: "压缩", resilience: "弹性" },
+    gwDown: "网关未运行<br>点击右上「启动网关」即可开始（安装包自带网关，无需另外下载）",
     detail: { managed: "运行中（本应用托管）", external: "运行中（外部启动，本应用仅观测）", stopped: "未运行" },
     err: {
       spawn_failed: "启动进程失败", early_exit: "网关进程立即退出：请检查二进制路径与配置文件",
@@ -138,6 +145,7 @@ const I18N = {
     keyAddHint: "Paste the key in the console window that opens (input hidden)",
     msgKeyAddOk: "Key-entry console opened (refresh status when done)", msgKeyAddFail: "Failed to launch: ",
     tabs: { chat: "Chat", providers: "Providers", keys: "Keys", usage: "Usage", compression: "Compression", resilience: "Resilience" },
+    gwDown: "Gateway not running<br>Click \"Start Gateway\" at the top right to begin (the gateway is bundled — nothing else to install)",
     detail: { managed: "Running (managed by this app)", external: "Running (started externally, observed only)", stopped: "Stopped" },
     err: {
       spawn_failed: "Failed to spawn process", early_exit: "Gateway exited immediately: check the binary path and config file",
@@ -246,6 +254,8 @@ async function refresh() {
     badge.className = "badge " + (s.running ? (s.managed ? "mgd" : "on") : "off");
     $("btnStop").disabled = !s.managed;
     $("btnStart").disabled = s.running;
+    $("gwDown").style.display = s.running ? "none" : "grid";
+    $("gwDown").innerHTML = t.gwDown;
     if (s.running) loadFrame();
   } catch (e) {
     $("statusBadge").textContent = t.msgProbeFail + e;
@@ -263,7 +273,9 @@ $("btnSave").onclick = async () => {
 $("btnKey").onclick = async () => {
   const { bin } = currentInputs();
   try {
-    const key = await invoke("fetch_gateway_key", { bin: bin || "ofd.exe" });
+    // bin 留空原样传空：后端 resolve_bin 先找安装目录捆绑副本再回落
+    // PATH——前端预填 "ofd.exe" 会让该解析永远走不到（v0.1.2 实测缺陷）。
+    const key = await invoke("fetch_gateway_key", { bin });
     $("inKey").value = key;
     setMsg(t.msgKeyOk, "ok");
     loadFrame();
@@ -273,7 +285,7 @@ $("btnKeyAdd").onclick = async () => {
   const { bin, config } = currentInputs();
   const provider = $("selProvider").value;
   try {
-    await invoke("key_add", { bin: bin || "ofd.exe", config, provider });
+    await invoke("key_add", { bin, config, provider });
     setMsg(t.msgKeyAddOk, "ok");
   } catch (e) { setMsg(t.msgKeyAddFail + locErr(e), "err"); }
 };
@@ -282,7 +294,7 @@ $("btnStart").onclick = async () => {
   $("btnStart").disabled = true;
   setMsg(t.msgStarting);
   try {
-    const r = await invoke("gateway_start", { bin: bin || "ofd.exe", config, base });
+    const r = await invoke("gateway_start", { bin, config, base });
     if (r === "already-running") setMsg(t.msgAlready, "ok");
     else if (r.startsWith("started")) setMsg(t.msgStarted + r.slice("started".length), "ok");
     else setMsg(r, "ok");
