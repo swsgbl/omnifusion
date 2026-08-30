@@ -329,6 +329,17 @@ $("selLang").onchange = async () => {
 (async function init() {
   try { applySettings(await invoke("load_settings")); } catch { /* 首次运行为空 */ }
   applyLang();
+  // 自动读取网关 key（best-effort）：装完即用的一部分——桌面端知道
+  // 捆绑 ofd 的位置，无需用户手点「从 ofd 读取 Key」；读不到静默跳过
+  //（尚未录入任何 key 的全新安装会走首启引导）。
+  if (!$("inKey").value.trim()) {
+    try {
+      const { bin } = currentInputs();
+      const k = await invoke("fetch_gateway_key", { bin });
+      $("inKey").value = k;
+      try { await invoke("save_settings", { settings: currentInputs() }); } catch { /* 持久化尽力而为 */ }
+    } catch { /* 静默 */ }
+  }
   loadFrame();
   try { await invoke("set_language", { lang: effLang() }); } catch { /* 托盘语言同步尽力而为 */ }
   await refresh();

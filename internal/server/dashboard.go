@@ -17,10 +17,17 @@ var dashboardFS embed.FS
 
 // requireDashboardKey 是 Dashboard 控制面鉴权：网关 key 的 Bearer 形态
 // （脚本/监控）与 ?key= 形态（浏览器页面）都收；未装配 token 时
-// fail-closed，一律 401。
+// fail-closed，一律 401。浏览器导航（Accept 含 text/html）回双语
+// HTML 指引页而非裸 JSON——iframe 直开页面时的小白体验。
 func (s *Server) requireDashboardKey(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !s.dashboardKeyOK(r) {
+			if strings.Contains(r.Header.Get("Accept"), "text/html") {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte(dashboardKeyHTML))
+				return
+			}
 			writeAPIError(w, http.StatusUnauthorized,
 				"missing or invalid gateway API key; send 'Authorization: Bearer <key>' or '?key=<key>' (see: ofd gateway-key)",
 				"authentication_error", "")
@@ -29,6 +36,36 @@ func (s *Server) requireDashboardKey(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+// dashboardKeyHTML 是浏览器形态 401 的双语指引页（不回显任何令牌）。
+const dashboardKeyHTML = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OmniFusion · 需要网关令牌 / Token required</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 15px/1.8 system-ui, sans-serif; background: #0d1117; color: #e6edf3;
+         margin: 0; min-height: 100vh; display: grid; place-items: center; }
+  .card { max-width: 520px; padding: 32px 36px; border: 1px solid #30363d;
+          border-radius: 12px; background: #161b22; }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  code { background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
+         padding: 1px 6px; font-size: 12.5px; }
+  .muted { color: #8b949e; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🔑 需要网关令牌 · Gateway token required</h1>
+  <p>桌面端：点上方「从 ofd 读取 Key」自动填入，页面会自动重载。</p>
+  <p class="muted">Desktop: click "Read Key from ofd" — the page reloads with the key filled in.</p>
+  <p>浏览器直开：在 URL 后追加 <code>?key=&lt;令牌&gt;</code>；令牌在终端执行 <code>ofd gateway-key</code> 获取。</p>
+  <p class="muted">Direct browser access: append <code>?key=&lt;token&gt;</code> to the URL; get the token with <code>ofd gateway-key</code>.</p>
+</div>
+</body>
+</html>`
 
 // dashboardKeyOK 取 ?key= 或 Bearer 之一做常数时间比较。
 func (s *Server) dashboardKeyOK(r *http.Request) bool {
