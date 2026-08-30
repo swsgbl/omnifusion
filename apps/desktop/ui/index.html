@@ -235,7 +235,9 @@ function applyLang() {
 function loadFrame() {
   const base = $("inBase").value.trim() || "http://127.0.0.1:20130";
   const key = encodeURIComponent($("inKey").value.trim());
-  const lang = settings.lang === "zh" || settings.lang === "en" ? `&lang=${settings.lang}` : "";
+  // 内嵌模式：壳强制传 lang（壳语言是唯一真源）+ embed=1（隐藏页内
+  // 导航与语言切换——桌面标签已提供导航，避免双控制源打架）。
+  const lang = `&lang=${effLang()}&embed=1`;
   $("frame").src = `${base}/dashboard/${activePage}?key=${key}${lang}`;
 }
 
