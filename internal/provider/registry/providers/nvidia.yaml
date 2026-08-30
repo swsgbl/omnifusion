@@ -14,15 +14,17 @@ providers:
     rate_limits: {rpm: 40} # 官方口径"约"，保守取 40
     models:
       # 开发者免费积分内 $0（积分耗尽转按量，不登记）。
-      - id: z-ai/glm-5.2
-        price_in: 0
-        price_out: 0
-      - id: qwen/qwen3.5-122b-a10b
-        price_in: 0
-        price_out: 0
+      # 2026-08-30 经 live /models（83 个）核对：qwen3.5-122b-a10b、
+      # meta/llama-3.1-8b-instruct 已下架，勿再声明。
       - id: moonshotai/kimi-k2.6
         price_in: 0
         price_out: 0
-      - id: meta/llama-3.1-8b-instruct
+      - id: openai/gpt-oss-120b
+        price_in: 0
+        price_out: 0
+      - id: deepseek-ai/deepseek-v4-flash-0731
+        price_in: 0
+        price_out: 0
+      - id: google/gemma-4-31b-it
         price_in: 0
         price_out: 0
