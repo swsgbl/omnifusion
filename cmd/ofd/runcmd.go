@@ -1,5 +1,7 @@
 // runcmd.go 实现 `ofd run <claude|codex|gemini> [args...]`（
-// FreeRide bind 移植）：解析网关地址与 key → 探测 /healthz → 本机
+// 流程移植自 FreeRide 的 run 包装器，MIT — Copyright (c) 2026
+// Shaishav Pidadi，见根目录 NOTICE；本文件为 Go 原创重写）：
+// 解析网关地址与 key → 探测 /healthz → 本机
 // 未起网关则 autospawn 本二进制（serve 形态，8s 等待）→ 注入目标
 // CLI 的环境变量后拉起（参数透传、退出码透传）。
 package main

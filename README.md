@@ -55,6 +55,18 @@ ofd gateway-key                 # prints the data-plane token (ofg-…); any Ope
 docker compose -f deploy/docker-compose.yml --profile mock up -d --build
 ```
 
+## Design references
+
+OmniFusion is an **independent, original implementation** (not a fork of any existing project). Its architecture and features draw on ideas and lessons from several excellent open-source projects:
+
+- **[Bifrost](https://github.com/maximhq/bifrost)** — the per-provider dedicated HTTP client isolation philosophy;
+- **[RouteLLM](https://github.com/LMCache/RouteLLM)** — the weak/strong split and confidence-threshold ML routing ideas;
+- **[OmniRoute](https://github.com/diegosouzapw/OmniRoute)** — provider registry layout and free-tier fact-checking reference;
+- **[FreeLLMAPI](https://github.com/Shaivpidadi/FreeLLMAPI)** — the ideas behind signed catalog feeds and QUORUM synthesis gating;
+- **[FreeRide](https://github.com/Shaivpidadi/FreeRideV3)** (MIT) — the `ofd run` CLI-wrapper flow is ported from it (original Go rewrite; attribution in [NOTICE](NOTICE)).
+
+All of the above are idea- and lesson-level references; third-party **code** dependencies are limited to the components listed in [NOTICE](NOTICE).
+
 ## Privacy & compliance
 
 - **Local-first**: keys encrypted at rest (AES-256-GCM), session data / audit logs / cache in the local `data/` directory, loopback-only by default; zero telemetry — the code contains no analytics or reporting.

@@ -27,3 +27,13 @@ Go gateway (go.mod, direct)
 Desktop app (apps/desktop, direct crates)
   tauri, tauri-build                       MIT OR Apache-2.0
   serde, serde_json                        MIT OR Apache-2.0
+
+Design provenance (ported logic, not bundled code)
+  The `ofd run` CLI-wrapper flow in cmd/ofd/runcmd.go and
+  internal/agent/bind.go is a Go re-implementation ported from
+  FreeRide (https://github.com/Shaivpidadi/FreeRideV3):
+
+    MIT License
+    Copyright (c) 2026 Shaishav Pidadi
+
+  Per that license, the above notice is retained herein.

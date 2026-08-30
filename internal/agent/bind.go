@@ -1,4 +1,6 @@
-// bind.go 实现 CLI 包装（移植自 FreeRide `freeride run <cli>`）：
+// bind.go 实现 CLI 包装（流程移植自 FreeRide `freeride run <cli>`，
+// MIT — Copyright (c) 2026 Shaishav Pidadi，见根目录 NOTICE；本文件为
+// Go 原创重写）：
 // 为 claude/codex/gemini CLI 子进程注入网关环境变量——一条命令把
 // 官方 CLI 指向本网关（ofd run claude）。目标→环境变量映射、健康
 // 探测与进程拉起都在本文件；网关地址/token 解析在 cmd/ofd 层。

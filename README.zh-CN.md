@@ -55,6 +55,18 @@ ofd gateway-key                 # 打印数据面令牌（ofg-…），任意 Op
 docker compose -f deploy/docker-compose.yml --profile mock up -d --build
 ```
 
+## 设计参考
+
+OmniFusion 是**独立原创实现**（非任何现有项目的 fork）。架构与功能设计参考了多个优秀开源项目的思想与教训：
+
+- **[Bifrost](https://github.com/maximhq/bifrost)** — per-provider 专属 HTTP 客户端的隔离哲学；
+- **[RouteLLM](https://github.com/LMCache/RouteLLM)** — 弱/强二分与置信度阈值的 ML 路由思想；
+- **[OmniRoute](https://github.com/diegosouzapw/OmniRoute)** — 提供商注册表与免费层事实的核对参考；
+- **[FreeLLMAPI](https://github.com/Shaivpidadi/FreeLLMAPI)** — 签名目录 feed 与 QUORUM 合成门控的思想来源；
+- **[FreeRide](https://github.com/Shaivpidadi/FreeRideV3)**（MIT）— `ofd run` CLI 包装流程经其移植（Go 原创重写，归属声明见 [NOTICE](NOTICE)）。
+
+上述引用均为思想与教训层面的借鉴；依赖的第三方**代码**仅限 [NOTICE](NOTICE) 所列组件。
+
 ## 隐私与合规
 
 - **本地优先**：密钥 AES-256-GCM 加密落盘、会话数据/审计日志/缓存在本机 `data/` 目录、默认仅监听 127.0.0.1；无遥测——代码零统计上报。
