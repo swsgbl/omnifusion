@@ -48,6 +48,10 @@ func dispatchSubcommand(cfg *config.Config, cfgPath string, args []string) (bool
 		return true, runKeyCommand(cfg, args[1:])
 	case "gateway-key":
 		return true, runGatewayKeyCommand()
+	case "connect":
+		return true, runConnectCommand(cfg, args[1:])
+	case "disconnect":
+		return true, runDisconnectCommand(cfg, args[1:])
 	case "status":
 		return true, runStatusCommand(cfg)
 	case "mcp":
@@ -60,7 +64,7 @@ func dispatchSubcommand(cfg *config.Config, cfgPath string, args []string) (bool
 		return true, runCatalogCommand(cfg, args[1:])
 	default:
 		return true, fmt.Errorf(
-			"unknown subcommand %q; valid: key, gateway-key, status, mcp, mcp-token, run, catalog; omit to serve",
+			"unknown subcommand %q; valid: key, gateway-key, connect, disconnect, status, mcp, mcp-token, run, catalog; omit to serve",
 			args[0])
 	}
 }

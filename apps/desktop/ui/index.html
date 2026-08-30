@@ -99,6 +99,18 @@
     <button id="btnKeyAdd"></button>
     <span class="msg" id="keyAddHint" style="align-self:center"></span>
   </div>
+  <div class="row2">
+    <label><span id="lblClient"></span>
+      <select id="selClient">
+        <option value="claude">Claude Code</option>
+        <option value="codex">Codex CLI</option>
+        <option value="gemini">Gemini CLI</option>
+        <option value="opencode">OpenCode</option>
+      </select>
+    </label>
+    <button id="btnConnect"></button>
+    <span class="msg" id="connectHint" style="align-self:center"></span>
+  </div>
   <div class="msg" id="msg"></div>
 </section>
 
@@ -123,6 +135,9 @@ const I18N = {
     lblProvider: "提供商密钥管理", btnKeyAdd: "添加/更新密钥…",
     keyAddHint: "在弹出的控制台窗口中粘贴密钥（输入隐藏），完成后窗口自动可关",
     msgKeyAddOk: "已打开密钥录入控制台（完成后刷新状态）", msgKeyAddFail: "拉起录入失败: ",
+    lblClient: "接入 CLI 客户端", btnConnect: "一键接入…",
+    connectHint: "弹出控制台自动写入该 CLI 的配置（原文件自动备份），完成后重启对应 CLI 生效",
+    msgConnectOk: "已打开接入控制台（写入详情见控制台）", msgConnectFail: "拉起接入失败: ",
     tabs: { chat: "对话", providers: "提供商", keys: "密钥", usage: "用量", compression: "压缩", resilience: "弹性" },
     gwDown: "网关未运行<br>点击右上「启动网关」即可开始（安装包自带网关，无需另外下载）",
     detail: { managed: "运行中（本应用托管）", external: "运行中（外部启动，本应用仅观测）", stopped: "未运行" },
@@ -149,6 +164,9 @@ const I18N = {
     lblProvider: "Provider key management", btnKeyAdd: "Add / update key…",
     keyAddHint: "Paste the key in the console window that opens (input hidden)",
     msgKeyAddOk: "Key-entry console opened (refresh status when done)", msgKeyAddFail: "Failed to launch: ",
+    lblClient: "Connect a CLI client", btnConnect: "One-click connect…",
+    connectHint: "Opens a console that writes the CLI's config (original backed up); restart that CLI afterwards",
+    msgConnectOk: "Connect console opened (details in the console)", msgConnectFail: "Failed to launch: ",
     tabs: { chat: "Chat", providers: "Providers", keys: "Keys", usage: "Usage", compression: "Compression", resilience: "Resilience" },
     gwDown: "Gateway not running<br>Click \"Start Gateway\" at the top right to begin (the gateway is bundled — nothing else to install)",
     detail: { managed: "Running (managed by this app)", external: "Running (started externally, observed only)", stopped: "Stopped" },
@@ -225,6 +243,9 @@ function applyLang() {
   $("lblProvider").textContent = t.lblProvider;
   $("btnKeyAdd").textContent = t.btnKeyAdd;
   $("keyAddHint").textContent = t.keyAddHint;
+  $("lblClient").textContent = t.lblClient;
+  $("btnConnect").textContent = t.btnConnect;
+  $("connectHint").textContent = t.connectHint;
   $("inBin").placeholder = t.phBin;
   $("inConfig").placeholder = t.phConfig;
   $("inKey").placeholder = t.phKey;
@@ -296,6 +317,14 @@ $("btnKeyAdd").onclick = async () => {
     await invoke("key_add", { bin, config, provider });
     setMsg(t.msgKeyAddOk, "ok");
   } catch (e) { setMsg(t.msgKeyAddFail + locErr(e), "err"); }
+};
+$("btnConnect").onclick = async () => {
+  const { bin, config } = currentInputs();
+  const cli = $("selClient").value;
+  try {
+    await invoke("client_connect", { bin, config, cli });
+    setMsg(t.msgConnectOk, "ok");
+  } catch (e) { setMsg(t.msgConnectFail + locErr(e), "err"); }
 };
 $("btnStart").onclick = async () => {
   const { bin, config, base } = currentInputs();

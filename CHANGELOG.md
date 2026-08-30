@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **`ofd connect <claude|codex|gemini|opencode>` 一键接入**：把网关地址与令牌确定性写入各家编码 CLI 的标准配置（Claude Code settings.json env 块 / Codex config.toml model_providers（wire_api="responses"，网关原生承接）/ Gemini CLI .env / OpenCode opencode.json openai-compatible 提供商，模型默认 `@quality` 自动选强）——运行时取真值、遵守各家配置目录约定（含 CLAUDE_CONFIG_DIR/CODEX_HOME/XDG 等环境变量）、写前自动备份；`ofd disconnect` 原路清除，`--print` 只打印不落盘。桌面端新增「接入 CLI 客户端」一键按钮；Codex 密钥经 OMNIFUSION_API_KEY 用户级环境变量（Windows setx / unix 追加 shell 配置）。
+
 ### 改进
 
 - **数据存储归一（"若无必要勿增实体"）**：数据目录默认改为每用户规范位置（Windows `%LOCALAPPDATA%\OmniFusion\data`、macOS `~/Library/Application Support/OmniFusion/data`、Linux `~/.local/share/OmniFusion/data`）——终端、桌面端、任何启动方式读写**同一份**数据库，密钥/隔离状态/缓存只有一份正本，不再随工作目录漂移；首次运行自动把旧位置最新的库迁入规范位置（幂等，显式配置 `store.path` 者不受影响）；

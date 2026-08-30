@@ -311,6 +311,27 @@ fn key_add(app: AppHandle, bin: String, config: String, provider: String) -> Res
     Ok(())
 }
 
+/// client_connect 在可见控制台窗口运行 `ofd connect <cli>`：把网关
+/// 地址与令牌确定性写入目标 CLI 的标准配置（备份原文件，控制台显示
+/// 写到哪了）。fire-and-forget，同 key_add 的形态。
+#[tauri::command]
+fn client_connect(app: AppHandle, bin: String, config: String, cli: String) -> Result<(), String> {
+    let cli = cli.trim().to_string();
+    if !["claude", "codex", "gemini", "opencode"].contains(&cli.as_str()) {
+        return Err("client_connect_invalid".into());
+    }
+    let bin = resolve_bin(&app, &bin);
+    let mut cmd = Command::new(&bin);
+    if !config.trim().is_empty() {
+        cmd.arg("-config").arg(config.trim());
+    }
+    cmd.arg("connect").arg(&cli);
+    #[cfg(windows)]
+    cmd.creation_flags(0x0000_0010); // CREATE_NEW_CONSOLE：可见控制台（展示写入结果与备份路径）
+    cmd.spawn().map_err(|e| format!("spawn_failed: {bin} connect: {e}"))?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -323,7 +344,8 @@ pub fn run() {
             load_settings,
             save_settings,
             set_language,
-            key_add
+            key_add,
+            client_connect
         ])
         .setup(|app| {
             build_tray(app)?;
