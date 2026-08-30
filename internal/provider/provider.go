@@ -102,8 +102,8 @@ type Provider interface {
 	// its static list instead.
 	ListModels(ctx context.Context) ([]ModelInfo, error)
 	// HTTPClient returns the provider-dedicated client. One client per
-	// provider avoids the cross-provider P99 coupling documented in
-	// the Bifrost postmortem ( item 1).
+	// provider avoids cross-provider P99 coupling (isolation lesson:
+	// one upstream's connection stall must not poison the others).
 	HTTPClient() *http.Client
 }
 

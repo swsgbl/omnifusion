@@ -131,8 +131,8 @@ func New(spec Spec) (*Adapter, error) {
 	if timeout <= 0 {
 		timeout = DefaultTimeout
 	}
-	// One dedicated client per provider (Bifrost lesson, 
-	// item 1): connection pool and timeouts are isolated. The dial
+	// One dedicated client per provider (isolation lesson): connection
+	// pool and timeouts are isolated. The dial
 	// timeout keeps unreachable upstreams from stalling the
 	// fallback chain.
 	// Proxy honors HTTPS_PROXY/HTTP_PROXY/NO_PROXY ( L2
