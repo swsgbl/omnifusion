@@ -101,6 +101,7 @@ func (s *Server) SetGatewayToken(token string) { s.gatewayToken = token }
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
+	mux.HandleFunc("GET /{$}", s.handleRoot) // 根路径双语落地页（无敏感信息，与 /healthz 同级开放）
 	mux.Handle("GET /v1/models", // 模型目录（M3.5，catalog 快照）
 		s.requireGatewayKey(http.HandlerFunc(s.handleModels)))
 	mux.Handle("POST /v1/chat/completions",
