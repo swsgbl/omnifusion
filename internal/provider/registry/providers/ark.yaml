@@ -1,0 +1,24 @@
+providers:
+  - id: ark
+    kind: openai_compat
+    display_name: 火山方舟（豆包）
+    # 火山引擎方舟 OpenAI 兼容端点（/api/v3，Bearer）。注意：模型需在
+    # 方舟控制台开通（或创建 ep-xxx 推理接入点后以接入点 id 作模型名调
+    # 用）；平台 /models 会列出全目录但未开通的模型调用返回 404。模型
+    # id 带 SNAPSHOT 日期后缀、迭代快——静态清单只列锚点，实际面以
+    # live /models 同步为准（2026-08-30 实测拉到数十个 doubao-* 条目）。
+    base_url: https://ark.cn-beijing.volces.com/api/v3
+    auth_style: bearer
+    key_env: ARK_API_KEY
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 无固定免费层（部分模型限时有赠额，BYOK 为主）
+    models:
+      - id: doubao-pro-32k-240828
+        context_window: 32768
+      - id: doubao-pro-128k-240628
+        context_window: 131072
+      - id: doubao-lite-32k-240628
+        context_window: 32768

@@ -1,0 +1,17 @@
+providers:
+  - id: deepseek
+    kind: openai_compat
+    display_name: DeepSeek
+    # 官方 OpenAI 兼容端点（api.deepseek.com，/chat/completions 与 /models）。
+    # 2026-08-30 经有效密钥实测 /models：V3 系已下线，在售为 V4 系。
+    base_url: https://api.deepseek.com
+    auth_style: bearer
+    key_env: DEEPSEEK_API_KEY
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 无免费层（BYOK 付费，充值计费）
+    models:
+      - id: deepseek-v4-flash
+      - id: deepseek-v4-pro

@@ -1,0 +1,18 @@
+providers:
+  - id: mimo
+    kind: openai_compat
+    display_name: 小米 MiMo
+    # Xiaomi MiMo API 开放平台（mimo.mi.com，2025-12 发布）：OpenAI 兼容
+    # 端点，Bearer 鉴权；按量密钥为 sk- 前缀（tp- 前缀是 Token Plan 订阅
+    # 专属端点 token-plan-cn.xiaomimimo.com，不可混用）。V2 系已于
+    # 2026-06-30 下线，当前在售 V2.5 系。
+    base_url: https://api.xiaomimimo.com/v1
+    auth_style: bearer
+    key_env: MIMO_API_KEY
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 按量付费（注册赠 ¥10 体验金；官方限免活动另计）
+    models:
+      - id: mimo-v2.5-pro

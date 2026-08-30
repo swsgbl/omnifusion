@@ -10,9 +10,9 @@ import (
 )
 
 var expectedIDs = []string{
-	"anthropic", "cerebras", "cloudflare", "gemini", "groq",
-	"huggingface", "modelscope", "nvidia", "ollama", "openrouter",
-	"siliconflow", "zhipu",
+	"anthropic", "ark", "cerebras", "cloudflare", "deepseek", "gemini", "groq",
+	"huggingface", "mimo", "modelscope", "nvidia", "ollama", "openrouter",
+	"qwen", "siliconflow", "zhipu",
 }
 
 // expectedKinds 声明非 openai_compat 的原生适配器。

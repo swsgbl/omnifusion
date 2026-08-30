@@ -1,0 +1,20 @@
+providers:
+  - id: qwen
+    kind: openai_compat
+    display_name: 通义千问（阿里云百炼）
+    # 百炼 OpenAI 兼容端点（help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope）。
+    # 密钥在百炼控制台创建（DASHSCOPE_API_KEY）。2026-08-30 核对：
+    # 新人限时额度为每模型 100 万 tokens、开通起 90 天内有效（非持续免费层，
+    # 耗尽/到期后转按量计费，可在控制台开「用完即停」）。
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    auth_style: bearer
+    key_env: DASHSCOPE_API_KEY
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 新人限时额度：每模型 100 万 tokens / 90 天（非持续免费层）
+    models:
+      - id: qwen-flash
+      - id: qwen-plus
+      - id: qwen3.8-max

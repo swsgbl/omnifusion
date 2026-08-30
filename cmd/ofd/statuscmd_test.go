@@ -138,7 +138,7 @@ func TestRunStatusAgainstStore(t *testing.T) {
 			t.Errorf("rendered status missing %q\n%s", want, buf.String())
 		}
 	}
-	if !strings.Contains(buf.String(), "1/12 providers ready") && !strings.Contains(buf.String(), "2/12 providers ready") {
+	if !strings.Contains(buf.String(), "1/16 providers ready") && !strings.Contains(buf.String(), "2/16 providers ready") {
 		// ollama（免 key）必然 ready；groq 有 key 也 ready —— 至少 2 家。
 		t.Errorf("ready count line unexpected:\n%s", buf.String())
 	}
