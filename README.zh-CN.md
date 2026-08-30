@@ -55,6 +55,13 @@ ofd gateway-key                 # 打印数据面令牌（ofg-…），任意 Op
 docker compose -f deploy/docker-compose.yml --profile mock up -d --build
 ```
 
+## 隐私与合规
+
+- **本地优先**：密钥 AES-256-GCM 加密落盘、会话数据/审计日志/缓存在本机 `data/` 目录、默认仅监听 127.0.0.1；无遥测——代码零统计上报。
+- **出站连接仅两类**：① 你配置的 LLM 上游（自带密钥，请求内容按各上游隐私政策处理）；② 官方目录 feed 的定时拉取（公开数据，失败静默降级，可在配置中关闭）。
+- **第三方服务免责**：模型输出由各上游厂商生成，其内容、可用性、配额与服务条款归上游所有；使用本项目时你需自行遵守所配置提供商的服务条款与当地法律法规（免费额度的使用尤其如此）。
+- **按"原样"提供**：本项目依 Apache-2.0 第 7 条不提供任何担保；许可证见 [LICENSE](LICENSE)，第三方组件清单见 [NOTICE](NOTICE)，安全漏洞报告流程见 [SECURITY.md](SECURITY.md)。
+
 ## License
 
 Apache-2.0（见 [LICENSE](LICENSE)）

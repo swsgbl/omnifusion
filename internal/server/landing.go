@@ -25,6 +25,8 @@ const landingHTML = `<!DOCTYPE html>
   .row span { color: #8b949e; font-size: 12.5px; }
   code { background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
          padding: 1px 6px; font-size: 12.5px; }
+  .foot { margin-top: 22px; color: #8b949e; font-size: 12px;
+          border-top: 1px solid #21262d; padding-top: 12px; }
 </style>
 </head>
 <body>
@@ -39,6 +41,7 @@ const landingHTML = `<!DOCTYPE html>
     <span><code id="base">/v1</code> · Anthropic <code>/v1/messages</code> · Gemini <code>/v1beta</code> · Responses <code>/v1/responses</code></span></div>
   <div class="row"><b>🔑 密钥 · API key</b>
     <span>页面与 API 需要网关令牌（<code>?key=…</code> / <code>Authorization: Bearer …</code>），终端执行 <code>ofd gateway-key</code> 获取 / run <code>ofd gateway-key</code> to get the token</span></div>
+  <div class="foot">Apache-2.0 · 无遥测 · 数据本机 · No telemetry · data stays local · <a href="https://github.com/swsgbl/omnifusion/blob/main/SECURITY.md">安全 · Security</a></div>
 </div>
 <script>
 'use strict';
