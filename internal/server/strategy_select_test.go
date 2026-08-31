@@ -118,6 +118,23 @@ func TestStrategySelectViaModelDirective(t *testing.T) {
 	}
 }
 
+// TestBareCheapDirectiveIsLegal 裸 @cheap（无目标模型）是合法形态且不
+// 泄漏指令串：本 fixture 未装定价源，应得到可行动的 4xx（改选具体模型），
+// 而不是把空模型名发上游。
+func TestBareCheapDirectiveIsLegal(t *testing.T) {
+	_, gw, _ := newStrategyFixture(t)
+
+	resp := postWithStrategy(t, gw.URL+"/v1/chat/completions",
+		`{"model":"@cheap","messages":[{"role":"user","content":"hi"}]}`, "")
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusInternalServerError {
+		t.Fatalf("bare cheap should be a clean 4xx, got 5xx")
+	}
+	if resp.StatusCode < 400 || resp.StatusCode >= 500 {
+		t.Fatalf("bare cheap without price source status = %d, want 4xx", resp.StatusCode)
+	}
+}
+
 // TestStrategySelectViaHeader 是 验收之二：策略可经 header 选择。
 func TestStrategySelectViaHeader(t *testing.T) {
 	_, gw, _ := newStrategyFixture(t)
@@ -149,7 +166,7 @@ func TestStrategyRejectsBadInput(t *testing.T) {
 	}
 
 	resp = postWithStrategy(t, gw.URL+"/v1/chat/completions",
-		`{"model":"@cheap","messages":[{"role":"user","content":"hi"}]}`, "")
+		`{"model":"@fast","messages":[{"role":"user","content":"hi"}]}`, "")
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("directive without model status = %d, want 400", resp.StatusCode)

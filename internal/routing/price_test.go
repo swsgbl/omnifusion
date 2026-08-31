@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/swsgbl/omnifusion/internal/catalogfeed"
+	"github.com/swsgbl/omnifusion/internal/core/schema"
 	"github.com/swsgbl/omnifusion/internal/provider"
 )
 
@@ -21,6 +22,13 @@ func (f fakePrices) Price(p, m string) (provider.Price, bool) {
 func (f fakePrices) Cheapest(p string) (provider.Price, bool) {
 	v, ok := f.byP[p]
 	return v, ok
+}
+
+func (f fakePrices) CheapestModel(p string) (string, provider.Price, bool) {
+	if _, ok := f.byP[p]; ok {
+		return "cheapest-of-" + p, f.byP[p], true
+	}
+	return "", provider.Price{}, false
 }
 
 // TestCheapTrueCostTiers 三档语义：登记免费 → 未登记 → 已定价（成本
@@ -75,6 +83,38 @@ func TestCheapFreeTierHeadroomTiebreak(t *testing.T) {
 	}}
 	if got := r.ordered("cheap", "m", 0); got[0].Name() != "full" {
 		t.Fatalf("free-tier cheap rank starts with %s, want full (most headroom)", got[0].Name())
+	}
+}
+
+// TestCheapAutoPicksPerProviderCheapest 裸 @cheap 候选生成：每家带自家
+// 登记最低价模型 id（不再是空模型名），免费档在前、同档余量降序。
+func TestCheapAutoPicksPerProviderCheapest(t *testing.T) {
+	r := newScoringRouter(t, "free-a", "paid-b", "nokey-c")
+	r.Price = fakePrices{
+		byPM: map[string]provider.Price{},
+		byP: map[string]provider.Price{
+			"free-a":  {In: 0, Out: 0},
+			"paid-b":  {In: 1, Out: 2},
+			"nokey-c": {In: 5, Out: 5},
+		},
+	}
+	cands, err := r.candidatesFor(dispatchConfig{strategyName: "cheap"}, &schema.UnifiedRequest{})
+	if err != nil {
+		t.Fatalf("candidatesFor: %v", err)
+	}
+	if len(cands) != 3 {
+		t.Fatalf("candidates = %d, want 3", len(cands))
+	}
+	if cands[0].p.Name() != "free-a" || cands[0].model != "cheapest-of-free-a" {
+		t.Fatalf("first = %s/%s, want free-a/cheapest-of-free-a", cands[0].p.Name(), cands[0].model)
+	}
+	if cands[1].p.Name() != "paid-b" { // 付费按价升序在前
+		t.Fatalf("second = %s, want paid-b", cands[1].p.Name())
+	}
+	for _, c := range cands {
+		if c.model == "" {
+			t.Fatalf("candidate %s has empty model (would send blank upstream)", c.p.Name())
+		}
 	}
 }
 

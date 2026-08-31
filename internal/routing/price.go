@@ -26,6 +26,10 @@ type PriceResolver interface {
 	// Cheapest 返回该 provider 登记定价最低的模型价格（裸 "@cheap"
 	// 无目标模型时按各家最低价排）。
 	Cheapest(providerName string) (provider.Price, bool)
+	// CheapestModel 返回该 provider 登记定价最低的模型 id 与价格
+	//（裸 "@cheap" 的自动选模依据——镜像 BestModel）。ok=false 表示
+	// 该家无任何登记价（不能凭空选模型，跳过）。
+	CheapestModel(providerName string) (string, provider.Price, bool)
 }
 
 // cheapStrategy 按真成本升序（v2，登记定价后升级）：三档——0 档
@@ -115,13 +119,7 @@ func (c *Catalog) Price(providerName, model string) (provider.Price, bool) {
 func (c *Catalog) Cheapest(providerName string) (provider.Price, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	merged := map[string]provider.Price{}
-	for id, p := range c.staticPrices[providerName] {
-		merged[id] = p
-	}
-	for id, p := range c.feedPrices[providerName] {
-		merged[id] = p
-	}
+	merged := c.mergedPrices(providerName)
 	var best provider.Price
 	found := false
 	for _, p := range merged {
@@ -130,6 +128,56 @@ func (c *Catalog) Cheapest(providerName string) (provider.Price, bool) {
 		}
 	}
 	return best, found
+}
+
+// CheapestModel 返回该 provider 登记定价最低的模型 id 与价格。优先
+// 返回 live/静态清单里实际在列的模型（价并列时），避免推荐已下线条目
+//（与 BestModel 同口径）。
+func (c *Catalog) CheapestModel(providerName string) (string, provider.Price, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	merged := c.mergedPrices(providerName)
+	live := map[string]bool{}
+	for _, m := range c.models[providerName] {
+		live[m.ID] = true
+	}
+	for _, m := range c.static[providerName] {
+		live[m.ID] = true
+	}
+	bestID := ""
+	var best provider.Price
+	found := false
+	// 第一轮：只看 live/静态在列的（推荐即能用）。
+	for id, p := range merged {
+		if !live[id] {
+			continue
+		}
+		if !found || p.In+p.Out < best.In+best.Out {
+			bestID, best, found = id, p, true
+		}
+	}
+	if found {
+		return bestID, best, true
+	}
+	// 回落：无在列模型时取绝对最低（目录未同步时仍可选）。
+	for id, p := range merged {
+		if !found || p.In+p.Out < best.In+best.Out {
+			bestID, best, found = id, p, true
+		}
+	}
+	return bestID, best, found
+}
+
+// mergedPrices 合并该 provider 的静态与 feed 价格索引（调用方持读锁）。
+func (c *Catalog) mergedPrices(providerName string) map[string]provider.Price {
+	merged := map[string]provider.Price{}
+	for id, p := range c.staticPrices[providerName] {
+		merged[id] = p
+	}
+	for id, p := range c.feedPrices[providerName] {
+		merged[id] = p
+	}
+	return merged
 }
 
 // lookupPrice 在一个价格索引内做精确/后缀匹配（口径同 Capability）。

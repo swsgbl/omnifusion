@@ -9,8 +9,10 @@ package routing
 
 import (
 	"errors"
+	"sort"
 
 	"github.com/swsgbl/omnifusion/internal/core/schema"
+	"github.com/swsgbl/omnifusion/internal/provider"
 )
 
 // SmartPlan 是一次 ML 路由的候选计划（Router.Smart 的产出契约）。
@@ -54,7 +56,61 @@ func (r *Router) candidatesFor(cfg dispatchConfig, req *schema.UnifiedRequest) (
 		}
 		return cands, nil
 	}
+	// 裸 @cheap（无目标模型）：每家取其登记最低价模型逐尝试（镜像
+	// qualityAuto 的自动选模——只排序不改写会把空模型名发给上游）。
+	if cfg.strategyName == "cheap" && req.Model == "" {
+		if r.Price == nil {
+			return nil, errors.New("routing: @cheap auto needs declared prices (none available); pick a specific model and retry")
+		}
+		cands := r.cheapCandidates(cfg)
+		if len(cands) == 0 {
+			return nil, errors.New("routing: @cheap auto found no declared prices; pick a specific model and retry")
+		}
+		return cands, nil
+	}
 	return r.candidates(cfg, req.Model), nil
+}
+
+// cheapCandidates 是裸 "@cheap" 的候选生成：每家取其登记最低价模型，
+// 按三档排序——登记免费（0 价，余量降序）→ 已定价（价升序）。无任何
+// 登记价的 provider 跳过（不能凭空选模型，与 qualityAuto 同语义）。
+func (r *Router) cheapCandidates(cfg dispatchConfig) []candidate {
+	type scored struct {
+		p    provider.Provider
+		model string
+		cost float64
+		free bool
+		head float64
+	}
+	list := make([]scored, 0, len(r.Providers))
+	for _, p := range r.Providers {
+		id, price, ok := r.Price.CheapestModel(p.Name())
+		if !ok {
+			continue
+		}
+		var head float64
+		if r.Quota != nil {
+			head = r.Quota.Headroom(p.Name())
+		}
+		list = append(list, scored{
+			p: p, model: id, cost: price.In + price.Out,
+			free: price.In <= 0 && price.Out <= 0, head: head,
+		})
+	}
+	sort.SliceStable(list, func(i, j int) bool {
+		if list[i].free != list[j].free {
+			return list[i].free // 免费档在前
+		}
+		if !list[i].free && list[i].cost != list[j].cost {
+			return list[i].cost < list[j].cost // 付费按价升序
+		}
+		return list[i].head > list[j].head // 同档余量降序
+	})
+	out := make([]candidate, 0, len(list))
+	for _, s := range list {
+		out = append(out, candidate{p: s.p, model: s.model})
+	}
+	return r.filterByWindowC(out, cfg.promptTokens)
 }
 
 // smartCandidates 把 ML 计划解析为尝试序列：未装配成员 provider 跳过

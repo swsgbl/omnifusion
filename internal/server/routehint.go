@@ -49,6 +49,13 @@ func (s *Server) dispatchOptions(r *http.Request, req *schema.UnifiedRequest) ([
 			}
 			return []routing.DispatchOption{routing.WithQualityAuto()}, "", false, nil
 		}
+		if directive == "cheap" && bare == "" { // 裸 @cheap：按各家登记最低价自动选模
+			if s.router == nil || s.router.Price == nil {
+				return nil, "", false, errors.New("cheap auto needs declared prices (none available); pick a specific model")
+			}
+			req.Model = "" // 清掉指令串，防泄漏进成员过滤（否则只剩无目录的家可试）
+			return []routing.DispatchOption{routing.WithStrategyName("cheap")}, "", false, nil
+		}
 		if bare == "" {
 			return nil, "", false, errors.New("strategy directive needs a target model, e.g. \"@fast:llama-3.3-70b\"")
 		}
