@@ -8,6 +8,8 @@
 package routing
 
 import (
+	"errors"
+
 	"github.com/swsgbl/omnifusion/internal/core/schema"
 )
 
@@ -37,14 +39,22 @@ func WithQualityAuto() DispatchOption {
 
 // candidatesFor 统一 Dispatch/DispatchStream 的候选入口：smart 指令
 // 走 ML 计划，裸 @quality 走自动选强，其余按 model 走普通/组合路径。
-func (r *Router) candidatesFor(cfg dispatchConfig, req *schema.UnifiedRequest) []candidate {
+// qualityAuto 产出空候选（无能力数据源）是可预期边界，返回哨兵错误
+// 让两个分发入口统一给一句可行动的报错，而不是"no attempts"天书。
+var errQualityNoData = errors.New("routing: auto mode needs catalog capability data (none available); pick a specific model and retry")
+
+func (r *Router) candidatesFor(cfg dispatchConfig, req *schema.UnifiedRequest) ([]candidate, error) {
 	if cfg.smart {
-		return r.smartCandidates(cfg, req)
+		return r.smartCandidates(cfg, req), nil
 	}
 	if cfg.qualityAuto {
-		return r.qualityCandidates(cfg)
+		cands := r.qualityCandidates(cfg)
+		if len(cands) == 0 {
+			return nil, errQualityNoData
+		}
+		return cands, nil
 	}
-	return r.candidates(cfg, req.Model)
+	return r.candidates(cfg, req.Model), nil
 }
 
 // smartCandidates 把 ML 计划解析为尝试序列：未装配成员 provider 跳过

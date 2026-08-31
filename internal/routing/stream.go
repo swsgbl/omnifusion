@@ -32,7 +32,10 @@ func (r *Router) DispatchStream(ctx context.Context, req *schema.UnifiedRequest,
 		return nil, nil, errors.New("routing: no providers configured")
 	}
 	cfg := resolveOptions(opts)
-	cands := r.candidatesFor(cfg, req) // smart 指令在此分流到 ML 计划
+	cands, err := r.candidatesFor(cfg, req) // smart 指令在此分流到 ML 计划
+	if err != nil {
+		return nil, nil, err
+	}
 	attempts := make([]Attempt, 0, len(r.Providers))
 	for _, c := range cands {
 		if ctx.Err() != nil {

@@ -93,7 +93,10 @@ func (r *Router) Dispatch(ctx context.Context, req *schema.UnifiedRequest, opts 
 	if cfg.targetProvider != "" { // 定向分发（Fusion 原语）
 		return r.dispatchTarget(ctx, cfg, req)
 	}
-	cands := r.candidatesFor(cfg, req) // smart 指令在此分流到 ML 计划
+	cands, err := r.candidatesFor(cfg, req) // smart 指令在此分流到 ML 计划
+	if err != nil {
+		return nil, nil, err
+	}
 	attempts := make([]Attempt, 0, len(r.Providers))
 	for _, c := range cands {
 		if ctx.Err() != nil {

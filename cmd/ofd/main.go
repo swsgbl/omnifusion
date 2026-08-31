@@ -208,19 +208,38 @@ func run() error {
 			return fmt.Errorf("parse catalog.feed_pubkey: %w", err)
 		}
 		ing := catalogfeed.NewIngestor(st, pub, logger)
+		// 内置能力分种子（随二进制分发，来自官方 feed 的冻结副本）：
+		// 全新安装 + 首次拉取不可达（典型：直连受限网络）时 @quality
+		// 依然开箱即用；签名 feed 与 store 重放都会整体覆盖种子。
+		if seed, err := catalogfeed.SeedFeed(); err != nil {
+			logger.Warn("catalog feed seed unparsable; skipping", "err", err)
+		} else {
+			logger.Info("catalog feed seed applied", "version", seed.Version, "entries", catalog.ApplyFeed(seed))
+		}
 		applyFeed := func() {
 			f, err := ing.Refresh(ctx, cfg.Catalog.FeedURL)
-			if err != nil {
-				var rb *catalogfeed.RollbackError
-				if errors.As(err, &rb) && rb.FeedVersion == rb.Baseline {
-					logger.Info("catalog feed unchanged (same version replayed)", "version", rb.FeedVersion)
-					return
-				}
-				logger.Warn("catalog feed rejected; keeping last accepted", "error", err)
+			if err == nil {
+				logger.Info("catalog feed applied",
+					"version", f.Version, "entries", catalog.ApplyFeed(f))
 				return
 			}
-			logger.Info("catalog feed applied",
-				"version", f.Version, "entries", catalog.ApplyFeed(f))
+			var rb *catalogfeed.RollbackError
+			if errors.As(err, &rb) && rb.FeedVersion == rb.Baseline {
+				logger.Info("catalog feed unchanged (same version replayed)", "version", rb.FeedVersion)
+			} else {
+				logger.Warn("catalog feed rejected; keeping last accepted", "error", err)
+			}
+			// 同版本重放/拉取失败：回放 store 里最后接受的 feed 原文
+			//（当初入库前已验签）。此前这里直接 return——重启后的每个
+			// 新进程都因防回滚拒绝而永远不应用数据，@quality 形同虚设；
+			// 回放保证每个进程生命周期内数据至少应用一次（拉取窗口
+			// 不定也不断供）。
+			if raw := ing.LastFeed(); raw != nil {
+				if sf, perr := catalogfeed.ParseFeed(raw); perr == nil {
+					logger.Info("catalog feed restored from store",
+						"version", sf.Version, "entries", catalog.ApplyFeed(sf))
+				}
+			}
 		}
 		applyFeed()
 		go func() {

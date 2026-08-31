@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/swsgbl/omnifusion/internal/catalogfeed"
@@ -93,7 +94,10 @@ func TestQualityAutoPicksEachProvidersBest(t *testing.T) {
 			"strong": {id: "strong-big", cap: 95},
 		},
 	}
-	cands := r.candidatesFor(dispatchConfig{qualityAuto: true}, nil)
+	cands, err := r.candidatesFor(dispatchConfig{qualityAuto: true}, nil)
+	if err != nil {
+		t.Fatalf("candidatesFor: %v", err)
+	}
 	if len(cands) != 2 {
 		t.Fatalf("candidates = %d, want 2", len(cands))
 	}
@@ -105,11 +109,12 @@ func TestQualityAutoPicksEachProvidersBest(t *testing.T) {
 	}
 }
 
-func TestQualityAutoNoBestDataYieldsNone(t *testing.T) { // 无 feed：零候选（边界 400 已拦）
+func TestQualityAutoNoBestDataYieldsNone(t *testing.T) { // 无 feed：零候选+哨兵错误
 	r := newScoringRouter(t, "a", "b")
 	r.Capability = fakeBest{best: map[string]fakeBestEntry{}} // 空
-	if cands := r.candidatesFor(dispatchConfig{qualityAuto: true}, nil); len(cands) != 0 {
-		t.Fatalf("candidates = %d, want 0", len(cands))
+	cands, err := r.candidatesFor(dispatchConfig{qualityAuto: true}, nil)
+	if len(cands) != 0 || err == nil || !strings.Contains(err.Error(), "capability") {
+		t.Fatalf("candidates = %d err = %v, want 0 + actionable sentinel", len(cands), err)
 	}
 }
 

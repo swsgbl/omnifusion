@@ -27,3 +27,9 @@ ofd catalog verify catalog/feed.json --pubkey <pubkey-hex>
 
 Entries start as `probation` and graduate to `stable` based on real
 traffic evidence (`ofd catalog report`).
+
+**Shipping a new feed version:** also copy the new `feed.json` over
+`internal/catalogfeed/seed.json` (the embedded bootstrap copy every
+gateway ships with) in the same commit, so fresh installs on
+restricted networks keep working until they can reach the first
+signed feed.

@@ -49,7 +49,10 @@ func TestSmartCandidatesPlanOrder(t *testing.T) {
 			{Provider: "b", Model: "m-strong"},
 		},
 	})
-	cands := r.candidatesFor(dispatchConfig{smart: true}, testRequest())
+	cands, err := r.candidatesFor(dispatchConfig{smart: true}, testRequest())
+	if err != nil {
+		t.Fatalf("candidatesFor: %v", err)
+	}
 	if len(cands) != 2 {
 		t.Fatalf("候选数 = %d, want 2", len(cands))
 	}
@@ -69,7 +72,10 @@ func TestSmartCandidatesSkipUnconfiguredMember(t *testing.T) {
 			{Provider: "b", Model: "m-strong"},
 		},
 	})
-	cands := r.candidatesFor(dispatchConfig{smart: true}, testRequest())
+	cands, err := r.candidatesFor(dispatchConfig{smart: true}, testRequest())
+	if err != nil {
+		t.Fatalf("candidatesFor: %v", err)
+	}
 	if len(cands) != 1 || cands[0].p.Name() != "b" {
 		t.Fatalf("候选 = %v, want 仅 b", cands)
 	}
@@ -84,7 +90,10 @@ func TestSmartCandidatesWindowFilter(t *testing.T) {
 		},
 	})
 	r.Windows = stubWindows{"a/m-weak": 100} // 弱档窗口装不下 200 token
-	cands := r.candidatesFor(dispatchConfig{smart: true, promptTokens: 200}, testRequest())
+	cands, err := r.candidatesFor(dispatchConfig{smart: true, promptTokens: 200}, testRequest())
+	if err != nil {
+		t.Fatalf("candidatesFor: %v", err)
+	}
 	if len(cands) != 1 || cands[0].p.Name() != "b" {
 		t.Fatalf("候选 = %v, want 弱档被窗口过滤只剩 b", cands)
 	}
@@ -101,7 +110,10 @@ func TestSmartIgnoresStickyAndPin(t *testing.T) {
 	r.Sessions = NewSessionTracker()
 	r.Sessions.Bind("sess", "b") // 已绑 b：sticky 本会提前 b
 	cfg := dispatchConfig{smart: true, sessionID: "sess", pinnedProvider: "b"}
-	cands := r.candidatesFor(cfg, testRequest())
+	cands, err := r.candidatesFor(cfg, testRequest())
+	if err != nil {
+		t.Fatalf("candidatesFor: %v", err)
+	}
 	if len(cands) != 2 || cands[0].p.Name() != "a" {
 		t.Fatalf("候选 = %v, want 计划序 a 在首（smart 不做 sticky/钉选）", cands)
 	}
@@ -109,7 +121,10 @@ func TestSmartIgnoresStickyAndPin(t *testing.T) {
 
 func TestSmartNilFallsBackToModelRouting(t *testing.T) {
 	r := &Router{Providers: threeStubProviders(t)} // Smart 未装配
-	cands := r.candidatesFor(dispatchConfig{smart: true}, testRequest())
+	cands, err := r.candidatesFor(dispatchConfig{smart: true}, testRequest())
+	if err != nil {
+		t.Fatalf("candidatesFor: %v", err)
+	}
 	if len(cands) != 3 || cands[0].p.Name() != "a" {
 		t.Fatalf("候选 = %v, want 回退普通分发（注册序 3 家）", cands)
 	}
