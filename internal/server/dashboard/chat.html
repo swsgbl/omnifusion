@@ -92,6 +92,9 @@ if (!EMBED) document.getElementById('nav').innerHTML = PAGES.map(([id, nk]) => {
   return `<a href="${pageHref(id, LANG)}"${cur}>${t(nk)}</a>`;
 }).join('') +
   ` <a href="${pageHref('chat', 'zh')}">\u4e2d\u6587</a> <a href="${pageHref('chat', 'en')}">EN</a>`;
+// WebView2 已知问题：内嵌（跨源 iframe）时键击不进本页——任何指针
+// 按下先自聚窗口（配合壳的 contentWindow.focus()），键盘即可输入。
+if (EMBED) document.addEventListener('pointerdown', () => { window.focus(); }, true);
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 

@@ -262,6 +262,13 @@ function loadFrame() {
   $("frame").src = `${base}/dashboard/${activePage}?key=${key}${lang}`;
 }
 
+// WebView2 已知问题：跨源 iframe 不接收键盘输入（键击留在壳文档）。
+// 标准修复=显式聚焦：iframe 每次加载后由壳调 contentWindow.focus()
+//（跨源安全允许）；内页另有 pointerdown 自聚（chat.html）配合。
+$("frame").addEventListener("load", () => {
+  try { $("frame").contentWindow.focus(); } catch { /* 跨源失败不致命 */ }
+});
+
 function renderTabs() {
   const nav = $("tabs");
   nav.innerHTML = "";
