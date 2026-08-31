@@ -210,10 +210,12 @@ func run() error {
 		ing := catalogfeed.NewIngestor(st, pub, logger)
 		// 内置能力分种子（随二进制分发，来自官方 feed 的冻结副本）：
 		// 全新安装 + 首次拉取不可达（典型：直连受限网络）时 @quality
-		// 依然开箱即用；签名 feed 与 store 重放都会整体覆盖种子。
+		// 依然开箱即用；签名 feed 与不低于种子的 store 重放都会覆盖种子。
+		seedVer := int64(0)
 		if seed, err := catalogfeed.SeedFeed(); err != nil {
 			logger.Warn("catalog feed seed unparsable; skipping", "err", err)
 		} else {
+			seedVer = seed.Version
 			logger.Info("catalog feed seed applied", "version", seed.Version, "entries", catalog.ApplyFeed(seed))
 		}
 		applyFeed := func() {
@@ -233,11 +235,17 @@ func run() error {
 			//（当初入库前已验签）。此前这里直接 return——重启后的每个
 			// 新进程都因防回滚拒绝而永远不应用数据，@quality 形同虚设；
 			// 回放保证每个进程生命周期内数据至少应用一次（拉取窗口
-			// 不定也不断供）。
+			// 不定也不断供）。旧 store（低于内置种子版本）不回放——
+			// 种子比它新，别用陈年数据盖掉随二进制带来的最新副本。
 			if raw := ing.LastFeed(); raw != nil {
 				if sf, perr := catalogfeed.ParseFeed(raw); perr == nil {
-					logger.Info("catalog feed restored from store",
-						"version", sf.Version, "entries", catalog.ApplyFeed(sf))
+					if sf.Version >= seedVer {
+						logger.Info("catalog feed restored from store",
+							"version", sf.Version, "entries", catalog.ApplyFeed(sf))
+					} else {
+						logger.Info("catalog feed store copy older than embedded seed; keeping seed",
+							"store_version", sf.Version, "seed_version", seedVer)
+					}
 				}
 			}
 		}
