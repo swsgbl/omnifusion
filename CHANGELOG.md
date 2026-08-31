@@ -2,7 +2,11 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
-## [Unreleased]
+## [v0.1.4] - 2026-09-01
+
+CLI 编码代理接入轮：网关不只服务 HTTP 客户端，一条命令把密钥铺进你已有的命令行工具。
+
+> EN: The "connect your CLI agents" release — `ofd connect` wires Claude Code / Codex / Gemini CLI / OpenCode to the gateway in one command; embedded-dashboard keyboard input fixed at the root (native child webview); `@quality` data now survives restarts; single canonical data directory.
 
 ### 新增
 
@@ -11,14 +15,22 @@
 ### 改进
 
 - **数据存储归一（"若无必要勿增实体"）**：数据目录默认改为每用户规范位置（Windows `%LOCALAPPDATA%\OmniFusion\data`、macOS `~/Library/Application Support/OmniFusion/data`、Linux `~/.local/share/OmniFusion/data`）——终端、桌面端、任何启动方式读写**同一份**数据库，密钥/隔离状态/缓存只有一份正本，不再随工作目录漂移；首次运行自动把旧位置最新的库迁入规范位置（幂等，显式配置 `store.path` 者不受影响）；
-- **桌面端启动自动读取网关令牌**：应用打开时 key 字段为空则静默从捆绑 ofd 读取并持久化——iframe 不再出现裸 JSON 401，「装完即用」成立；
-- 服务端对浏览器形态的未鉴权页面请求回双语 HTML 指引页（桌面端点「从 ofd 读取 Key」/ `?key=` / `ofd gateway-key`），页面内 fetch 保持 JSON。
+- **桌面端启动自动读取网关令牌**：应用打开时 key 字段为空则静默从捆绑 ofd 读取并持久化——嵌入页不再出现裸 JSON 401，「装完即用」成立；
+- 服务端对浏览器形态的未鉴权页面请求回双语 HTML 指引页（桌面端点「从 ofd 读取 Key」/ `?key=` / `ofd gateway-key`），页面内 fetch 保持 JSON；
+- 内嵌控制台改为**单一控制源**：嵌入模式自动跳过页内导航与语言切换，语言由桌面壳统一控制，不再出现双重控件与设置互踩。
 
 ### 修复
 
+- **桌面端内嵌对话页打不了字（根治）**：Windows WebView2 跨源 iframe 不接收键盘输入——改用原生子 webview 承载控制台页面，键盘、焦点、滚动全部原生直达；
+- **`@quality` 重启后失效**（报 "no attempts recorded"）：目录 feed 同版本重放被正确拒绝后未回放已入库数据，导致后续进程能力分全空——修复为重放/拉取失败一律回放最后接受的 feed；并内置冻结种子副本（离线/首启也有基准数据）；无数据时裸 `@quality` 返回可行动的 400 提示（而非空模型名打全部上游）；
+- **裸 `@cheap` 选模缺陷**：指令串泄漏进成员过滤导致候选只剩无目录提供商，且只排序不选模——修复为每家取其登记最低价模型、按真成本升序逐尝试，无价源时回可行动 400；
 - **桌面端重启后首启失败**：首次运行过杀毒扫描致冷启动超过原 8s 健康窗——放宽到 20s（进程存活即持续轮询、超时不杀进程）；网关输出落盘 `data/gateway.log`，失败错误直接附日志尾部，不再黑箱。
 
-> EN: Single canonical per-user data directory (auto-migrating legacy stores) shared by terminal & desktop; desktop auto-reads the gateway token at launch; friendly HTML auth page for browser navigations; cold-boot desktop start fix with gateway log capture.
+### 维护
+
+- **合规套件**：仓库根新增完整 Apache-2.0 LICENSE、NOTICE（直接依赖清单及许可核实）、SECURITY.md（漏洞报告只走 GitHub 私下报告通道）；README 双语新增「隐私与合规」节（本地优先/零遥测/出站仅上游与 feed）；
+- README 双语新增「设计参考」节：向五个设计参考项目（Bifrost / RouteLLM / OmniRoute / FreeLLMAPI / FreeRide）致谢并声明独立实现非 fork；MIT 义务已在 NOTICE 履行；
+- 新增真机验收矩阵脚本（45 项覆盖四协议/八策略/鉴权/缓存/CLI），供发版前全量回归。
 
 ## [v0.1.3] - 2026-08-30
 

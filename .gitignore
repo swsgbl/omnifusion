@@ -28,6 +28,7 @@ _sweep*.ps1
 # 桌面端（Tauri）
 node_modules/
 apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/target2/
 apps/desktop/src-tauri/gen/
 apps/desktop/src-tauri/bin/
 *.png.tmp
