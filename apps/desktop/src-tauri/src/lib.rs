@@ -14,9 +14,10 @@ use std::net::TcpStream;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
-use tauri::{AppHandle, Manager, WindowEvent};
+use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl, WindowEvent};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
+use tauri::webview::WebviewBuilder;
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -332,6 +333,68 @@ fn client_connect(app: AppHandle, bin: String, config: String, cli: String) -> R
     Ok(())
 }
 
+// --- dashboard 子 webview：替代 iframe 的内嵌方案 ---
+//
+// WebView2 已知缺陷：跨源 iframe（tauri.localhost 壳 × 127.0.0.1 网关）
+// 不接收键盘输入——键击留在壳文档，输入框"打不了字"。子 webview 是
+// 独立的原生 WebView2 实例（与壳同级的键盘/IME 焦点通道），从根本上
+// 绕开该缺陷。坐标为壳 CSS 逻辑像素（frameWrap 的 getBoundingClientRect
+// 直传）；Tauri 的 Logical 类型内部按 scale factor 折算。
+
+/// dash_create 幂等创建子 webview（Windows 在同步命令/事件回调里创建
+/// 会死锁——官方要求 async 命令，故本命令为 async）。
+#[tauri::command]
+async fn dash_create(app: AppHandle, url: String, x: f64, y: f64, w: f64, h: f64) -> Result<(), String> {
+    if let Some(win) = app.get_window("main") {
+        if app.get_webview("dash").is_none() {
+            let parsed: tauri::Url = url.parse().map_err(|e| format!("parse url: {e}"))?;
+            let wv = win
+                .add_child(
+                    WebviewBuilder::new("dash", WebviewUrl::External(parsed)),
+                    LogicalPosition::new(x, y),
+                    LogicalSize::new(w.max(1.0), h.max(1.0)),
+                )
+                .map_err(|e| format!("add_child: {e}"))?;
+            // 创建即隐藏：可见性由 refresh() 按网关状态统一管理。
+            let _ = wv.hide();
+        }
+    }
+    dash_layout(app, x, y, w, h)
+}
+
+/// dash_layout 让子 webview 精确覆盖壳的 frameWrap 区域（窗口缩放/
+/// 布局变化时由前端 ResizeObserver 驱动）。
+#[tauri::command]
+fn dash_layout(app: AppHandle, x: f64, y: f64, w: f64, h: f64) -> Result<(), String> {
+    if let Some(wv) = app.get_webview("dash") {
+        wv.set_position(LogicalPosition::new(x, y))
+            .map_err(|e| format!("set_position: {e}"))?;
+        wv.set_size(LogicalSize::new(w.max(1.0), h.max(1.0)))
+            .map_err(|e| format!("set_size: {e}"))?;
+    }
+    Ok(())
+}
+
+/// dash_navigate 切换子 webview 的页面（等价原 iframe.src 赋值）。
+#[tauri::command]
+fn dash_navigate(app: AppHandle, url: String) -> Result<(), String> {
+    if let Some(wv) = app.get_webview("dash") {
+        let parsed: tauri::Url = url.parse().map_err(|e| format!("parse url: {e}"))?;
+        wv.navigate(parsed).map_err(|e| format!("navigate: {e}"))?;
+    }
+    Ok(())
+}
+
+/// dash_visible 网关未运行时隐藏子 webview（露出壳的引导遮罩）。
+#[tauri::command]
+fn dash_visible(app: AppHandle, visible: bool) -> Result<(), String> {
+    let Some(wv) = app.get_webview("dash") else {
+        return Ok(());
+    };
+    let r = if visible { wv.show() } else { wv.hide() };
+    r.map_err(|e| format!("visible: {e}"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -345,7 +408,11 @@ pub fn run() {
             save_settings,
             set_language,
             key_add,
-            client_connect
+            client_connect,
+            dash_create,
+            dash_layout,
+            dash_navigate,
+            dash_visible
         ])
         .setup(|app| {
             build_tray(app)?;

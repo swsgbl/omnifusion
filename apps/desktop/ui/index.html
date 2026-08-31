@@ -35,8 +35,7 @@
   nav.tabs { display: flex; gap: 4px; padding: 8px 18px 0; background: var(--panel); border-bottom: 1px solid var(--border); }
   nav.tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0; background: transparent; color: var(--muted); padding: 7px 14px; }
   nav.tabs button.active { color: var(--fg); border-bottom-color: var(--accent2); }
-  #frameWrap { position: relative; flex: 1; display: flex; }
-  iframe { flex: 1; width: 100%; border: none; background: #fff; }
+  #frameWrap { position: relative; flex: 1; display: flex; background: var(--bg); }
   #gwDown { position: absolute; inset: 0; display: none; place-items: center;
     background: var(--bg); color: var(--muted); font-size: 15px; text-align: center; line-height: 2; }
 </style>
@@ -115,8 +114,10 @@
 </section>
 
 <nav class="tabs" id="tabs"></nav>
+<!-- dashboard 承载区：不再是 iframe——由 Rust 侧的子 webview（dash）精确
+     覆盖本区域（跨源 iframe 在 WebView2 下不接收键盘输入的根治方案）；
+     gwDown 遮罩在子 webview 隐藏时露出。 -->
 <div id="frameWrap">
-  <iframe id="frame" title="OmniFusion Dashboard"></iframe>
   <div id="gwDown"></div>
 </div>
 
@@ -253,21 +254,49 @@ function applyLang() {
   renderTabs();
 }
 
+// --- dashboard 子 webview 驱动层（替代 iframe：WebView2 跨源 iframe
+// 不接收键盘输入的根治方案）。壳只做三件事：布局上报（frameWrap 矩形
+// → Rust set_position/size）、按需导航（URL 变化才 navigate，杜绝
+// 周期刷新重载）、随网关状态显隐。 ---
+let dashReady = false;        // 子 webview 已创建
+let lastFrameUrl = "";        // 当前应当显示的 URL
+let dashCurrentUrl = "";      // 子 webview 实际所在的 URL
+let dashWasRunning = false;   // 网关上次状态（停→起需强制重导航）
+
+async function layoutDash() {
+  const r = $("frameWrap").getBoundingClientRect();
+  if (r.width < 2 || r.height < 2) return;
+  const args = { x: r.left, y: r.top, w: r.width, h: r.height };
+  try {
+    if (!dashReady) {
+      await invoke("dash_create", { url: lastFrameUrl || "http://127.0.0.1:20130/", ...args });
+      dashReady = true;
+      await syncDashVisibility(true);
+    } else {
+      await invoke("dash_layout", args);
+    }
+  } catch { /* 布局失败下一帧重试（ResizeObserver 持续触发） */ }
+}
+
+function navigateDashIfNeeded() {
+  if (!dashReady || !lastFrameUrl || lastFrameUrl === dashCurrentUrl) return;
+  dashCurrentUrl = lastFrameUrl;
+  invoke("dash_navigate", { url: lastFrameUrl }).catch(() => { dashCurrentUrl = ""; });
+}
+
+async function syncDashVisibility(running) {
+  try { await invoke("dash_visible", { visible: running }); } catch { /* 尽力而为 */ }
+}
+
 function loadFrame() {
   const base = $("inBase").value.trim() || "http://127.0.0.1:20130";
   const key = encodeURIComponent($("inKey").value.trim());
-  // 内嵌模式：壳强制传 lang（壳语言是唯一真源）+ embed=1（隐藏页内
-  // 导航与语言切换——桌面标签已提供导航，避免双控制源打架）。
+  // 子 webview 模式：壳强制传 lang（壳语言是唯一真源）+ embed=1
+  //（隐藏页内导航与语言切换——桌面标签已提供导航，避免双控制源打架）。
   const lang = `&lang=${effLang()}&embed=1`;
-  $("frame").src = `${base}/dashboard/${activePage}?key=${key}${lang}`;
+  lastFrameUrl = `${base}/dashboard/${activePage}?key=${key}${lang}`;
+  navigateDashIfNeeded();
 }
-
-// WebView2 已知问题：跨源 iframe 不接收键盘输入（键击留在壳文档）。
-// 标准修复=显式聚焦：iframe 每次加载后由壳调 contentWindow.focus()
-//（跨源安全允许）；内页另有 pointerdown 自聚（chat.html）配合。
-$("frame").addEventListener("load", () => {
-  try { $("frame").contentWindow.focus(); } catch { /* 跨源失败不致命 */ }
-});
 
 function renderTabs() {
   const nav = $("tabs");
@@ -292,7 +321,14 @@ async function refresh() {
     $("btnStart").disabled = s.running;
     $("gwDown").style.display = s.running ? "none" : "grid";
     $("gwDown").innerHTML = t.gwDown;
-    if (s.running) loadFrame();
+    await syncDashVisibility(s.running);
+    if (s.running) {
+      // 停→起过渡：子 webview 里可能还停着网关停机时的错误页（URL 未变
+      // 不会触发重导航），强制重载一次。
+      if (!dashWasRunning) dashCurrentUrl = "";
+      navigateDashIfNeeded(); // URL 有变才导航（幂等，无重载）
+    }
+    dashWasRunning = s.running;
   } catch (e) {
     $("statusBadge").textContent = t.msgProbeFail + e;
     $("statusBadge").className = "badge off";
@@ -379,6 +415,9 @@ $("selLang").onchange = async () => {
     } catch { /* 静默 */ }
   }
   loadFrame();
+  layoutDash();
+  new ResizeObserver(() => layoutDash()).observe($("frameWrap"));
+  window.addEventListener("resize", () => layoutDash());
   try { await invoke("set_language", { lang: effLang() }); } catch { /* 托盘语言同步尽力而为 */ }
   await refresh();
   setInterval(refresh, 3000);
