@@ -1,7 +1,18 @@
 {
-  "version": 1,
-  "generated_at": 1788084000,
+  "version": 2,
+  "generated_at": 1788177000,
   "providers": {
+    "sambanova": {
+      "models": [
+        {"id": "DeepSeek-V3.2", "status": "probation", "capability": 83, "price_in": 0, "price_out": 0},
+        {"id": "DeepSeek-V3.1", "status": "probation", "capability": 81, "price_in": 0, "price_out": 0},
+        {"id": "MiniMax-M3", "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
+        {"id": "MiniMax-M2.7", "status": "probation", "capability": 72, "price_in": 0, "price_out": 0},
+        {"id": "gpt-oss-120b", "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
+        {"id": "gemma-4-31B-it", "status": "probation", "capability": 65, "price_in": 0, "price_out": 0},
+        {"id": "Meta-Llama-3.3-70B-Instruct", "status": "probation", "capability": 63, "price_in": 0, "price_out": 0}
+      ]
+    },
     "zhipu": {
       "models": [
         {"id": "glm-4.5-flash", "ctx_len": 131072, "status": "probation", "capability": 70, "price_in": 0, "price_out": 0},
@@ -18,8 +29,8 @@
     },
     "deepseek": {
       "models": [
-        {"id": "deepseek-v4-pro", "status": "probation", "capability": 88},
-        {"id": "deepseek-v4-flash", "status": "probation", "capability": 80}
+        {"id": "deepseek-v4-pro", "status": "stable", "capability": 88},
+        {"id": "deepseek-v4-flash", "status": "stable", "capability": 80}
       ]
     },
     "qwen": {

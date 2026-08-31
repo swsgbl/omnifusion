@@ -63,9 +63,9 @@ func dispatchSubcommand(cfg *config.Config, cfgPath string, args []string) (bool
 	case "catalog":
 		return true, runCatalogCommand(cfg, args[1:])
 	default:
-		return true, fmt.Errorf(
-			"unknown subcommand %q; valid: key, gateway-key, connect, disconnect, status, mcp, mcp-token, run, catalog; omit to serve",
-			args[0])
+		return true, biErr(
+			fmt.Sprintf("未知子命令 %q；可用：key、gateway-key、connect、disconnect、status、mcp、mcp-token、run、catalog；不带参数即启动网关", args[0]),
+			fmt.Sprintf("unknown subcommand %q; valid: key, gateway-key, connect, disconnect, status, mcp, mcp-token, run, catalog; omit to serve", args[0]))
 	}
 }
 
@@ -80,7 +80,7 @@ func run() error {
 
 	cfg, err := config.Load(*cfgPath)
 	if err != nil {
-		return fmt.Errorf("load config: %w", err)
+		return biWrap(err, "加载配置失败", "load config failed")
 	}
 	// 构建链只注入 main.version（goreleaser -X main.version）；server 包
 	// 的版本（启动横幅/dashboard/MCP serverInfo）由此转发，单一事实源。
@@ -323,5 +323,12 @@ func run() error {
 			"keep the gateway key secret and prefer a reverse proxy with TLS in front of it")
 	}
 
-	return srv.ListenAndServe(ctx)
+	if err := srv.ListenAndServe(ctx); err != nil && isAddrInUse(err) {
+		return biWrap(err,
+			"端口已被占用——先停掉旧实例（任务管理器结束 ofd.exe 或桌面端「停止网关」），或在配置里改 server.port",
+			"port already in use - stop the old instance first (or change server.port)")
+	} else if err != nil {
+		return err
+	}
+	return nil
 }

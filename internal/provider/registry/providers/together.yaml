@@ -1,0 +1,16 @@
+providers:
+  - id: together
+    kind: openai_compat
+    display_name: Together AI
+    # 官方 OpenAI 兼容端点。注意：免费试用额度已取消（2026 核实），
+    # BYOK 按量付费——200+ 开源模型的服务器托管推理（含不少独家型号）。
+    # 2026-08-31 实测：端点可达（匿名 /models 401，需 key 拉目录）。
+    base_url: https://api.together.xyz/v1
+    auth_style: bearer
+    key_env: TOGETHER_API_KEY
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 无免费层（BYOK 按量付费）
+    models: [] # 模型面以 live /models 同步为准

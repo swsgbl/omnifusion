@@ -1,0 +1,38 @@
+providers:
+  - id: sambanova
+    kind: openai_compat
+    display_name: SambaNova Cloud
+    # 官方 OpenAI 兼容端点（docs.sambanova.ai）。免费 = Developer 档
+    #（免支付方式）：全模型共享 20M tokens/天，约 20 RPM。
+    # 2026-08-31 实测：/v1/models 公开免鉴权，下列 7 个模型为当日实收。
+    base_url: https://api.sambanova.ai/v1
+    auth_style: bearer
+    key_env: SAMBANOVA_API_KEY
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: Developer 档：全模型共享 20M tokens/天（约 20 RPM）
+    rate_limits: {tpd: 20000000}
+    models:
+      - id: DeepSeek-V3.2
+        price_in: 0
+        price_out: 0
+      - id: DeepSeek-V3.1
+        price_in: 0
+        price_out: 0
+      - id: MiniMax-M3
+        price_in: 0
+        price_out: 0
+      - id: MiniMax-M2.7
+        price_in: 0
+        price_out: 0
+      - id: gpt-oss-120b
+        price_in: 0
+        price_out: 0
+      - id: gemma-4-31B-it
+        price_in: 0
+        price_out: 0
+      - id: Meta-Llama-3.3-70B-Instruct
+        price_in: 0
+        price_out: 0

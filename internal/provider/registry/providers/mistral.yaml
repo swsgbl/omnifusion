@@ -1,0 +1,20 @@
+providers:
+  - id: mistral
+    kind: openai_compat
+    display_name: Mistral La Plateforme
+    # 官方 OpenAI 兼容端点（docs.mistral.ai）。免费层为 Experiment 档
+    #（console.mistral.ai 计费页激活；约 1 req/s，模型面近乎全量）。
+    # 2026-08-31 实测：本机直连超时（同 Gemini 类，需配代理使用）。
+    base_url: https://api.mistral.ai/v1
+    auth_style: bearer
+    key_env: MISTRAL_API_KEY
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: Experiment 免费档（低速率，控制台激活）
+    models:
+      # 静态锚点用官方 -latest 别名（跨版本稳定）；实际模型面以 live
+      # /models 同步为准（需 key + 代理）。
+      - id: mistral-large-latest
+      - id: mistral-small-latest

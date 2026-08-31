@@ -1,0 +1,18 @@
+providers:
+  - id: cohere
+    kind: openai_compat
+    display_name: Cohere
+    # Compatibility API（docs.cohere.com/docs/compatibility-api）：OpenAI
+    # SDK 直连。免费 = trial key（注册即得，勿用于生产）：1000 次/月、
+    # Chat 20 次/分钟（docs.cohere.com/docs/rate-limits）。
+    # 2026-08-31 实测：端点可达（匿名 /models 403，需 key 拉目录）。
+    base_url: https://api.cohere.ai/compatibility/v1
+    auth_style: bearer
+    key_env: COHERE_API_KEY
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: Trial key 免费：1000 次/月、20 次/分钟（禁生产用途）
+    rate_limits: {rpm: 20}
+    models: [] # 模型面以 live /models 同步为准（静态不冻结易过期 id）

@@ -2,6 +2,14 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [Unreleased]
+
+### 新增
+
+- **内置提供商 16 → 20**（西方次优先补齐，端点均经 2026-08-31 实测核对）：SambaNova Cloud（Developer 档每日 20M tokens 免费，公开 /models 实收 7 个模型全量预置）、Mistral La Plateforme（Experiment 免费档；本机直连受限需代理，YAML 已注明）、Cohere（Trial key：1000 次/月、20 次/分钟）、Together AI（免费层已取消，按 BYOK 付费收录，与 Anthropic/DeepSeek 同模式）。原清单中的 GitHub Models 已于 2026-07-30 完全退役，不再收录；
+- **目录 feed v2（首批证据驱动数据）**：deepseek-v4-pro / v4-flash 经真实流量验证（3 次调用全成功，`ofd catalog report` 证据）从 probation 升 **stable**；SambaNova 7 个模型携免费定价与能力分入目录（14 提供商 60 模型）；
+- **CLI 错误串双语**：小白高频错误（未知子命令/端口被占/配置加载失败/密钥为空/--env 与 --stdin 冲突/connect 用法与未知客户端）改为「中文（English）」形态；HTTP API 错误维持英文契约不变。
+
 ## [v0.1.4] - 2026-09-01
 
 CLI 编码代理接入轮：网关不只服务 HTTP 客户端，一条命令把密钥铺进你已有的命令行工具。

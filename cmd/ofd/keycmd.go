@@ -82,7 +82,7 @@ func keyAdd(cfg *config.Config, args []string) error {
 	providerID := positional[0]
 	warnUnknownProvider(providerID)
 	if *envVar != "" && *fromStdin {
-		return errors.New("--env and --stdin are mutually exclusive")
+		return biErr("--env 与 --stdin 不能同时使用", "--env and --stdin are mutually exclusive")
 	}
 
 	key, err := obtainKey(providerID, *envVar, *fromStdin)
@@ -90,7 +90,7 @@ func keyAdd(cfg *config.Config, args []string) error {
 		return err
 	}
 	if key == "" {
-		return errors.New("empty key; nothing stored")
+		return biErr("输入为空，未存储任何密钥", "empty key; nothing stored")
 	}
 
 	st, kr, close, err := openKeyDeps(cfg)

@@ -39,8 +39,9 @@ func runConnect(cfg *config.Config, args []string, connect bool) error {
 		return err
 	}
 	if len(positional) != 1 {
-		return fmt.Errorf("usage: ofd %s <claude|codex|gemini|opencode> [--print]",
-			map[bool]string{true: "connect", false: "disconnect"}[connect])
+		return biErr(
+			fmt.Sprintf("用法：ofd %s <claude|codex|gemini|opencode> [--print]", map[bool]string{true: "connect", false: "disconnect"}[connect]),
+			fmt.Sprintf("usage: ofd %s <claude|codex|gemini|opencode> [--print]", map[bool]string{true: "connect", false: "disconnect"}[connect]))
 	}
 	target := positional[0]
 	known := false
@@ -50,7 +51,9 @@ func runConnect(cfg *config.Config, args []string, connect bool) error {
 		}
 	}
 	if !known {
-		return fmt.Errorf("unknown cli %q (supported: %s)", target, strings.Join(connectTargets, ", "))
+		return biErr(
+			fmt.Sprintf("未知客户端 %q（支持：%s）", target, strings.Join(connectTargets, ", ")),
+			fmt.Sprintf("unknown cli %q (supported: %s)", target, strings.Join(connectTargets, ", ")))
 	}
 
 	kr, err := security.Open("")
