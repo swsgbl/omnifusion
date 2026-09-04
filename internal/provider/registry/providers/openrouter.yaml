@@ -20,8 +20,11 @@ providers:
       input: [text, image]
       output: [text]
       features: [tools]
-    free_tier: ":free 后缀模型 $0；免费层 20 RPM / 200 RPD（无卡）"
-    rate_limits: {rpm: 20, rpd: 200}
+    # Official free-tier limits: 20 RPM / 50 RPD before 10 lifetime credits,
+    # and 20 RPM / 1000 RPD after. Keep the conservative default until quota
+    # probing can distinguish the two account tiers.
+    free_tier: ":free 后缀模型 $0；未累计购买 10 credits 时 20 RPM / 50 RPD"
+    rate_limits: {rpm: 20, rpd: 50}
     models:
       - id: openrouter/auto
         context_window: 128000

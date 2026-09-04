@@ -20,6 +20,8 @@
 
 ## 文档
 
+- 当前推进方向：[ROADMAP.md](ROADMAP.md)；
+- 内置厂商目录：[PROVIDERS.md](PROVIDERS.md)；
 - 用户可感知的变更见 [CHANGELOG.md](CHANGELOG.md)；
 - 部署与编排：[deploy/README.md](deploy/README.md)（Docker/compose/systemd/Prometheus/Grafana，含零密钥 mock 验证栈与冒烟脚本）；
 - 桌面端构建：[apps/desktop](apps/desktop)（build.cmd）。
@@ -66,6 +68,10 @@ OmniFusion 是**独立原创实现**（非任何现有项目的 fork）。架构
 - **[FreeRide](https://github.com/Shaivpidadi/FreeRideV3)**（MIT）— `ofd run` CLI 包装流程经其移植（Go 原创重写，归属声明见 [NOTICE](NOTICE)）。
 
 上述引用均为思想与教训层面的借鉴；依赖的第三方**代码**仅限 [NOTICE](NOTICE) 所列组件。
+
+## 支持项目
+
+OmniFusion 采用 Apache-2.0 开源协议。如果它帮你减少了密钥和 Base URL 切换成本，可以在 [爱发电](https://ifdian.net/a/hongfu) 支持文档、厂商核对、基准测试和持续维护。网关核心功能保持免费开源。
 
 ## 隐私与合规
 

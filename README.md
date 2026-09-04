@@ -20,6 +20,8 @@ Aggregate multiple LLM providers (free tiers first, BYOK — bring your own keys
 
 ## Docs
 
+- Current focus areas: [ROADMAP.md](ROADMAP.md);
+- Built-in provider declarations: [PROVIDERS.md](PROVIDERS.md);
 - User-visible changes: [CHANGELOG.md](CHANGELOG.md);
 - Deployment & orchestration: [deploy/README.md](deploy/README.md) (Docker/compose/systemd/Prometheus/Grafana, incl. a zero-key mock verification stack and smoke script);
 - Desktop build: [apps/desktop](apps/desktop) (build.cmd).
@@ -66,6 +68,10 @@ OmniFusion is an **independent, original implementation** (not a fork of any exi
 - **[FreeRide](https://github.com/Shaivpidadi/FreeRideV3)** (MIT) — the `ofd run` CLI-wrapper flow is ported from it (original Go rewrite; attribution in [NOTICE](NOTICE)).
 
 All of the above are idea- and lesson-level references; third-party **code** dependencies are limited to the components listed in [NOTICE](NOTICE).
+
+## Support the project
+
+OmniFusion is Apache-2.0 open source. If it saves you key-switching time, you can support documentation, provider verification, benchmarks, and maintenance on [Afdian](https://ifdian.net/a/hongfu). Core gateway features remain free and open source.
 
 ## Privacy & compliance
 

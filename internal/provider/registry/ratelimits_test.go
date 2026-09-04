@@ -16,7 +16,7 @@ func TestRateLimitsDeclared(t *testing.T) {
 
 	want := map[string]RateLimitsDecl{
 		"groq":       {RPM: 30, RPD: 14400},
-		"openrouter": {RPM: 20, RPD: 200},
+		"openrouter": {RPM: 20, RPD: 50},
 		"cerebras":   {RPM: 5, TPM: 30000, TPD: 1000000},
 		"nvidia":     {RPM: 40},
 		"cloudflare": {RPD: 150},
