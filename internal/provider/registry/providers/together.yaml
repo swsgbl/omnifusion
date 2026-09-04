@@ -8,6 +8,7 @@ providers:
     base_url: https://api.together.xyz/v1
     auth_style: bearer
     key_env: TOGETHER_API_KEY
+    signup_url: https://api.together.ai/settings/api-keys
     capabilities:
       input: [text]
       output: [text]

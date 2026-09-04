@@ -8,6 +8,7 @@ providers:
     base_url: https://api.sambanova.ai/v1
     auth_style: bearer
     key_env: SAMBANOVA_API_KEY
+    signup_url: https://cloud.sambanova.ai
     capabilities:
       input: [text]
       output: [text]

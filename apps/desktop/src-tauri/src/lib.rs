@@ -341,6 +341,24 @@ fn client_connect(app: AppHandle, bin: String, config: String, cli: String) -> R
 // 绕开该缺陷。坐标为壳 CSS 逻辑像素（frameWrap 的 getBoundingClientRect
 // 直传）；Tauri 的 Logical 类型内部按 scale factor 折算。
 
+/// open_signup 在系统默认浏览器打开该厂商的"申请密钥"官方页（注册表
+/// signup_url 声明；一键抵达，免用户搜官网）。
+#[tauri::command]
+fn open_signup(url: String) -> Result<(), String> {
+    let url = url.trim();
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err("open_signup_bad_url".into());
+    }
+    #[cfg(windows)]
+    let out = Command::new("cmd").args(["/C", "start", "", url]).creation_flags(CREATE_NO_WINDOW).output();
+    #[cfg(not(windows))]
+    let out = Command::new("xdg-open").arg(url).output();
+    match out {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("open_signup: {e}")),
+    }
+}
+
 /// dash_create 幂等创建子 webview（Windows 在同步命令/事件回调里创建
 /// 会死锁——官方要求 async 命令，故本命令为 async）。
 #[tauri::command]
@@ -412,7 +430,8 @@ pub fn run() {
             dash_create,
             dash_layout,
             dash_navigate,
-            dash_visible
+            dash_visible,
+            open_signup
         ])
         .setup(|app| {
             build_tray(app)?;

@@ -10,6 +10,7 @@ providers:
     base_url: https://ark.cn-beijing.volces.com/api/v3
     auth_style: bearer
     key_env: ARK_API_KEY
+    signup_url: https://console.volcengine.com/ark
     capabilities:
       input: [text]
       output: [text]

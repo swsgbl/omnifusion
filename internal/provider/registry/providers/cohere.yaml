@@ -9,6 +9,7 @@ providers:
     base_url: https://api.cohere.ai/compatibility/v1
     auth_style: bearer
     key_env: COHERE_API_KEY
+    signup_url: https://dashboard.cohere.com/api-keys
     capabilities:
       input: [text]
       output: [text]

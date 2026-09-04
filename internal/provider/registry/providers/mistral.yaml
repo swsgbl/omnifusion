@@ -8,6 +8,7 @@ providers:
     base_url: https://api.mistral.ai/v1
     auth_style: bearer
     key_env: MISTRAL_API_KEY
+    signup_url: https://console.mistral.ai/api-keys
     capabilities:
       input: [text]
       output: [text]

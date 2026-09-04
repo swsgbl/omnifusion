@@ -10,6 +10,7 @@ providers:
     base_url: https://qianfan.baidubce.com/v2
     auth_style: bearer
     key_env: QIANFAN_API_KEY
+    signup_url: https://console.bce.baidu.com/qianfan
     capabilities:
       input: [text]
       output: [text]

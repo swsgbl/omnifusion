@@ -9,6 +9,7 @@ providers:
     base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
     auth_style: bearer
     key_env: DASHSCOPE_API_KEY
+    signup_url: https://bailian.console.aliyun.com
     capabilities:
       input: [text]
       output: [text]

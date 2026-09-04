@@ -10,6 +10,7 @@ providers:
     base_url: https://api.siliconflow.cn/v1
     auth_style: bearer
     key_env: SILICONFLOW_API_KEY
+    signup_url: https://cloud.siliconflow.cn/account/ak
     capabilities:
       input: [text]
       output: [text]

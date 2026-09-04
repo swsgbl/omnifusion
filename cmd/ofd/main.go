@@ -120,6 +120,14 @@ func run() error {
 	router, keySources := buildRouter(cfg, logger, st, kr)
 	srv.SetRouter(router)
 	srv.SetKeySources(keySources) // Dashboard keys 页的来源描述
+	// 一键申请密钥：注册表 signup_url 声明 → keys 页"获取"列 + 桌面端按钮。
+	signups := map[string]string{}
+	for _, e := range registryEntries(cfg, logger) {
+		if e.SignupURL != "" {
+			signups[e.ID] = e.SignupURL
+		}
+	}
+	srv.SetSignupURLs(signups)
 	printFirstRunGuide(cfg, keySources) // 小白友好（P0）：零密钥时给三步上手指引
 
 	// 模型目录——启动立即同步一轮，随后 1h 定时刷新（校验和

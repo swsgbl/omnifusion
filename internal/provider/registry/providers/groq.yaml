@@ -5,6 +5,7 @@ providers:
     base_url: https://api.groq.com/openai/v1
     auth_style: bearer
     key_env: GROQ_API_KEY
+    signup_url: https://console.groq.com/keys
     capabilities:
       input: [text, image]
       output: [text]

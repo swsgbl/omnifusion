@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "generated_at": 1788177000,
+  "version": 3,
+  "generated_at": 1788263400,
   "providers": {
     "sambanova": {
       "models": [
@@ -94,8 +94,14 @@
     },
     "openrouter": {
       "models": [
+        {"id": "z-ai/glm-5.2:free", "status": "probation", "capability": 85, "price_in": 0, "price_out": 0},
+        {"id": "moonshotai/kimi-k2.6:free", "status": "probation", "capability": 78, "price_in": 0, "price_out": 0},
+        {"id": "openai/gpt-oss-120b:free", "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
+        {"id": "nvidia/nemotron-3-ultra-550b-a55b:free", "status": "probation", "capability": 82, "price_in": 0, "price_out": 0},
+        {"id": "nvidia/nemotron-3-super-120b-a12b:free", "status": "probation", "capability": 76, "price_in": 0, "price_out": 0},
         {"id": "minimax/minimax-m3:free", "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
         {"id": "minimax/minimax-m2.7:free", "status": "probation", "capability": 72, "price_in": 0, "price_out": 0},
+        {"id": "qwen/qwen3.8-27b:free", "status": "probation", "capability": 70, "price_in": 0, "price_out": 0},
         {"id": "inclusionai/ling-3.0-flash-fin:free", "status": "probation", "capability": 68, "price_in": 0, "price_out": 0},
         {"id": "google/gemma-4-31b-it:free", "status": "probation", "capability": 65, "price_in": 0, "price_out": 0},
         {"id": "google/gemma-4-26b-a4b-it:free", "status": "probation", "capability": 62, "price_in": 0, "price_out": 0},

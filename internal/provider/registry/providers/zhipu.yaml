@@ -9,6 +9,7 @@ providers:
     base_url: https://open.bigmodel.cn/api/paas/v4
     auth_style: bearer
     key_env: ZHIPU_API_KEY
+    signup_url: https://open.bigmodel.cn/usercenter/apikeys
     capabilities:
       input: [text]
       output: [text]

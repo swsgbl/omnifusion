@@ -34,6 +34,7 @@ type Server struct {
 	memory       *intelligence.Memory             // FTS5 会话记忆（；nil = opt-in 头无效果）
 	comboPipes   map[string]*compression.Pipeline // 组合压缩管线（；键存在值可 nil=纯路由组合）
 	keySources   map[string]string                // key 来源描述（Dashboard；provider → stored/env:VAR/none/-）
+	signupURLs   map[string]string                // provider → 申请密钥官方页（keys 页"获取"列/桌面端按钮）
 	mcpHandler   http.Handler                     // MCP Streamable HTTP（；nil = 不挂 /mcp）
 	guard        *security.Guardrails             // 规则型护栏（；nil = 未启用）
 	metrics      *obs.Metrics                     // Prometheus 指标（；nil = 未启用，全 no-op）

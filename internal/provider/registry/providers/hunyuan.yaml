@@ -1,0 +1,18 @@
+providers:
+  - id: hunyuan
+    kind: openai_compat
+    display_name: 腾讯混元
+    # 混元 OpenAI 兼容端点（api.hunyuan.cloud.tencent.com/v1）。
+    # 免费层：100 万 tokens/年（2026 腾讯云免费额度汇总口径，具体以
+    # 控制台为准）。密钥在腾讯云控制台"混元-API KEY"页创建。
+    # 2026-09-05 实测：端点可达（401 需 key）。
+    base_url: https://api.hunyuan.cloud.tencent.com/v1
+    auth_style: bearer
+    key_env: HUNYUAN_API_KEY
+    signup_url: https://console.cloud.tencent.com/hunyuan/api-key
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 100 万 tokens/年（控制台口径）
+    models: [] # 模型面以 live /models 同步为准

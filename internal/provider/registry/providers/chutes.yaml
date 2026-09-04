@@ -8,6 +8,7 @@ providers:
     base_url: https://chutes.ai/v1
     auth_style: bearer
     key_env: CHUTES_API_KEY
+    signup_url: https://chutes.ai
     capabilities:
       input: [text]
       output: [text]

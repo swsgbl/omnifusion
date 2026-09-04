@@ -89,19 +89,25 @@ func (s *Server) activeCooldowns() map[string][]dashCooldown {
 }
 
 // dashKey 是 keys 页的一行；Source 为 stored / env:VAR / none / -。
+// SignupURL 是该厂商"申请密钥"官方页（一键抵达；无则空，如 ollama）。
 type dashKey struct {
 	Provider  string `json:"provider"`
 	Source    string `json:"source"`
 	Label     string `json:"label,omitempty"`
 	UpdatedAt string `json:"updated_at,omitempty"`
+	SignupURL string `json:"signup_url,omitempty"`
 }
+
+// SetSignupURLs 注入 provider → 申请密钥官方页（cmd/ofd 装配期从
+// 注册表声明提取；keys 页"获取密钥"列与桌面端「申请密钥」按钮共用）。
+func (s *Server) SetSignupURLs(m map[string]string) { s.signupURLs = m }
 
 // handleDashboardKeys 合并注入的 key 来源（cmd/ofd 装配期事实）与
 // connections 表（stored 记录的 label/updated_at；密文永不离开 store）。
 func (s *Server) handleDashboardKeys(w http.ResponseWriter, _ *http.Request) {
 	keys := map[string]dashKey{}
 	for p, src := range s.keySources {
-		keys[p] = dashKey{Provider: p, Source: src}
+		keys[p] = dashKey{Provider: p, Source: src, SignupURL: s.signupURLs[p]}
 	}
 	if s.st != nil {
 		if conns, err := s.st.ListConnections(); err == nil {

@@ -5,6 +5,7 @@ providers:
     base_url: https://router.huggingface.co/v1
     auth_style: bearer
     key_env: HF_TOKEN
+    signup_url: https://huggingface.co/settings/tokens
     capabilities:
       input: [text, image]
       output: [text]

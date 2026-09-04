@@ -94,6 +94,7 @@
         <option value="chutes">Chutes（免费档限速）</option>
         <option value="qianfan">百度千帆（ERNIE-Speed/Lite 免费）</option>
         <option value="spark">讯飞星火（Lite 永久免费）</option>
+        <option value="hunyuan">腾讯混元（100 万 tokens/年）</option>
         <option value="deepseek">DeepSeek（BYOK 付费）</option>
         <option value="mimo">小米 MiMo（BYOK 付费）</option>
         <option value="ark">火山方舟·豆包（BYOK 付费）</option>
@@ -103,6 +104,7 @@
       </select>
     </label>
     <button id="btnKeyAdd"></button>
+    <button id="btnSignup" title=""></button>
     <span class="msg" id="keyAddHint" style="align-self:center"></span>
   </div>
   <div class="row2">
@@ -140,7 +142,8 @@ const I18N = {
     lblBase: "网关地址",
     lblKey: "网关 API Key（本机明文存储于应用配置目录）",
     phKey: "ofg-…（点击右侧按钮从 ofd 读取）",
-    lblProvider: "提供商密钥管理", btnKeyAdd: "添加/更新密钥…",
+    lblProvider: "提供商密钥管理", btnKeyAdd: "添加/更新密钥…", btnSignup: "申请密钥 ↗",
+    signupHint: "在浏览器打开该厂商的官方申请页", msgSignupFail: "打开申请页失败: ",
     keyAddHint: "在弹出的控制台窗口中粘贴密钥（输入隐藏），完成后窗口自动可关",
     msgKeyAddOk: "已打开密钥录入控制台（完成后刷新状态）", msgKeyAddFail: "拉起录入失败: ",
     lblClient: "接入 CLI 客户端", btnConnect: "一键接入…",
@@ -169,7 +172,8 @@ const I18N = {
     lblBase: "Gateway base URL",
     lblKey: "Gateway API Key (stored in plaintext in the app config dir)",
     phKey: "ofg-… (click the button on the right to read from ofd)",
-    lblProvider: "Provider key management", btnKeyAdd: "Add / update key…",
+    lblProvider: "Provider key management", btnKeyAdd: "Add / update key…", btnSignup: "Get key ↗",
+    signupHint: "Opens the provider's official key page in your browser", msgSignupFail: "Failed to open: ",
     keyAddHint: "Paste the key in the console window that opens (input hidden)",
     msgKeyAddOk: "Key-entry console opened (refresh status when done)", msgKeyAddFail: "Failed to launch: ",
     lblClient: "Connect a CLI client", btnConnect: "One-click connect…",
@@ -250,6 +254,8 @@ function applyLang() {
   $("lblKey").textContent = t.lblKey;
   $("lblProvider").textContent = t.lblProvider;
   $("btnKeyAdd").textContent = t.btnKeyAdd;
+  $("btnSignup").textContent = t.btnSignup;
+  $("btnSignup").title = t.signupHint;
   $("keyAddHint").textContent = t.keyAddHint;
   $("lblClient").textContent = t.lblClient;
   $("btnConnect").textContent = t.btnConnect;
@@ -367,6 +373,26 @@ $("btnKeyAdd").onclick = async () => {
     await invoke("key_add", { bin, config, provider });
     setMsg(t.msgKeyAddOk, "ok");
   } catch (e) { setMsg(t.msgKeyAddFail + locErr(e), "err"); }
+};
+// 一键申请密钥：从网关 keys API 取该厂商的官方申请页并打开浏览器。
+let signupMap = {};
+async function loadSignupMap() {
+  try {
+    const base = $("inBase").value.trim() || "http://127.0.0.1:20130";
+    const k = encodeURIComponent($("inKey").value.trim());
+    const resp = await fetch(`${base}/dashboard/api/keys${k ? "?key=" + k : ""}`);
+    if (!resp.ok) return;
+    const body = await resp.json();
+    signupMap = {};
+    (body.keys || []).forEach(r => { if (r.signup_url) signupMap[r.provider] = r.signup_url; });
+  } catch { /* 网关未起时静默 */ }
+}
+$("btnSignup").onclick = async () => {
+  const provider = $("selProvider").value;
+  if (!signupMap[provider]) await loadSignupMap();
+  const url = signupMap[provider];
+  if (!url) { setMsg(t.msgSignupFail + provider, "err"); return; }
+  try { await invoke("open_signup", { url }); } catch (e) { setMsg(t.msgSignupFail + locErr(e), "err"); }
 };
 $("btnConnect").onclick = async () => {
   const { bin, config } = currentInputs();

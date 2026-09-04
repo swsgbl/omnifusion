@@ -9,6 +9,7 @@ providers:
     base_url: https://api.xiaomimimo.com/v1
     auth_style: bearer
     key_env: MIMO_API_KEY
+    signup_url: https://mimo.mi.com
     capabilities:
       input: [text]
       output: [text]

@@ -2,13 +2,24 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
-## [Unreleased]
+## [v0.1.6] - 2026-09-05
+
+免费供给收官轮：24 家内置、全网免费模型目录、一键申请密钥、全站动效。
+
+> EN: The free-supply capstone — 24 built-in providers, one-click key signup, catalog feed v3 with the full free-model pool, and a GSAP motion layer across every surface.
 
 ### 新增
 
-- **界面微动效（GSAP）**：全站交互体验升级——页面骨架与表格行进场、对话气泡上浮、用量条生长、状态徽标呼吸、按钮按压回弹；`prefers-reduced-motion` 下整体禁用，数据轮询只动首帧（不闪屏）。GSAP（3.15，随二进制分发，无外部请求）与共享动效层经 `/dashboard/assets/` 公开路由供给，六页 + 落地页 + 桌面壳全部接入；
-- **内置提供商 20 → 23**：Chutes（免费档限速、300+ 开源模型）、百度千帆（ERNIE-Speed/Lite 系免费，V2 OpenAI 兼容）、讯飞星火（Spark Lite 永久免费）——端点均实测核对；
-- **自定义 provider（聚合任意厂商的机制入口）**：config `providers:` 段与内置声明同构——同 id 覆盖（如改 base_url/环境变量）、新 id 追加；任意 OpenAI 兼容 / anthropic / gemini 原生协议厂商零代码接入，`ofd key add <自定义id>` 同样可用。config 与 registry 两套同构类型由往返守卫测试防漂移。
+- **一键申请密钥**：每家内置厂商声明官方申请页——密钥页新增「获取密钥」列（直达申请），桌面端提供商下拉旁「申请密钥 ↗」一键打开浏览器官方页；小白不再需要搜索"去哪拿 key"；
+- **内置提供商 23 → 24**：腾讯混元（100 万 tokens/年免费，端点实测）；Kimi（无永久免费层）/ Fireworks（仅 $1 试用）/ DeepInfra / Baseten（无免费层）经全网核实不收录；
+- **目录 feed v3（免费模型池扩充）**：openrouter 免费系全量入册（kimi-k2.6:free、glm-5.2:free、nemotron-3-ultra:free、gpt-oss-120b:free 等 14 个 :free 模型，全部 0 价），「⚡ 自动」与 `@cheap` 的免费可选面显著扩大（14 提供商 66 模型）；
+- **界面微动效（GSAP 3.15 随二进制分发）**：页面骨架/表格行进场、对话气泡上浮、用量条生长、状态徽标呼吸、按钮按压回弹；`prefers-reduced-motion` 全禁用、数据轮询只动首帧；
+- **自定义 provider（config `providers:` 段）**：与内置声明同构，同 id 覆盖/新 id 追加——任意 OpenAI 兼容 / anthropic / gemini 厂商零代码接入（含申请页字段）；
+- 百度千帆（ERNIE-Speed/Lite 免费）、讯飞星火（Lite 永久免费）、Chutes（免费档）。
+
+### 维护
+
+- CLI 错误串双语（v0.1.5 未发部分一并入册）。
 
 ## [v0.1.5] - 2026-09-01
 

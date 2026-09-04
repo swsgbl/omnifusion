@@ -9,6 +9,7 @@ providers:
     # 需配置代理后使用。
     base_url: https://generativelanguage.googleapis.com
     key_env: GEMINI_API_KEY
+    signup_url: https://aistudio.google.com/app/apikey
     capabilities:
       input: [text, image, audio]
       output: [text]

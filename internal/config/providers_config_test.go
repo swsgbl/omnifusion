@@ -15,7 +15,7 @@ func TestProviderConfigRoundtripGuard(t *testing.T) {
 	pc := ProviderConfig{
 		ID: "guard", Kind: "openai_compat", DisplayName: "Guard",
 		BaseURL: "https://guard.example/v1", Path: "/chat",
-		AuthStyle: "bearer", KeyEnv: "GUARD_API_KEY",
+		AuthStyle: "bearer", KeyEnv: "GUARD_API_KEY", SignupURL: "https://guard.example/signup",
 		URLVars:  []string{"region"},
 		VarsEnv: map[string]string{"region": "GUARD_REGION"},
 		OptionalKey: true,
@@ -39,6 +39,7 @@ func TestProviderConfigRoundtripGuard(t *testing.T) {
 		Path        string   `yaml:"path,omitempty"`
 		AuthStyle   string   `yaml:"auth_style,omitempty"`
 		KeyEnv      string   `yaml:"key_env,omitempty"`
+		SignupURL   string   `yaml:"signup_url,omitempty"`
 		URLVars     []string `yaml:"url_vars,omitempty"`
 		VarsEnv     map[string]string `yaml:"vars_env,omitempty"`
 		OptionalKey  bool   `yaml:"optional_key,omitempty"`
@@ -78,6 +79,7 @@ func TestProviderConfigRoundtripGuard(t *testing.T) {
 	check("path", got.Path == "/chat")
 	check("auth_style", got.AuthStyle == "bearer")
 	check("key_env", got.KeyEnv == "GUARD_API_KEY")
+	check("signup_url", got.SignupURL == "https://guard.example/signup")
 	check("url_vars", len(got.URLVars) == 1 && got.URLVars[0] == "region")
 	check("vars_env", len(got.VarsEnv) == 1 && got.VarsEnv["region"] == "GUARD_REGION")
 	check("optional_key", got.OptionalKey)

@@ -7,6 +7,7 @@ providers:
     base_url: https://api.deepseek.com
     auth_style: bearer
     key_env: DEEPSEEK_API_KEY
+    signup_url: https://platform.deepseek.com/api_keys
     capabilities:
       input: [text]
       output: [text]

@@ -9,6 +9,7 @@ providers:
     base_url: https://api-inference.modelscope.cn/v1
     auth_style: bearer
     key_env: MODELSCOPE_API_KEY
+    signup_url: https://modelscope.cn/my/tokens
     capabilities:
       input: [text]
       output: [text]

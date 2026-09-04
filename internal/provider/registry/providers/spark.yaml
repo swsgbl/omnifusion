@@ -10,6 +10,7 @@ providers:
     base_url: https://spark-api-open.xf-yun.com/v1
     auth_style: bearer
     key_env: SPARK_API_KEY
+    signup_url: https://console.xfyun.cn
     capabilities:
       input: [text]
       output: [text]

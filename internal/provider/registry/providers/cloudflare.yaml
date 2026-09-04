@@ -7,6 +7,7 @@ providers:
     url_vars: [account_id]
     auth_style: bearer
     key_env: CLOUDFLARE_API_TOKEN
+    signup_url: https://dash.cloudflare.com
     vars_env:
       account_id: CLOUDFLARE_ACCOUNT_ID
     capabilities:

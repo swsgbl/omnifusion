@@ -68,8 +68,11 @@ type Entry struct {
 	Path      string `yaml:"path,omitempty"`
 	AuthStyle string `yaml:"auth_style,omitempty"`
 	// KeyEnv names the environment variable the key is read from when
-	// not supplied through the keyring ().
+	// not supplied through the keyring (M1.7).
 	KeyEnv string `yaml:"key_env,omitempty"`
+	// SignupURL 是该厂商"申请 API 密钥"的官方页面（一键抵达：dashboard
+	// 密钥页的获取列 + 桌面端「申请密钥」按钮）。
+	SignupURL string `yaml:"signup_url,omitempty"`
 	// URLVars lists {placeholder} names that must be substituted into
 	// BaseURL; VarsEnv maps each to an environment variable name.
 	URLVars []string          `yaml:"url_vars,omitempty"`

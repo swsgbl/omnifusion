@@ -11,7 +11,7 @@ import (
 
 var expectedIDs = []string{
 	"anthropic", "ark", "cerebras", "chutes", "cloudflare", "cohere", "deepseek", "gemini", "groq",
-	"huggingface", "mimo", "mistral", "modelscope", "nvidia", "ollama", "openrouter",
+	"huggingface", "hunyuan", "mimo", "mistral", "modelscope", "nvidia", "ollama", "openrouter",
 	"qianfan", "qwen", "sambanova", "siliconflow", "spark", "together", "zhipu",
 }
 

@@ -7,6 +7,7 @@ providers:
     # 适配器只做 HTTP 壳。BYOK 付费，无免费层（不计滑动窗口）。
     base_url: https://api.anthropic.com
     key_env: ANTHROPIC_API_KEY
+    signup_url: https://console.anthropic.com/settings/keys
     capabilities:
       input: [text, image]
       output: [text]

@@ -6,6 +6,7 @@ providers:
     base_url: https://integrate.api.nvidia.com/v1
     auth_style: bearer
     key_env: NVAPI_API_KEY
+    signup_url: https://build.nvidia.com
     capabilities:
       input: [text, image]
       output: [text]

@@ -31,7 +31,7 @@
 <div id="err"></div>
 <table>
   <thead><tr>
-    <th data-i18n="th_provider">provider</th><th data-i18n="th_source">source</th><th data-i18n="th_label">label</th><th data-i18n="th_updated">updated</th>
+    <th data-i18n="th_provider">provider</th><th data-i18n="th_source">source</th><th data-i18n="th_label">label</th><th data-i18n="th_updated">updated</th><th data-i18n="th_get">get key</th>
   </tr></thead>
   <tbody id="rows"></tbody>
 </table>
@@ -51,7 +51,8 @@ const I18N = {
     page_title: 'OmniFusion · Keys',
     nav_providers: 'Providers', nav_keys: 'Keys', nav_usage: 'Usage',
     nav_compression: 'Compression', nav_resilience: 'Resilience', nav_chat: 'Chat',
-    th_provider: 'provider', th_source: 'source', th_label: 'label', th_updated: 'updated',
+    th_provider: 'provider', th_source: 'source', th_label: 'label', th_updated: 'updated', th_get: 'get key',
+    apply: 'apply ↗',
     empty: 'no keys — run "ofd key add" or export *_API_KEY',
     meta: '{n} keys · refreshed {time}',
   },
@@ -59,7 +60,8 @@ const I18N = {
     page_title: 'OmniFusion · 密钥',
     nav_providers: '提供商', nav_keys: '密钥', nav_usage: '用量',
     nav_compression: '压缩', nav_resilience: '弹性', nav_chat: '对话',
-    th_provider: '提供商', th_source: '密钥来源', th_label: '标签', th_updated: '更新于',
+    th_provider: '提供商', th_source: '密钥来源', th_label: '标签', th_updated: '更新于', th_get: '获取密钥',
+    apply: '去申请 ↗',
     empty: '未配置任何密钥 — 运行 "ofd key add" 或导出 *_API_KEY',
     meta: '{n} 个密钥 · 刷新于 {time}',
   },
@@ -91,12 +93,15 @@ async function load() {
     if (!resp.ok) return;
     const rows = document.getElementById('rows');
     if (!body.keys.length) {
-      rows.innerHTML = `<tr><td colspan="4" class="empty">${t('empty')}</td></tr>`;
+      rows.innerHTML = `<tr><td colspan="5" class="empty">${t('empty')}</td></tr>`;
     } else {
       rows.innerHTML = body.keys.map(k => {
         const cls = srcClass(k.source);
+        const get = k.signup_url
+          ? `<a href="${esc(k.signup_url)}" target="_blank" rel="noopener noreferrer">${t('apply')}</a>` : '–';
         return `<tr><td>${esc(k.provider)}</td><td${cls ? ` class="${cls}"` : ''}>${esc(k.source)}</td>` +
-          `<td>${esc(k.label || '–')}</td><td>${k.updated_at ? new Date(k.updated_at.replace(' ', 'T') + 'Z').toLocaleString() : '–'}</td></tr>`;
+          `<td>${esc(k.label || '–')}</td><td>${k.updated_at ? new Date(k.updated_at.replace(' ', 'T') + 'Z').toLocaleString() : '–'}</td>` +
+          `<td>${get}</td></tr>`;
       }).join('');
     }
     if (window.OFD) OFD.motion.rows(document.getElementById('rows'));

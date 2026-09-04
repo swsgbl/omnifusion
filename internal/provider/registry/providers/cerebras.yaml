@@ -5,6 +5,7 @@ providers:
     base_url: https://api.cerebras.ai/v1
     auth_style: bearer
     key_env: CEREBRAS_API_KEY
+    signup_url: https://cloud.cerebras.ai
     capabilities:
       input: [text]
       output: [text]
