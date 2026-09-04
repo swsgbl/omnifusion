@@ -117,14 +117,14 @@ func run() error {
 	}
 
 	srv := server.New(cfg, logger, st)
-	router, keySources := buildRouter(logger, st, kr)
+	router, keySources := buildRouter(cfg, logger, st, kr)
 	srv.SetRouter(router)
 	srv.SetKeySources(keySources) // Dashboard keys 页的来源描述
 	printFirstRunGuide(cfg, keySources) // 小白友好（P0）：零密钥时给三步上手指引
 
 	// 模型目录——启动立即同步一轮，随后 1h 定时刷新（校验和
 	// 判变更才落库）；/v1/models 服务于目录快照。
-	catalog := buildCatalog(logger, st, router)
+	catalog := buildCatalog(cfg, logger, st, router)
 	srv.SetCatalog(catalog)
 	go catalog.Run(ctx)
 

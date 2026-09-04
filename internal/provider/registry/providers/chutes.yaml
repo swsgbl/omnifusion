@@ -1,0 +1,16 @@
+providers:
+  - id: chutes
+    kind: openai_compat
+    display_name: Chutes
+    # 官方 OpenAI 兼容端点（chutes.ai，300+ 开源模型 serverless GPU）。
+    # 免费档有速率限制（超限 429 不扣费）；部分模型永久免费。
+    # 2026-08-31 实测：端点可达（/models 无列表面，chat 端点存活）。
+    base_url: https://chutes.ai/v1
+    auth_style: bearer
+    key_env: CHUTES_API_KEY
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 免费档（速率受限，超限 429；部分模型永久免费）
+    models: [] # 模型面以 live /models 同步为准（无列表端点时需控制台核对）

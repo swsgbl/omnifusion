@@ -99,6 +99,7 @@ async function load() {
           `<td>${esc(k.label || '–')}</td><td>${k.updated_at ? new Date(k.updated_at.replace(' ', 'T') + 'Z').toLocaleString() : '–'}</td></tr>`;
       }).join('');
     }
+    if (window.OFD) OFD.motion.rows(document.getElementById('rows'));
     document.getElementById('meta').textContent =
       t('meta').replace('{n}', body.keys.length).replace('{time}', new Date().toLocaleTimeString());
   } catch (e) {
@@ -108,5 +109,7 @@ async function load() {
 load();
 setInterval(load, 5000);
 </script>
+<script src="assets/gsap.min.js"></script>
+<script src="assets/motion.js"></script>
 </body>
 </html>

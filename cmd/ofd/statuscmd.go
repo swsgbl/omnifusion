@@ -155,10 +155,7 @@ func renderStatus(w io.Writer, stats []providerStatus, dataPath string) {
 
 // runStatusCommand 装配真实数据源并渲染（ofd status）。
 func runStatusCommand(cfg *config.Config) error {
-	entries, err := registry.Load()
-	if err != nil {
-		return fmt.Errorf("load provider registry: %w", err)
-	}
+	entries := registryEntries(cfg, nil)
 
 	if dir := filepath.Dir(cfg.Store.Path); dir != "" && dir != "." {
 		if err := os.MkdirAll(dir, 0o755); err != nil {

@@ -152,6 +152,7 @@ async function load() {
         ].join('') + '</tr>';
       }).join('');
     }
+    if (window.OFD) { OFD.motion.rows(stages); OFD.motion.rows(combos); }
     document.getElementById('meta').textContent =
       t('meta').replace('{c}', body.default_combo || '–').replace('{time}', new Date().toLocaleTimeString());
   } catch (e) {
@@ -161,5 +162,7 @@ async function load() {
 load();
 setInterval(load, 5000);
 </script>
+<script src="assets/gsap.min.js"></script>
+<script src="assets/motion.js"></script>
 </body>
 </html>

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/swsgbl/omnifusion/internal/core/schema"
+	"github.com/swsgbl/omnifusion/internal/config"
 	"github.com/swsgbl/omnifusion/internal/provider"
 	"github.com/swsgbl/omnifusion/internal/security"
 	"github.com/swsgbl/omnifusion/internal/store"
@@ -60,7 +61,7 @@ func TestBuildRouterKeyringBeatsEnv(t *testing.T) {
 	}
 	t.Setenv("OPENROUTER_API_KEY", "env-key-456")
 
-	r, _ := buildRouter(discardLog(), st, kr)
+	r, _ := buildRouter(&config.Config{}, discardLog(), st, kr)
 	p := findProvider(t, r.Providers, "openrouter")
 	if got := translatedAuth(t, p); got != "Bearer kr-key-123" {
 		t.Errorf("Authorization = %q, want keyring key", got)
@@ -80,7 +81,7 @@ func TestBuildRouterEnvFallback(t *testing.T) {
 
 	t.Setenv("OPENROUTER_API_KEY", "env-key-456")
 
-	r, _ := buildRouter(discardLog(), st, kr)
+	r, _ := buildRouter(&config.Config{}, discardLog(), st, kr)
 	p := findProvider(t, r.Providers, "openrouter")
 	if got := translatedAuth(t, p); got != "Bearer env-key-456" {
 		t.Errorf("Authorization = %q, want env fallback", got)

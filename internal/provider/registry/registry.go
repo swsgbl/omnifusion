@@ -133,6 +133,42 @@ func Load() ([]Entry, error) {
 	return out, nil
 }
 
+// LoadWith 在内置声明之上合并用户自定义声明（同 id 整体覆盖内置条目，
+// 新 id 追加），返回按 id 排序的全量清单——任意 OpenAI 兼容/原生协议
+// 厂商零代码接入的机制入口（config providers: 段）。覆盖/新增条目
+// 必须自带 id/kind/base_url，校验口径与内置一致。
+func LoadWith(overrides []Entry) ([]Entry, error) {
+	out, err := Load()
+	if err != nil {
+		return nil, err
+	}
+	for i := range overrides {
+		e := overrides[i]
+		if e.ID == "" || e.BaseURL == "" || e.Kind == "" {
+			return nil, fmt.Errorf("registry: custom provider %q missing id/kind/base_url", e.ID)
+		}
+		for j := range e.Models {
+			if (e.Models[j].PriceIn == nil) != (e.Models[j].PriceOut == nil) {
+				return nil, fmt.Errorf("registry: custom %s: %s: price_in/price_out must be declared together",
+					e.ID, e.Models[j].ID)
+			}
+		}
+		replaced := false
+		for k := range out {
+			if out[k].ID == e.ID {
+				out[k] = e
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			out = append(out, e)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
+
 // Build instantiates the adapter for one declaration. An empty key is
 // rejected unless the entry sets optional_key; every declared url_var
 // must be present in creds.Vars. Protocol semantics live in

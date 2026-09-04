@@ -4,6 +4,9 @@ import (
 	"log/slog"
 	"os"
 
+	"gopkg.in/yaml.v3"
+
+	"github.com/swsgbl/omnifusion/internal/config"
 	"github.com/swsgbl/omnifusion/internal/provider"
 	"github.com/swsgbl/omnifusion/internal/provider/registry"
 	"github.com/swsgbl/omnifusion/internal/routing"
@@ -11,15 +14,50 @@ import (
 	"github.com/swsgbl/omnifusion/internal/store"
 )
 
-// buildRouter 从内置注册表装配分发器：只实例化凭据齐备的 provider。
+// registryEntries 返回"内置 + 用户自定义"的全量 provider 声明（同 id
+// 覆盖、新 id 追加）。config 与 registry 是两套同构类型（config 保持
+// 依赖叶子不 import registry），经 yaml 往返转换——字段漂移由配置包
+// 的往返守卫测试兜底。
+func registryEntries(cfg *config.Config, log *slog.Logger) []registry.Entry {
+	if log == nil {
+		log = slog.Default()
+	}
+	builtin, err := registry.Load()
+	if err != nil {
+		log.Error("load provider registry", "err", err)
+		builtin = nil
+	}
+	if len(cfg.Providers) == 0 {
+		return builtin
+	}
+	var overrides []registry.Entry
+	for _, pc := range cfg.Providers {
+		raw, err := yaml.Marshal(pc)
+		if err != nil {
+			continue
+		}
+		var e registry.Entry
+		if err := yaml.Unmarshal(raw, &e); err != nil {
+			continue
+		}
+		overrides = append(overrides, e)
+	}
+	merged, err := registry.LoadWith(overrides)
+	if err != nil {
+		log.Error("merge custom providers; using builtins only", "err", err)
+		return builtin
+	}
+	return merged
+}
+
+// buildRouter 从注册表装配分发器：只实例化凭据齐备的 provider。
 // 凭据优先级：keyring（connections 表，AES-256-GCM 密文，
 // 取用时才解密）→ 环境变量（key_env / vars_env）。无可用 provider
 // 时返回空 Router，网关仍可启动，/v1/chat/completions 返回 503。
 // 第二返回值是 provider → key 来源描述（Dashboard keys 页注入）。
-func buildRouter(log *slog.Logger, st *store.Store, kr *security.Keyring) (*routing.Router, map[string]string) {
-	entries, err := registry.Load()
-	if err != nil {
-		log.Error("load provider registry", "err", err)
+func buildRouter(cfg *config.Config, log *slog.Logger, st *store.Store, kr *security.Keyring) (*routing.Router, map[string]string) {
+	entries := registryEntries(cfg, log)
+	if len(entries) == 0 {
 		return &routing.Router{Log: log}, nil
 	}
 
@@ -73,15 +111,11 @@ func buildRouter(log *slog.Logger, st *store.Store, kr *security.Keyring) (*rout
 // buildCatalog 装配模型目录：live 拉取用 router 里已实例化的
 // provider；静态回落、free_meta 与登记定价取自注册表声明
 //（ErrNotSupported 的原生协议家在 此前靠静态清单）。
-func buildCatalog(log *slog.Logger, st *store.Store, r *routing.Router) *routing.Catalog {
+func buildCatalog(cfg *config.Config, log *slog.Logger, st *store.Store, r *routing.Router) *routing.Catalog {
 	static := map[string][]provider.ModelInfo{}
 	freeMeta := map[string]string{}
 	prices := map[string]map[string]provider.Price{}
-	entries, err := registry.Load()
-	if err != nil {
-		log.Warn("catalog falls back to live lists only; registry unavailable", "err", err)
-		entries = nil
-	}
+	entries := registryEntries(cfg, log)
 	for _, e := range entries {
 		if l := e.StaticModels(); len(l) > 0 {
 			static[e.ID] = l

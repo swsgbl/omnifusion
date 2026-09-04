@@ -10,9 +10,9 @@ import (
 )
 
 var expectedIDs = []string{
-	"anthropic", "ark", "cerebras", "cloudflare", "cohere", "deepseek", "gemini", "groq",
+	"anthropic", "ark", "cerebras", "chutes", "cloudflare", "cohere", "deepseek", "gemini", "groq",
 	"huggingface", "mimo", "mistral", "modelscope", "nvidia", "ollama", "openrouter",
-	"qwen", "sambanova", "siliconflow", "together", "zhipu",
+	"qianfan", "qwen", "sambanova", "siliconflow", "spark", "together", "zhipu",
 }
 
 // expectedKinds 声明非 openai_compat 的原生适配器。
@@ -220,10 +220,26 @@ func TestCapabilitiesPropagate(t *testing.T) {
 		if !caps.SupportsInput("text") {
 			t.Errorf("%s: text input not declared", e.ID)
 		}
-		if !caps.HasFeature("tools") {
-			t.Errorf("%s: tools feature not declared", e.ID)
-		}
 		// Interface assignability check against the frozen surface.
 		var _ = p
+	}
+}
+
+// TestSparkDeclaresNoTools 讯飞 Lite 不声明 tools（上游文档仅
+// Ultra/Max 系支持 system/工具面）——注册表不夸大能力。
+func TestSparkDeclaresNoTools(t *testing.T) {
+	entries, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.ID != "spark" {
+			continue
+		}
+		for _, f := range e.Capabilities.Features {
+			if f == "tools" {
+				t.Error("spark must not declare tools (Lite tier)")
+			}
+		}
 	}
 }

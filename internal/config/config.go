@@ -25,6 +25,11 @@ type Config struct {
 	Metrics    MetricsConfig    `yaml:"metrics"`
 	Audit      AuditConfig      `yaml:"audit"`
 	A2A        A2AConfig        `yaml:"a2a"`
+	// Providers 是用户自定义 provider 声明：同 id 覆盖内置声明（如改
+	// base_url/密钥环境变量），新 id 追加进注册表——任意 OpenAI 兼容
+	//（或 anthropic/gemini 原生协议）厂商零代码接入。字段与内置
+	// providers/*.yaml 同构（cmd/ofd 转换后并入 registry）。
+	Providers []ProviderConfig `yaml:"providers"`
 }
 
 // Default 返回内置默认配置。Catalog feed 默认指向官方签名目录

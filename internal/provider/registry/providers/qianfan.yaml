@@ -1,0 +1,18 @@
+providers:
+  - id: qianfan
+    kind: openai_compat
+    display_name: 百度千帆
+    # 千帆 ModelBuilder V2：OpenAI 标准兼容（鉴权+协议）。
+    # ERNIE-Speed / ERNIE-Lite 系免费（控制台"在线服务"点免费开通后调用）。
+    # 注意：ERNIE-Lite-8K / ERNIE-Speed-128K 已于 2026-01-27 下架，
+    # 在售免费型号以控制台为准——静态不冻结易过期 id。
+    # 2026-08-31 实测：端点可达（401 需 key）。
+    base_url: https://qianfan.baidubce.com/v2
+    auth_style: bearer
+    key_env: QIANFAN_API_KEY
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: ERNIE-Speed / ERNIE-Lite 系免费（控制台开通；RPM/TPM 见控制台）
+    models: [] # 模型面以控制台/live 同步为准

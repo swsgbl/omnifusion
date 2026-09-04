@@ -13,7 +13,6 @@ import (
 	"golang.org/x/term"
 
 	"github.com/swsgbl/omnifusion/internal/config"
-	"github.com/swsgbl/omnifusion/internal/provider/registry"
 	"github.com/swsgbl/omnifusion/internal/security"
 	"github.com/swsgbl/omnifusion/internal/store"
 )
@@ -226,12 +225,10 @@ func runGatewayKeyCommand() error {
 }
 
 // warnUnknownProvider 对注册表之外的 provider 给提示但不阻止
-// （允许为后续自定义上游预存密钥）。
+// （允许为后续自定义上游预存密钥）。无 config 上下文（子命令早期
+// 调用）时按内置清单判断。
 func warnUnknownProvider(providerID string) {
-	entries, err := registry.Load()
-	if err != nil {
-		return
-	}
+	entries := registryEntries(&config.Config{}, nil)
 	for _, e := range entries {
 		if e.ID == providerID {
 			return

@@ -110,6 +110,7 @@ async function load() {
           .replace('{reason}', c.reason))).join('<br>') || '–'),
       ].join('') + '</tr>').join('');
     }
+    if (window.OFD) OFD.motion.rows(document.getElementById('rows'));
     document.getElementById('meta').textContent =
       t('meta').replace('{p}', body.providers.length).replace('{m}', body.models_total).replace('{time}', new Date().toLocaleTimeString());
   } catch (e) {
@@ -119,5 +120,7 @@ async function load() {
 load();
 setInterval(load, 5000);
 </script>
+<script src="assets/gsap.min.js"></script>
+<script src="assets/motion.js"></script>
 </body>
 </html>

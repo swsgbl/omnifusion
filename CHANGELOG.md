@@ -2,6 +2,14 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [Unreleased]
+
+### 新增
+
+- **界面微动效（GSAP）**：全站交互体验升级——页面骨架与表格行进场、对话气泡上浮、用量条生长、状态徽标呼吸、按钮按压回弹；`prefers-reduced-motion` 下整体禁用，数据轮询只动首帧（不闪屏）。GSAP（3.15，随二进制分发，无外部请求）与共享动效层经 `/dashboard/assets/` 公开路由供给，六页 + 落地页 + 桌面壳全部接入；
+- **内置提供商 20 → 23**：Chutes（免费档限速、300+ 开源模型）、百度千帆（ERNIE-Speed/Lite 系免费，V2 OpenAI 兼容）、讯飞星火（Spark Lite 永久免费）——端点均实测核对；
+- **自定义 provider（聚合任意厂商的机制入口）**：config `providers:` 段与内置声明同构——同 id 覆盖（如改 base_url/环境变量）、新 id 追加；任意 OpenAI 兼容 / anthropic / gemini 原生协议厂商零代码接入，`ofd key add <自定义id>` 同样可用。config 与 registry 两套同构类型由往返守卫测试防漂移。
+
 ## [v0.1.5] - 2026-09-01
 
 西方次优先补齐轮：内置 20 家、目录首批证据数据、CLI 错误双语。

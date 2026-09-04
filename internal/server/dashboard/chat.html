@@ -128,6 +128,7 @@ function bubble(role, cls) {
   if (role) { const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = role; div.appendChild(meta); }
   const body = document.createElement('div'); div.appendChild(body);
   log.appendChild(div); log.scrollTop = log.scrollHeight;
+  if (window.OFD) OFD.motion.bubble(div);
   return body;
 }
 
@@ -190,5 +191,7 @@ document.getElementById('clear').addEventListener('click', () => {
   history = []; log.innerHTML = '<div class="hint">' + t('welcome') + '</div>';
 });
 </script>
+<script src="assets/gsap.min.js"></script>
+<script src="assets/motion.js"></script>
 </body>
 </html>

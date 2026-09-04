@@ -91,6 +91,9 @@
         <option value="sambanova">SambaNova（每日 20M tokens 免费）</option>
         <option value="mistral">Mistral（Experiment 免费档，需代理）</option>
         <option value="cohere">Cohere（Trial：1000 次/月）</option>
+        <option value="chutes">Chutes（免费档限速）</option>
+        <option value="qianfan">百度千帆（ERNIE-Speed/Lite 免费）</option>
+        <option value="spark">讯飞星火（Lite 永久免费）</option>
         <option value="deepseek">DeepSeek（BYOK 付费）</option>
         <option value="mimo">小米 MiMo（BYOK 付费）</option>
         <option value="ark">火山方舟·豆包（BYOK 付费）</option>
@@ -425,6 +428,24 @@ $("selLang").onchange = async () => {
   try { await invoke("set_language", { lang: effLang() }); } catch { /* 托盘语言同步尽力而为 */ }
   await refresh();
   setInterval(refresh, 3000);
+})();
+</script>
+<script src="assets/gsap.min.js"></script>
+<script>
+// 桌面壳微动效（与 dashboard 同库同纪律）：徽标呼吸 + 标签按下回弹。
+(function () {
+  'use strict';
+  if (typeof gsap === 'undefined' || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  gsap.defaults({ duration: 0.35, ease: 'power2.out' });
+  gsap.from(['header', 'section.settings', 'nav.tabs'], { autoAlpha: 0, y: 8, stagger: 0.06, duration: 0.3, clearProps: 'all' });
+  const badge = document.getElementById('statusBadge');
+  if (badge) {
+    const pulse = () => { if (badge.className.indexOf('off') < 0) gsap.to(badge, { scale: 1.08, duration: 0.9, ease: 'sine.inOut', repeat: -1, yoyo: true }); };
+    pulse();
+  }
+  document.querySelectorAll('nav.tabs button, section button').forEach(b => {
+    b.addEventListener('pointerdown', () => gsap.fromTo(b, { scale: 0.96 }, { scale: 1, duration: 0.25, ease: 'back.out(2)' }));
+  });
 })();
 </script>
 </body>

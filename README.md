@@ -6,7 +6,7 @@
 >
 > Bifrost-class performance (Go, µs-level overhead) carrying OmniRoute-class feature depth (multi-strategy routing, three-layer resilience isolation, token compression pipeline, MCP).
 
-**In one line**: aggregate free tiers from 12 LLM providers behind one local endpoint (OpenAI / Anthropic / Gemini / Responses inbound), with a built-in chat page, bilingual dashboard, desktop app and CLI — chat right after install, never stall.
+**In one line**: aggregate free-tier models from LLM providers worldwide behind one local endpoint (OpenAI / Anthropic / Gemini / Responses inbound), with a built-in chat page, bilingual dashboard, desktop app and CLI — chat right after install, never stall.
 
 ## The problem it solves
 

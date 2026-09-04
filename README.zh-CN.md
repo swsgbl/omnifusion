@@ -6,7 +6,7 @@
 >
 > 以 Bifrost 级性能底座（Go，µs 级开销）承载 OmniRoute 级功能深度（多策略路由、三层弹性隔离、Token 压缩管线、MCP）。
 
-**一句话**：把 12 家 LLM 提供商的免费额度聚合成一个本地端点（OpenAI / Anthropic / Gemini / Responses 四协议入站），自带对话页、双语控制台、桌面应用与 CLI——装完即聊，永不断流。
+**一句话**：把全球免费厂商模型聚合成一个本地端点（OpenAI / Anthropic / Gemini / Responses 四协议入站），自带对话页、双语控制台、桌面应用与 CLI——装完即聊，永不断流。
 
 ## 它解决什么问题
 

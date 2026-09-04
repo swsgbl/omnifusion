@@ -31,6 +31,23 @@ server:
 # store:
 #   path: data/omnifusion.db
 
+# 自定义 provider（聚合任意厂商的机制入口）：同 id 覆盖内置声明，
+# 新 id 追加进注册表。字段与内置 providers/*.yaml 完全同构；kind 可选
+# openai_compat / anthropic / gemini。示例——接入一个 OpenAI 兼容中转：
+# providers:
+#   - id: myrelay
+#     kind: openai_compat
+#     display_name: 我的中转
+#     base_url: https://relay.example.com/v1
+#     key_env: MYRELAY_API_KEY          # 密钥环境变量（也可 ofd key add myrelay）
+#     capabilities:
+#       input: [text]
+#       output: [text]
+#     models:
+#       - id: some-free-model
+#         price_in: 0                   # 显式 0 = 免费声明（cheap 自动选模可见）
+#         price_out: 0
+
 # 结构化日志：level ∈ debug|info|warn|error；format ∈ json|text。
 log:
   level: info

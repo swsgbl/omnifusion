@@ -206,6 +206,10 @@ async function load() {
       cell('', esc(r.ts)), cell('num', r.status), cell('', esc(r.endpoint)),
       cell('', esc(r.model)), cell('', esc(r.provider || t('none_provider'))), cell('', esc(r.error_kind)),
     ].join('') + '</tr>').join('');
+    if (window.OFD) {
+      OFD.motion.rows(cds); OFD.motion.rows(brs); OFD.motion.rows(prs);
+      OFD.motion.rows(document.getElementById('kinds')); OFD.motion.rows(document.getElementById('frows'));
+    }
     document.getElementById('meta').textContent =
       t('meta').replace('{time}', new Date().toLocaleTimeString());
   } catch (e) {
@@ -215,5 +219,7 @@ async function load() {
 load();
 setInterval(load, 5000);
 </script>
+<script src="assets/gsap.min.js"></script>
+<script src="assets/motion.js"></script>
 </body>
 </html>

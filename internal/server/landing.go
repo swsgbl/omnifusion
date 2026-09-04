@@ -50,6 +50,13 @@ document.getElementById('chat').href = '/dashboard/chat' + (key ? '?key=' + enco
 document.getElementById('dash').href = '/dashboard' + (key ? '?key=' + encodeURIComponent(key) : '');
 document.getElementById('base').textContent = location.origin + '/v1';
 </script>
+<script src="/dashboard/assets/gsap.min.js"></script>
+<script src="/dashboard/assets/motion.js"></script>
+<script>
+'use strict';
+// 落地页专属：状态点呼吸（骨架进场由 motion.js 的 page() 负责）。
+if (window.OFD) OFD.motion.pulse('.ok');
+</script>
 </body>
 </html>`
 

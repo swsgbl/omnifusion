@@ -95,7 +95,7 @@ function bar(h) {
   const pct = Math.max(0, Math.min(1, h)) * 100;
   const cls = h < 0.1 ? ' hr-low' : h < 0.4 ? ' hr-warn' : '';
   const unlimited = h >= 1;
-  return `<span class="bar${cls}"><span style="width:${unlimited ? 100 : pct}%"></span></span> ` +
+  return `<span class="bar${cls}"><span data-pct="${unlimited ? 100 : pct}" style="width:${unlimited ? 100 : pct}%"></span></span> ` +
     `<span class="meta">${unlimited ? t('bar_open') : pct.toFixed(0) + '%'}</span>`;
 }
 function cell(cls, text) { return `<td${cls ? ` class="${cls}"` : ''}>${text}</td>`; }
@@ -120,6 +120,10 @@ async function load() {
         cell('', bar(u.headroom)),
       ].join('') + '</tr>').join('');
     }
+    if (window.OFD) {
+      OFD.motion.rows(document.getElementById('rows'));
+      document.querySelectorAll('#rows .bar > span').forEach(s => OFD.motion.bar(s, parseFloat(s.dataset.pct)));
+    }
     document.getElementById('meta').textContent =
       t('meta').replace('{n}', body.cache_entries).replace('{time}', new Date().toLocaleTimeString());
   } catch (e) {
@@ -129,5 +133,7 @@ async function load() {
 load();
 setInterval(load, 5000);
 </script>
+<script src="assets/gsap.min.js"></script>
+<script src="assets/motion.js"></script>
 </body>
 </html>

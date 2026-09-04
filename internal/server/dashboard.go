@@ -6,6 +6,7 @@ package server
 
 import (
 	"embed"
+	"io/fs"
 	"net/http"
 	"strings"
 )
@@ -14,6 +15,24 @@ import (
 //
 //go:embed dashboard/*.html
 var dashboardFS embed.FS
+
+//go:embed dashboard/assets
+var dashboardAssetsFS embed.FS
+
+// dashboardAssets 是 assets 子树的根（gsap.min.js / motion.js）——
+// 公开的前端静态库（无敏感信息），mux 上挂在 /dashboard/assets/。
+var dashboardAssets http.FileSystem
+
+func init() {
+	sub, err := fs.Sub(dashboardAssetsFS, "dashboard/assets")
+	if err != nil {
+		panic("dashboard assets subtree: " + err.Error())
+	}
+	dashboardAssets = http.FS(sub)
+}
+
+// assets 返回前端静态资产文件系统（测试亦可注入替换）。
+func (s *Server) assets() http.FileSystem { return dashboardAssets }
 
 // requireDashboardKey 是 Dashboard 控制面鉴权：网关 key 的 Bearer 形态
 // （脚本/监控）与 ?key= 形态（浏览器页面）都收；未装配 token 时
