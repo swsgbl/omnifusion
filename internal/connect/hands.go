@@ -285,6 +285,11 @@ func WriteConfig(path, content string) (map[string]any, error) {
 	if len(content) > writeCap {
 		return nil, fmt.Errorf("content %d 字节超过写入上限 %d", len(content), writeCap)
 	}
+	// 空内容守卫：模型输出异常（截断/参数丢失）时宁可不落盘——写空
+	// 等于清空用户配置，备份也救不回这一步的误操作。
+	if strings.TrimSpace(content) == "" {
+		return nil, fmt.Errorf("refusing to write empty content to %s（空内容会清空配置；输出异常应重试）", abs)
+	}
 	dir := filepath.Dir(abs)
 	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
 		return nil, fmt.Errorf("目录 %s 不存在；先确认工具配置位置，不要新建目录", dir)

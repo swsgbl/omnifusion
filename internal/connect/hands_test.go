@@ -145,6 +145,18 @@ func TestWriteConfigBackupAndNoMkdir(t *testing.T) {
 	if _, err := WriteConfig(".tool/big.json", strings.Repeat("x", writeCap+1)); err == nil {
 		t.Error("oversized write accepted")
 	}
+	// 空内容拒绝（模型截断/参数丢失时绝不落盘清空用户配置），
+	// 且原文件必须原样保留。
+	if _, err := WriteConfig(".tool/config.json", ""); err == nil {
+		t.Error("empty content accepted")
+	}
+	if _, err := WriteConfig(".tool/config.json", "   \n\t "); err == nil {
+		t.Error("whitespace-only content accepted")
+	}
+	b2, _ := os.ReadFile(cfg)
+	if !strings.Contains(string(b2), "omnifusion") {
+		t.Error("file mutated by refused write")
+	}
 }
 
 // homedir 取当前真实 home（测试恢复环境变量用）。

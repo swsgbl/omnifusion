@@ -72,6 +72,8 @@ const I18N = {
     ph_input: 'Butler ready — ask about usage/keys/resilience, get setup guidance for Claude Code & other AI tools, or just chat. (Enter to send)',
     ops_tool: '\U0001F527 ',
     err_key: 'Gateway key missing or invalid — open this page from ofd desktop app, or append ?key=<ofd gateway-key> to the URL.',
+    err_truncated: 'The model\'s output hit the length cap mid-task and was cut off — press Send to retry (it will continue from history).',
+    err_empty: 'The model returned an empty reply — press Send to retry.',
     sending: 'thinking\u2026', done: 'done', err: 'failed',
   },
   zh: {
@@ -85,6 +87,8 @@ const I18N = {
     ph_input: '\u7ba1\u5bb6\u5df2\u5c31\u7eea\uff1a\u53ef\u95ee\u7528\u91cf/\u5bc6\u94a5/\u5f39\u6027\u72b6\u6001\u3001\u8bca\u65ad\u8bf7\u6c42\u5931\u8d25\u3001\u6307\u5bfc\u628a\u7f51\u5173\u63a5\u5165 Claude Code \u7b49\u5176\u4ed6 AI \u5de5\u5177\uff1b\u4e5f\u53ef\u76f4\u63a5\u95f2\u804a\u3002Enter \u53d1\u9001',
     ops_tool: '\U0001F527 ',
     err_key: '\u7f51\u5173\u4ee4\u724c\u7f3a\u5931\u6216\u65e0\u6548\u2014\u2014\u4ece ofd \u684c\u9762\u7aef\u6253\u5f00\u672c\u9875\uff0c\u6216\u5728\u7f51\u5740\u540e\u52a0 ?key=<ofd gateway-key \u7684\u8f93\u51fa>',
+    err_truncated: '\u6a21\u578b\u8f93\u51fa\u4e2d\u9014\u649e\u5230\u957f\u5ea6\u4e0a\u9650\u88ab\u622a\u65ad\u2014\u2014\u518d\u6309\u4e00\u6b21\u53d1\u9001\u5373\u53ef\u7eed\u63a5\u3002',
+    err_empty: '\u6a21\u578b\u8fd4\u56de\u4e86\u7a7a\u56de\u590d\u2014\u2014\u518d\u6309\u4e00\u6b21\u53d1\u9001\u91cd\u8bd5\u3002',
     sending: '\u601d\u8003\u4e2d\u2026', done: '\u5b8c\u6210', err: '\u5931\u8d25',
   },
 };
@@ -266,6 +270,8 @@ async function runStream(out) {
 // runOps：管家模式（非流式 + 工具循环）。LLM 提议工具调用 → 本页同源
 // 执行 dashboard API → 结果回喂 → 直至产出最终回答（上限 12 轮防失控；
 // 陌生工具的 找到→读懂→核实→写入→汇报 链条比普通问答长得多）。
+// max_tokens 6000：写配置类工具要整段重写用户配置文件，2000 会把
+// tool_calls 拦腰截断——页面表现成"不回复"（v0.1.6 实测缺陷）。
 async function runOps(out) {
   const msgs = [{ role: 'system', content: OPS_SYS }, ...history];
   for (let round = 0; round < 12; round++) {
@@ -273,21 +279,31 @@ async function runOps(out) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
       signal: abort.signal,
-      body: JSON.stringify({ model: modelSel.value, messages: msgs, tools: OPS_TOOLS, max_tokens: 2000 }),
+      body: JSON.stringify({ model: modelSel.value, messages: msgs, tools: OPS_TOOLS, max_tokens: 6000 }),
     });
     if (!resp.ok) {
       const b = await resp.json().catch(() => ({}));
       throw new Error((b.error && b.error.message) || ('HTTP ' + resp.status));
     }
-    const msg = (await resp.json()).choices[0].message;
+    const choice = (await resp.json()).choices[0];
+    const msg = choice && choice.message;
+    if (!msg) throw new Error('empty upstream response');
+    // 截断的 tool_calls 参数是半截 JSON：解析失败就喂回错误让模型重试，
+    // 绝不带空参执行（空参 write_config 会清空用户配置）。
+    if (choice.finish_reason === 'length') throw new Error(t('err_truncated'));
     if (msg.tool_calls && msg.tool_calls.length) {
       msgs.push(msg);
       for (const tc of msg.tool_calls) {
         const name = tc.function.name;
-        status.textContent = t('ops_tool') + name;
         let args = {};
-        try { args = JSON.parse(tc.function.arguments || '{}'); } catch (e) {}
         let result;
+        try {
+          args = JSON.parse(tc.function.arguments || '{}');
+        } catch (e) {
+          msgs.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify({ error: 'tool arguments were cut off or invalid; call again with complete arguments' }) });
+          continue;
+        }
+        status.textContent = t('ops_tool') + name;
         try { result = await ((OPS_EXEC[name] || (async () => '"unknown tool"'))(args)); }
         catch (e) { result = JSON.stringify({ error: String(e) }); }
         msgs.push({ role: 'tool', tool_call_id: tc.id, content: result });
@@ -295,6 +311,7 @@ async function runOps(out) {
       continue;
     }
     const acc = msg.content || '';
+    if (!acc) throw new Error(t('err_empty'));
     out.textContent = acc; log.scrollTop = log.scrollHeight;
     history.push({ role: 'assistant', content: acc });
     return;
