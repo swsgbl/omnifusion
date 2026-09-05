@@ -62,12 +62,16 @@ func (s *Server) handleDashboardAPI(w http.ResponseWriter, r *http.Request) {
 		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleButlerUnwire)
 	case "butler/find-tool":
 		s.scopeGuard(w, r, ScopeHealth, http.MethodPost, s.handleButlerFind)
-	case "butler/read-config":
+	case "butler/read-file":
 		s.scopeGuard(w, r, ScopeHealth, http.MethodPost, s.handleButlerRead)
-	case "butler/write-config":
+	case "butler/edit-file":
+		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleButlerEdit)
+	case "butler/write-file":
 		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleButlerWrite)
 	case "butler/patch-config":
 		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleButlerPatch)
+	case "butler/run-command":
+		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleButlerRunCommand)
 	case "butler/web-fetch":
 		s.scopeGuard(w, r, ScopeHealth, http.MethodPost, s.handleButlerWebFetch)
 	default:

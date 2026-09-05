@@ -82,20 +82,20 @@ func (s *Server) handleButlerFind(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"hits": connect.FindTool(req.Name)})
 }
 
-// butlerReadRequest 是 read-config 端点的请求体。
+// butlerReadRequest 是 read-file 端点的请求体。
 type butlerReadRequest struct {
 	Path string `json:"path"`
 }
 
-// handleButlerRead 读取 home 内一个文本配置（二进制/越界/超限拒绝）——
-// "了解工具的结构"那只手。
+// handleButlerRead 读取 home 内一个文本文件——配置/日志/脚本皆可
+//（二进制/越界/超限拒绝）——"Read"那只手。
 func (s *Server) handleButlerRead(w http.ResponseWriter, r *http.Request) {
 	var req butlerReadRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&req); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error(), "invalid_request_error", "")
 		return
 	}
-	out, err := connect.ReadConfig(req.Path)
+	out, err := connect.ReadFile(req.Path)
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, err.Error(), "invalid_request_error", "")
 		return
@@ -103,21 +103,44 @@ func (s *Server) handleButlerRead(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// butlerWriteRequest 是 write-config 端点的请求体。
+// butlerEditRequest 是 edit-file 端点的请求体。
+type butlerEditRequest struct {
+	Path      string `json:"path"`
+	OldString string `json:"old_string"`
+	NewString string `json:"new_string"`
+}
+
+// handleButlerEdit 对 home 内一个文本文件做唯一匹配替换（"Edit"那只
+// 手，非 JSON 文件的精确改动形态）。
+func (s *Server) handleButlerEdit(w http.ResponseWriter, r *http.Request) {
+	var req butlerEditRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<18)).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error(), "invalid_request_error", "")
+		return
+	}
+	out, err := connect.EditFile(req.Path, req.OldString, req.NewString)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, err.Error(), "invalid_request_error", "")
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// butlerWriteRequest 是 write-file 端点的请求体。
 type butlerWriteRequest struct {
 	Path    string `json:"path"`
 	Content string `json:"content"`
 }
 
-// handleButlerWrite 把内容写入 home 内一个配置文件（覆盖前自动备份，
-// 不新建目录）——"把密钥写进去"那只手。
+// handleButlerWrite 把内容写入 home 内一个文件（覆盖前自动备份，
+// 不新建目录）——"Write"那只手，整文件形态（全新文件/非 JSON 结构）。
 func (s *Server) handleButlerWrite(w http.ResponseWriter, r *http.Request) {
 	var req butlerWriteRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<19)).Decode(&req); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error(), "invalid_request_error", "")
 		return
 	}
-	out, err := connect.WriteConfig(req.Path, req.Content)
+	out, err := connect.WriteFile(req.Path, req.Content)
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, err.Error(), "invalid_request_error", "")
 		return

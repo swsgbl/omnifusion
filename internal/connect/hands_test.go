@@ -82,8 +82,8 @@ func TestResolveHomePathGuards(t *testing.T) {
 	}
 }
 
-// TestReadConfigGuards 目录拒绝、二进制拒绝、内容原样返回。
-func TestReadConfigGuards(t *testing.T) {
+// TestReadFileGuards 目录拒绝、二进制拒绝、内容原样返回。
+func TestReadFileGuards(t *testing.T) {
 	fake := t.TempDir()
 	t.Setenv("USERPROFILE", fake)
 	t.Setenv("HOME", fake)
@@ -93,24 +93,24 @@ func TestReadConfigGuards(t *testing.T) {
 	_ = os.WriteFile(cfg, []byte("{\"k\":\"v\"}"), 0o600)
 	_ = os.WriteFile(filepath.Join(sub, "blob.bin"), []byte{0x00, 0x01, 0x02}, 0o600)
 
-	r, err := ReadConfig(".tool/config.json")
+	r, err := ReadFile(".tool/config.json")
 	if err != nil || !strings.Contains(r["content"].(string), `"k"`) {
 		t.Errorf("read config: %v %+v", err, r)
 	}
-	if _, err := ReadConfig(".tool"); err == nil {
+	if _, err := ReadFile(".tool"); err == nil {
 		t.Error("directory read accepted")
 	}
-	if _, err := ReadConfig(".tool/blob.bin"); err == nil {
+	if _, err := ReadFile(".tool/blob.bin"); err == nil {
 		t.Error("binary read accepted")
 	}
-	if _, err := ReadConfig("missing.json"); err == nil {
+	if _, err := ReadFile("missing.json"); err == nil {
 		t.Error("missing file accepted")
 	}
 }
 
-// TestWriteConfigBackupAndNoMkdir 覆盖自动备份；目录不存在拒写
+// TestWriteFileBackupAndNoMkdir 覆盖自动备份；目录不存在拒写
 //（管家应回问用户，不是乱建目录）。
-func TestWriteConfigBackupAndNoMkdir(t *testing.T) {
+func TestWriteFileBackupAndNoMkdir(t *testing.T) {
 	fake := t.TempDir()
 	t.Setenv("USERPROFILE", fake)
 	t.Setenv("HOME", fake)
@@ -119,7 +119,7 @@ func TestWriteConfigBackupAndNoMkdir(t *testing.T) {
 	cfg := filepath.Join(dir, "config.json")
 	_ = os.WriteFile(cfg, []byte(`{"old":true}`), 0o600)
 
-	res, err := WriteConfig(".tool/config.json", `{"old":true,"omnifusion":{"base":"http://127.0.0.1:20130/v1"}}`)
+	res, err := WriteFile(".tool/config.json", `{"old":true,"omnifusion":{"base":"http://127.0.0.1:20130/v1"}}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,28 +134,78 @@ func TestWriteConfigBackupAndNoMkdir(t *testing.T) {
 		t.Errorf("result incomplete: %+v", res)
 	}
 	// 新文件（目录已存在）可建。
-	if _, err := WriteConfig(".tool/new.json", "{}"); err != nil {
+	if _, err := WriteFile(".tool/new.json", "{}"); err != nil {
 		t.Errorf("new file in existing dir refused: %v", err)
 	}
 	// 目录不存在：拒绝。
-	if _, err := WriteConfig(".nonexistent/config.json", "{}"); err == nil {
+	if _, err := WriteFile(".nonexistent/config.json", "{}"); err == nil {
 		t.Error("write into missing dir accepted")
 	}
 	// 超限拒绝。
-	if _, err := WriteConfig(".tool/big.json", strings.Repeat("x", writeCap+1)); err == nil {
+	if _, err := WriteFile(".tool/big.json", strings.Repeat("x", writeCap+1)); err == nil {
 		t.Error("oversized write accepted")
 	}
 	// 空内容拒绝（模型截断/参数丢失时绝不落盘清空用户配置），
 	// 且原文件必须原样保留。
-	if _, err := WriteConfig(".tool/config.json", ""); err == nil {
+	if _, err := WriteFile(".tool/config.json", ""); err == nil {
 		t.Error("empty content accepted")
 	}
-	if _, err := WriteConfig(".tool/config.json", "   \n\t "); err == nil {
+	if _, err := WriteFile(".tool/config.json", "   \n\t "); err == nil {
 		t.Error("whitespace-only content accepted")
 	}
 	b2, _ := os.ReadFile(cfg)
 	if !strings.Contains(string(b2), "omnifusion") {
 		t.Error("file mutated by refused write")
+	}
+}
+
+// TestEditFileUniqueReplace 唯一替换：恰好一次替换成功+备份；零次/
+// 多次/空 old 拒绝且文件不动；二进制拒绝。
+func TestEditFileUniqueReplace(t *testing.T) {
+	fake := t.TempDir()
+	t.Setenv("USERPROFILE", fake)
+	t.Setenv("HOME", fake)
+	dir := filepath.Join(fake, ".tool")
+	_ = os.MkdirAll(dir, 0o755)
+	cfg := filepath.Join(dir, "settings.toml")
+	_ = os.WriteFile(cfg, []byte("model = \"gpt-4o\"\napi_base = \"https://old/v1\"\ntemperature = 0.7\n"), 0o600)
+
+	res, err := EditFile(".tool/settings.toml", "api_base = \"https://old/v1\"", "api_base = \"http://127.0.0.1:20130/v1\"")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(res["result"].(string), "1 处") {
+		t.Errorf("result = %v", res)
+	}
+	b, _ := os.ReadFile(cfg)
+	s := string(b)
+	if !strings.Contains(s, "127.0.0.1:20130") || !strings.Contains(s, "model = \"gpt-4o\"") || !strings.Contains(s, "0.7") {
+		t.Errorf("edit wrong:\n%s", s)
+	}
+	if _, err := os.Stat(cfg + ".bak-ofd"); err != nil {
+		t.Error("backup not created")
+	}
+	// 零次命中：拒绝且文件不动。
+	if _, err := EditFile(".tool/settings.toml", "not-present", "x"); err == nil {
+		t.Error("zero-match accepted")
+	}
+	// 多次命中：拒绝（须扩大上下文）。
+	_ = os.WriteFile(filepath.Join(dir, "dup.txt"), []byte("same\nsame\n"), 0o600)
+	if _, err := EditFile(".tool/dup.txt", "same", "x"); err == nil {
+		t.Error("multi-match accepted")
+	}
+	// 空 old 拒绝。
+	if _, err := EditFile(".tool/settings.toml", "", "x"); err == nil {
+		t.Error("empty old accepted")
+	}
+	b2, _ := os.ReadFile(cfg)
+	if string(b2) != s {
+		t.Error("file mutated by refused edit")
+	}
+	// 二进制拒绝。
+	_ = os.WriteFile(filepath.Join(dir, "blob.bin"), []byte{0x00, 0x01}, 0o600)
+	if _, err := EditFile(".tool/blob.bin", "\x01", "x"); err == nil {
+		t.Error("binary edit accepted")
 	}
 }
 

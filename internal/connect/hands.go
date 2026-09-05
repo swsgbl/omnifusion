@@ -1,6 +1,6 @@
 // hands.go 给管家两只"通用手"：在电脑里找到任何 AI 工具的配置
-// （FindTool），读懂配置结构（ReadConfig）后把接入三要素写进去
-// （WriteConfig，写前自动备份）。五家内置 CLI 走 writers.go 的确定性
+// （FindTool），读懂配置结构（ReadFile）后把接入三要素写进去
+// （WriteFile，写前自动备份）。五家内置 CLI 走 writers.go 的确定性
 // 写入器；这两只手覆盖其余一切工具——管家（LLM）只编排，动作本身是
 // 确定性 Go 代码。
 //
@@ -20,10 +20,10 @@ import (
 )
 
 const (
-	readCap  = 256 << 10 // 单次读取上限
-	writeCap = 64 << 10  // 单次写入上限
-	dirPreviewCap = 12   // 目录命中预览的顶层条目数
-	sweepCap      = 30   // 无名扫描的返回上限
+	readCap       = 256 << 10 // 单次读取上限
+	writeCap      = 64 << 10  // 单次写入上限
+	dirPreviewCap = 12        // 目录命中预览的顶层条目数
+	sweepCap      = 30        // 无名扫描的返回上限
 )
 
 // FileRow 是目录命中预览里的一条顶层条目。
@@ -240,9 +240,9 @@ func underDir(dir, path string) bool {
 	return path == dir || strings.HasPrefix(path, dir+string(filepath.Separator))
 }
 
-// ReadConfig 读取 home 内的一个文本配置文件（二进制守卫 + 大小上限），
+// ReadFile 读取 home 内的一个文本配置文件（二进制守卫 + 大小上限），
 // 让管家先读懂结构再动笔。
-func ReadConfig(path string) (map[string]any, error) {
+func ReadFile(path string) (map[string]any, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
@@ -359,11 +359,11 @@ func applyPatchOp(root map[string]any, op PatchOp) error {
 	return nil
 }
 
-// WriteConfig 把内容写入 home 内的一个配置文件：文件可以在已存在的
+// WriteFile 把内容写入 home 内的一个配置文件：文件可以在已存在的
 // 目录里新建，但覆盖前自动备份；不新建目录（目录不存在说明管家没找
 // 到工具的配置位，应回问用户而不是乱建）。整文件形态，适合非 JSON
 // 配置或结构全新的文件；JSON 已有配置优先 PatchConfig 点补丁。
-func WriteConfig(path, content string) (map[string]any, error) {
+func WriteFile(path, content string) (map[string]any, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
@@ -392,4 +392,57 @@ func WriteConfig(path, content string) (map[string]any, error) {
 		return nil, err
 	}
 	return map[string]any{"path": abs, "result": "已写入" + bakNote(bak)}, nil
+}
+
+// EditFile 对 home 内一个文本文件做唯一匹配替换：old 必须恰好出现一次
+//（0 次报未找到；多次报不唯一，模型须带上更多上下文重试）——非 JSON
+// 文件（YAML/TOML/Markdown/.env）的精确改动形态，改动量最小、用户
+// 其余内容一字不动。守卫与读/写同套：home 内、文本、限额、备份先行。
+func EditFile(path, oldStr, newStr string) (map[string]any, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	if oldStr == "" {
+		return nil, fmt.Errorf("old_string is empty（空串会匹配任意位置；请给出要替换的原文）")
+	}
+	abs, err := resolveHomePath(home, path)
+	if err != nil {
+		return nil, err
+	}
+	fi, err := os.Stat(abs)
+	if err != nil {
+		return nil, fmt.Errorf("stat %s: %w", abs, err)
+	}
+	if fi.IsDir() {
+		return nil, fmt.Errorf("%s 是目录", abs)
+	}
+	if fi.Size() > readCap {
+		return nil, fmt.Errorf("%s 有 %d 字节，超过编辑上限 %d", abs, fi.Size(), readCap)
+	}
+	raw, err := os.ReadFile(abs)
+	if err != nil {
+		return nil, err
+	}
+	if bytes.IndexByte(raw, 0) >= 0 {
+		return nil, fmt.Errorf("%s 是二进制文件，不编辑", abs)
+	}
+	n := strings.Count(string(raw), oldStr)
+	switch n {
+	case 0:
+		return nil, fmt.Errorf("old_string 在 %s 中未找到（先 read_file 看当前内容）", abs)
+	case 1:
+		// 唯一命中：执行替换。
+	default:
+		return nil, fmt.Errorf("old_string 在 %s 中出现 %d 次，不唯一（带上前后行扩大上下文后重试）", abs, n)
+	}
+	out := strings.Replace(string(raw), oldStr, newStr, 1)
+	if len(out) > writeCap {
+		return nil, fmt.Errorf("结果 %d 字节超过写入上限 %d", len(out), writeCap)
+	}
+	bak := backupIfExists(abs)
+	if err := os.WriteFile(abs, []byte(out), 0o600); err != nil {
+		return nil, err
+	}
+	return map[string]any{"path": abs, "result": "已替换 1 处" + bakNote(bak)}, nil
 }
