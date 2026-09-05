@@ -19,9 +19,12 @@ scripts.forEach((_, i) => {
     process.exit(1);
   }
 });
-// 关键符号在位检查：新工具与批准流。
+// 关键符号在位检查：符号列表可由后续命令行参数覆盖（默认为 chat 页
+// 四手清单；keys 等其他页面传自己的符号）。
 const all = scripts.join('\n');
-for (const sym of ['read_file', 'edit_file', 'write_file', 'run_command', 'askApproval', 'approval_required', 'butler/run-command', 'butler/edit-file']) {
+const symbols = process.argv.length > 3 ? process.argv.slice(3) :
+  ['read_file', 'edit_file', 'write_file', 'run_command', 'askApproval', 'approval_required', 'butler/run-command', 'butler/edit-file'];
+for (const sym of symbols) {
   if (!all.includes(sym)) { console.error('MISSING symbol: ' + sym); process.exit(1); }
 }
-console.log('all new tools + approval flow present');
+console.log('all requested symbols present');
