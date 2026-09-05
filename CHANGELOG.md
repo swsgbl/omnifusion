@@ -2,6 +2,14 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [Unreleased]
+
+### 新增
+
+- **`ofd connect/disconnect pi`**：pi coding agent 一键接入聚合网关——合并写入 `~/.pi/agent/models.json` 的 omnifusion provider（保留已有 provider，自动备份），pi 用聚合令牌 `ofg-…` 驱动，模型 `@quality`/`@cheap`；厂商真实密钥不出网关；桌面端「接入 CLI 客户端」下拉同步支持 pi；
+- **运维 AI 助手提示词**：`prompts/ops-agent.md`——现成 system prompt（只读优先、不索厂商密钥、免费档优先），pi / Claude Code 挂 `ofd mcp` 即成为网关运维助手；
+- **厂商名双语渲染**：dashboard 各表提供商列按语言显示「中文名 (id)」/「English name (id)」——id 括注保证与 CLI 命令对得上号（`providers-meta.js` 与注册表同步维护）。
+
 ## [v0.1.6] - 2026-09-05
 
 免费供给收官轮：24 家内置、全网免费模型目录、一键申请密钥、全站动效。
