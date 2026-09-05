@@ -23,7 +23,9 @@
   .empty { color: #8b949e; padding: 24px 0; }
   #err { color: #f85149; white-space: pre-wrap; }
 </style>
-</head>
+<script src="assets/gsap.min.js"></script>
+<script src="assets/motion.js"></script>
+</head></head>
 <body>
 <header>
   <h1 data-i18n="page_title">OmniFusion · Usage</h1>
@@ -87,7 +89,7 @@ if (!EMBED) document.getElementById('nav').innerHTML = PAGES.map(([id, nk]) => {
   ` <a href="${pageHref('usage', 'zh')}">中文</a> <a href="${pageHref('usage', 'en')}">EN</a>`;
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function vname(id) { return esc(OFD.motion.vendorName(id, LANG)) + ' <span class="meta">(' + esc(id) + ')</span>'; }
+function vname(id) { if (!(window.OFD && window.OFD.motion)) return esc(id); return esc(OFD.motion.vendorName(id, LANG)) + ' <span class="meta">(' + esc(id) + ')</span>'; }
 function fmt(used, limit) {
   const u = used >= 10000 ? (used / 1000).toFixed(0) + 'k' : String(used);
   return limit > 0 ? `${u} / ${limit}` : `${u} / –`;

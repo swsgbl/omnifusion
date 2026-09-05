@@ -27,7 +27,9 @@
   #err { color: #f85149; white-space: pre-wrap; }
   #pin { margin: 0 0 8px; }
 </style>
-</head>
+<script src="assets/gsap.min.js"></script>
+<script src="assets/motion.js"></script>
+</head></head>
 <body>
 <header>
   <h1 data-i18n="page_title">OmniFusion · Resilience</h1>
@@ -151,7 +153,7 @@ if (!EMBED) document.getElementById('nav').innerHTML = PAGES.map(([id, nk]) => {
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function cell(cls, text) { return `<td${cls ? ` class="${cls}"` : ''}>${text}</td>`; }
-function vname(id) { return esc(OFD.motion.vendorName(id, LANG)) + ' <span class="meta">(' + esc(id) + ')</span>'; }
+function vname(id) { if (!(window.OFD && window.OFD.motion)) return esc(id); return esc(OFD.motion.vendorName(id, LANG)) + ' <span class="meta">(' + esc(id) + ')</span>'; }
 function badge(cls, text) { return `<span class="badge ${cls}">${text}</span>`; }
 function untilStr(s) {
   const left = new Date(s) - Date.now();

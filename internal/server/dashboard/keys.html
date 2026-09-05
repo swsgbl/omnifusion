@@ -21,7 +21,9 @@
   .empty { color: #8b949e; padding: 24px 0; }
   #err { color: #f85149; white-space: pre-wrap; }
 </style>
-</head>
+<script src="assets/gsap.min.js"></script>
+<script src="assets/motion.js"></script>
+</head></head>
 <body>
 <header>
   <h1 data-i18n="page_title">OmniFusion · Keys</h1>
@@ -83,7 +85,7 @@ if (!EMBED) document.getElementById('nav').innerHTML = PAGES.map(([id, nk]) => {
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function srcClass(s) { return s.startsWith('env:') ? 'src-env' : s === 'stored' ? 'src-stored' : s === 'none' ? 'src-none' : ''; }
-function vname(id) { return esc(OFD.motion.vendorName(id, LANG)) + ' <span class="meta">(' + esc(id) + ')</span>'; }
+function vname(id) { if (!(window.OFD && window.OFD.motion)) return esc(id); return esc(OFD.motion.vendorName(id, LANG)) + ' <span class="meta">(' + esc(id) + ')</span>'; }
 
 async function load() {
   const err = document.getElementById('err');
