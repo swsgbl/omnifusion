@@ -124,3 +124,25 @@ func (s *Server) handleButlerWrite(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, out)
 }
+
+// butlerPatchRequest 是 patch-config 端点的请求体：JSON 配置点补丁，
+// 模型只提交改动点——大配置整文件重写会撑爆输出上限被截断。
+type butlerPatchRequest struct {
+	Path string              `json:"path"`
+	Ops  []connect.PatchOp   `json:"ops"`
+}
+
+// handleButlerPatch 对 home 内一个 JSON 配置应用确定性点补丁。
+func (s *Server) handleButlerPatch(w http.ResponseWriter, r *http.Request) {
+	var req butlerPatchRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<18)).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error(), "invalid_request_error", "")
+		return
+	}
+	out, err := connect.PatchConfig(req.Path, req.Ops)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, err.Error(), "invalid_request_error", "")
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}

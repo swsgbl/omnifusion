@@ -11,6 +11,7 @@ package connect
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -270,9 +271,98 @@ func ReadConfig(path string) (map[string]any, error) {
 	return map[string]any{"path": abs, "size": fi.Size(), "content": string(b)}, nil
 }
 
+// PatchOp 是 patch-config 的一条改动：dotted path 定位 JSON 内的字段
+//（如 "llm.apiBase"），Remove=true 删除该键，否则写 Value。
+type PatchOp struct {
+	Path   string `json:"path"`
+	Value  any    `json:"value,omitempty"`
+	Remove bool   `json:"remove,omitempty"`
+}
+
+// PatchConfig 对 home 内的一个 JSON 配置做确定性点补丁：只传改动点，
+// 模型输出从"整文件重写"缩到几百 token——大配置不再撑爆 max_tokens
+//（v0.1.6 实测 hmharness 4KB 配置整写在 6000 token 仍被截断）。合并
+// 由代码完成，用户其余字段机制性保证不动；覆盖前自动备份。
+// 仅支持 JSON 对象 + 点分键路径（键名含点或数组下标请用 write_config
+// 整文件）；非 JSON 文件报错引导走 write_config。
+func PatchConfig(path string, ops []PatchOp) (map[string]any, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	abs, err := resolveHomePath(home, path)
+	if err != nil {
+		return nil, err
+	}
+	if len(ops) == 0 {
+		return nil, fmt.Errorf("no patch ops given")
+	}
+	if fi, err := os.Stat(abs); err != nil {
+		return nil, fmt.Errorf("stat %s: %w（patch 只改已存在的配置；新文件用 write_config）", abs, err)
+	} else if fi.IsDir() {
+		return nil, fmt.Errorf("%s 是目录", abs)
+	}
+	raw, err := os.ReadFile(abs)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > readCap {
+		return nil, fmt.Errorf("%s 有 %d 字节，超过补丁上限 %d", abs, len(raw), readCap)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil, fmt.Errorf("%s 不是 JSON 对象（%v）——点补丁只支持 JSON；请改用 write_config 整文件", abs, err)
+	}
+	for _, op := range ops {
+		if err := applyPatchOp(m, op); err != nil {
+			return nil, fmt.Errorf("op %q: %w", op.Path, err)
+		}
+	}
+	out, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	bak := backupIfExists(abs)
+	if err := os.WriteFile(abs, append(out, '\n'), 0o600); err != nil {
+		return nil, err
+	}
+	return map[string]any{"path": abs, "applied": len(ops), "result": "已补丁" + bakNote(bak)}, nil
+}
+
+// applyPatchOp 按 dotted path 走 map 层级应用一条改动（中间层缺失则
+// 创建；中途撞到非 map 节点报错）。
+func applyPatchOp(root map[string]any, op PatchOp) error {
+	parts := strings.Split(op.Path, ".")
+	cur := root
+	for i, p := range parts {
+		if p == "" {
+			return fmt.Errorf("empty path segment")
+		}
+		if i == len(parts)-1 {
+			if op.Remove {
+				delete(cur, p)
+			} else {
+				cur[p] = op.Value
+			}
+			return nil
+		}
+		next, ok := cur[p].(map[string]any)
+		if !ok {
+			if _, exists := cur[p]; exists {
+				return fmt.Errorf("%q is not an object", strings.Join(parts[:i+1], "."))
+			}
+			next = map[string]any{}
+			cur[p] = next
+		}
+		cur = next
+	}
+	return nil
+}
+
 // WriteConfig 把内容写入 home 内的一个配置文件：文件可以在已存在的
 // 目录里新建，但覆盖前自动备份；不新建目录（目录不存在说明管家没找
-// 到工具的配置位，应回问用户而不是乱建）。
+// 到工具的配置位，应回问用户而不是乱建）。整文件形态，适合非 JSON
+// 配置或结构全新的文件；JSON 已有配置优先 PatchConfig 点补丁。
 func WriteConfig(path, content string) (map[string]any, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {

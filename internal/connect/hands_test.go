@@ -159,6 +159,64 @@ func TestWriteConfigBackupAndNoMkdir(t *testing.T) {
 	}
 }
 
+// TestPatchConfigDottedPaths 点补丁：只改目标键、其余字段一字不动、
+// 缺失中间层自动创建、remove 删键、非 JSON/新文件拒绝、覆盖有备份。
+func TestPatchConfigDottedPaths(t *testing.T) {
+	fake := t.TempDir()
+	t.Setenv("USERPROFILE", fake)
+	t.Setenv("HOME", fake)
+	dir := filepath.Join(fake, ".tool")
+	_ = os.MkdirAll(dir, 0o755)
+	cfg := filepath.Join(dir, "config.json")
+	_ = os.WriteFile(cfg, []byte("{\"llm\":{\"apiBase\":\"https://old/v1\",\"apiKey\":\"sk-old\",\"model\":\"gpt-4o\",\"temperature\":0.7},\"keep\":{\"a\":1}}"), 0o600)
+
+	res, err := PatchConfig(".tool/config.json", []PatchOp{
+		{Path: "llm.apiBase", Value: "http://127.0.0.1:20130/v1"},
+		{Path: "llm.apiKey", Value: "ofg-tok"},
+		{Path: "llm.model", Value: "@quality"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res["applied"] != 3 {
+		t.Errorf("applied = %v", res["applied"])
+	}
+	b, _ := os.ReadFile(cfg)
+	s := string(b)
+	for _, want := range []string{"http://127.0.0.1:20130/v1", "ofg-tok", "@quality", "\"temperature\": 0.7", "\"a\": 1"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("missing %q in:\n%s", want, s)
+		}
+	}
+	if _, err := os.Stat(cfg + ".bak-ofd"); err != nil {
+		t.Error("backup not created")
+	}
+	// 中间层自动创建 + remove 删键。
+	if _, err := PatchConfig(".tool/config.json", []PatchOp{
+		{Path: "omnifusion.note", Value: "wired"},
+		{Path: "llm.temperature", Remove: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	b, _ = os.ReadFile(cfg)
+	if !strings.Contains(string(b), "wired") || strings.Contains(string(b), "temperature") {
+		t.Errorf("create/remove wrong:\n%s", b)
+	}
+	// 非 JSON 拒绝。
+	_ = os.WriteFile(filepath.Join(dir, "conf.toml"), []byte("k = 1\n"), 0o600)
+	if _, err := PatchConfig(".tool/conf.toml", []PatchOp{{Path: "a", Value: 1}}); err == nil {
+		t.Error("non-JSON patch accepted")
+	}
+	// 不存在的文件拒绝（新文件走 write_config）。
+	if _, err := PatchConfig(".tool/new.json", []PatchOp{{Path: "a", Value: 1}}); err == nil {
+		t.Error("patch on missing file accepted")
+	}
+	// 空 ops 拒绝。
+	if _, err := PatchConfig(".tool/config.json", nil); err == nil {
+		t.Error("empty ops accepted")
+	}
+}
+
 // homedir 取当前真实 home（测试恢复环境变量用）。
 func homedir() (string, error) {
 	return os.UserHomeDir()
