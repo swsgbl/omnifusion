@@ -265,6 +265,17 @@ func (a *Adapter) Parse(ctx context.Context, call *provider.ProviderCall, resp *
 	if err != nil {
 		return nil, fmt.Errorf("openai_compat: %q decode: %w", a.spec.ProviderName, err)
 	}
+	// 2xx 但零候选：上游故障的伪成功（实测某商偶发 200+空choices）。
+	// 必须按上游错误处理——否则路由当成功、缓存还把空响应钉进语义缓存，
+	// 同一请求此后持续命中空回复。200 状态经分类落 KindUnknown：只
+	// failover，不惩罚 provider（偶发抖动不值得冷却）。
+	if len(parsed.Choices) == 0 {
+		return nil, &provider.UpstreamError{
+			Provider: a.spec.ProviderName,
+			Status:   resp.StatusCode,
+			Body:     []byte("upstream returned 2xx with no choices"),
+		}
+	}
 	parsed.ProviderName = a.spec.ProviderName
 	if call != nil && parsed.Model == "" {
 		parsed.Model = call.Model

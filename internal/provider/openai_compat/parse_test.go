@@ -107,3 +107,40 @@ func TestParseUpstreamError(t *testing.T) {
 		t.Errorf("Body = %q", ue.Body)
 	}
 }
+
+// TestParseEmptyChoicesIsUpstreamError 200+零候选是上游伪成功（实测
+// 某商偶发），必须报 UpstreamError 让路由 failover——绝不能当成功
+// 回给客户端，更不能进语义缓存。
+func TestParseEmptyChoicesIsUpstreamError(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"id":"","object":"","created":0,"model":"m","choices":null}`)
+	}))
+	defer upstream.Close()
+
+	a, err := New(Spec{ProviderName: "mock", BaseURL: upstream.URL + "/v1", APIKey: "sk-test"})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	call, err := a.Translate(context.Background(), sampleRequest("m"))
+	if err != nil {
+		t.Fatalf("Translate: %v", err)
+	}
+	httpReq, err := http.NewRequest(call.Method, call.URL, strings.NewReader(string(call.Body)))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	httpReq.Header = call.Header
+	resp, err := a.HTTPClient().Do(httpReq)
+	if err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	_, err = a.Parse(context.Background(), call, resp)
+	ue, ok := provider.IsUpstream(err)
+	if !ok {
+		t.Fatalf("expected UpstreamError for empty choices, got %v", err)
+	}
+	if ue.Status != http.StatusOK {
+		t.Errorf("Status = %d, want 200", ue.Status)
+	}
+}
