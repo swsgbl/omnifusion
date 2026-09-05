@@ -60,6 +60,14 @@ func (s *Server) handleDashboardAPI(w http.ResponseWriter, r *http.Request) {
 		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleButlerWire)
 	case "butler/unwire-ai-tool":
 		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleButlerUnwire)
+	case "butler/find-tool":
+		s.scopeGuard(w, r, ScopeHealth, http.MethodPost, s.handleButlerFind)
+	case "butler/read-config":
+		s.scopeGuard(w, r, ScopeHealth, http.MethodPost, s.handleButlerRead)
+	case "butler/write-config":
+		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleButlerWrite)
+	case "butler/web-fetch":
+		s.scopeGuard(w, r, ScopeHealth, http.MethodPost, s.handleButlerWebFetch)
 	default:
 		http.NotFound(w, r)
 	}

@@ -65,3 +65,62 @@ func (s *Server) handleButlerUnwire(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"tool": req.Tool, "result": msg})
 }
+
+// butlerFindRequest 是 find-tool 端点的请求体（name 空 = 无名扫描）。
+type butlerFindRequest struct {
+	Name string `json:"name"`
+}
+
+// handleButlerFind 在本机搜索 AI 工具的踪迹（PATH 可执行、home 点
+// 目录、~/.config、AppData）——五家内置之外的一切工具的"找到"那只手。
+func (s *Server) handleButlerFind(w http.ResponseWriter, r *http.Request) {
+	var req butlerFindRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error(), "invalid_request_error", "")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"hits": connect.FindTool(req.Name)})
+}
+
+// butlerReadRequest 是 read-config 端点的请求体。
+type butlerReadRequest struct {
+	Path string `json:"path"`
+}
+
+// handleButlerRead 读取 home 内一个文本配置（二进制/越界/超限拒绝）——
+// "了解工具的结构"那只手。
+func (s *Server) handleButlerRead(w http.ResponseWriter, r *http.Request) {
+	var req butlerReadRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error(), "invalid_request_error", "")
+		return
+	}
+	out, err := connect.ReadConfig(req.Path)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, err.Error(), "invalid_request_error", "")
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// butlerWriteRequest 是 write-config 端点的请求体。
+type butlerWriteRequest struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
+}
+
+// handleButlerWrite 把内容写入 home 内一个配置文件（覆盖前自动备份，
+// 不新建目录）——"把密钥写进去"那只手。
+func (s *Server) handleButlerWrite(w http.ResponseWriter, r *http.Request) {
+	var req butlerWriteRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<19)).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error(), "invalid_request_error", "")
+		return
+	}
+	out, err := connect.WriteConfig(req.Path, req.Content)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, err.Error(), "invalid_request_error", "")
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
