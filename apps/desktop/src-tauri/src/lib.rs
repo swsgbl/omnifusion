@@ -17,7 +17,7 @@ use std::time::Duration;
 use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl, WindowEvent};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::webview::WebviewBuilder;
+use tauri::webview::{NewWindowResponse, WebviewBuilder};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -368,7 +368,21 @@ async fn dash_create(app: AppHandle, url: String, x: f64, y: f64, w: f64, h: f64
             let parsed: tauri::Url = url.parse().map_err(|e| format!("parse url: {e}"))?;
             let wv = win
                 .add_child(
-                    WebviewBuilder::new("dash", WebviewUrl::External(parsed)),
+                    WebviewBuilder::new("dash", WebviewUrl::External(parsed))
+                        // 密钥页「去申请 ↗」等 target=_blank 外链：WebView2 默认
+                        // 静默丢弃弹窗请求（点了没反应）。这里接管弹窗事件，
+                        // 交给系统默认浏览器打开，再拒绝应用内新窗口。
+                        .on_new_window(|url, _features| {
+                            let u = url.to_string();
+                            #[cfg(windows)]
+                            let _ = Command::new("cmd")
+                                .args(["/C", "start", "", &u])
+                                .creation_flags(CREATE_NO_WINDOW)
+                                .spawn();
+                            #[cfg(not(windows))]
+                            let _ = Command::new("xdg-open").arg(&u).spawn();
+                            NewWindowResponse::Deny
+                        }),
                     LogicalPosition::new(x, y),
                     LogicalSize::new(w.max(1.0), h.max(1.0)),
                 )
