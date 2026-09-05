@@ -81,6 +81,28 @@ func TestResolveHomePathGuards(t *testing.T) {
 	if _, err := resolveHomePath(home, ""); err == nil {
 		t.Error("empty path accepted")
 	}
+	// 越界仍须拒绝（underHome 放宽的是 home 自身的 symlink 形态，
+	// 不是无差别放行）。
+	if _, err := resolveHomePath(home, filepath.Join("..", "elsewhere.json")); err == nil {
+		t.Error("escape via symlink tolerance accepted")
+	}
+}
+
+// TestResolveHomePathSymlinkedHome home 本身是符号链接时（macOS
+// /var→/private/var 形态），解析父目录后的真实路径不得被判越界。
+func TestResolveHomePathSymlinkedHome(t *testing.T) {
+	real := t.TempDir()
+	target := filepath.Join(real, "inside")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "home-link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("symlink not creatable here: %v", err)
+	}
+	if _, err := resolveHomePath(link, "inside/cfg.json"); err != nil {
+		t.Errorf("symlinked-home path rejected: %v", err)
+	}
 }
 
 // TestReadFileGuards 目录拒绝、二进制拒绝、内容原样返回。

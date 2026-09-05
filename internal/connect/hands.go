@@ -34,7 +34,7 @@ type FileRow struct {
 }
 
 // FsHit 是 FindTool 的一条命中：PATH 上的可执行、候选配置目录
-//（附顶层预览）或单个文件。
+// （附顶层预览）或单个文件。
 type FsHit struct {
 	Kind  string    `json:"kind"` // "exe" | "dir" | "file"
 	Path  string    `json:"path"`
@@ -43,7 +43,7 @@ type FsHit struct {
 }
 
 // aiToolHints 是无名扫描时判定"这个目录像 AI 工具"的关键词
-//（子串匹配目录名）。只是发现辅助，命中后仍由管家读配置确认。
+// （子串匹配目录名）。只是发现辅助，命中后仍由管家读配置确认。
 var aiToolHints = []string{
 	"claude", "codex", "gemini", "opencode", "pi", "cursor", "aider",
 	"cline", "continue", "copilot", "zed", "windsurf", "trae", "qwen",
@@ -222,14 +222,28 @@ func resolveHomePath(home, path string) (string, error) {
 	if err != nil {
 		parent = filepath.Dir(abs) // 父目录不存在时按字面检查（写入端会再拒绝）
 	}
-	if !underDir(homeAbs, parent) {
+	if !underHome(homeAbs, parent) {
 		return "", fmt.Errorf("path %s is outside home directory %s（安全边界：管家只动 home 内的配置）", abs, homeAbs)
 	}
 	out := filepath.Join(parent, base)
-	if !underDir(homeAbs, out) {
+	if !underHome(homeAbs, out) {
 		return "", fmt.Errorf("path %s is outside home directory %s", abs, homeAbs)
 	}
 	return out, nil
+}
+
+// underHome 报告 path 是否在 home 内——字面 home 与其 symlink 解析形态
+// 两侧都认。macOS 临时目录落 /var 而 /var 是 /private/var 的链接：
+// EvalSymlinks 解析父目录后得到的真实路径与字面 home 前缀比对会误判
+// 越界（合法路径被拒），故 home 自身的解析形态必须同时纳入白名单。
+func underHome(home, path string) bool {
+	if underDir(home, path) {
+		return true
+	}
+	if resolved, err := filepath.EvalSymlinks(home); err == nil && underDir(resolved, path) {
+		return true
+	}
+	return false
 }
 
 // underDir 报告 path 是否等于或在 dir 内（Windows 大小写不敏感）。
@@ -272,7 +286,7 @@ func ReadFile(path string) (map[string]any, error) {
 }
 
 // PatchOp 是 patch-config 的一条改动：dotted path 定位 JSON 内的字段
-//（如 "llm.apiBase"），Remove=true 删除该键，否则写 Value。
+// （如 "llm.apiBase"），Remove=true 删除该键，否则写 Value。
 type PatchOp struct {
 	Path   string `json:"path"`
 	Value  any    `json:"value,omitempty"`
@@ -281,7 +295,7 @@ type PatchOp struct {
 
 // PatchConfig 对 home 内的一个 JSON 配置做确定性点补丁：只传改动点，
 // 模型输出从"整文件重写"缩到几百 token——大配置不再撑爆 max_tokens
-//（v0.1.6 实测 hmharness 4KB 配置整写在 6000 token 仍被截断）。合并
+// （v0.1.6 实测 hmharness 4KB 配置整写在 6000 token 仍被截断）。合并
 // 由代码完成，用户其余字段机制性保证不动；覆盖前自动备份。
 // 仅支持 JSON 对象 + 点分键路径（键名含点或数组下标请用 write_config
 // 整文件）；非 JSON 文件报错引导走 write_config。
@@ -395,7 +409,7 @@ func WriteFile(path, content string) (map[string]any, error) {
 }
 
 // EditFile 对 home 内一个文本文件做唯一匹配替换：old 必须恰好出现一次
-//（0 次报未找到；多次报不唯一，模型须带上更多上下文重试）——非 JSON
+// （0 次报未找到；多次报不唯一，模型须带上更多上下文重试）——非 JSON
 // 文件（YAML/TOML/Markdown/.env）的精确改动形态，改动量最小、用户
 // 其余内容一字不动。守卫与读/写同套：home 内、文本、限额、备份先行。
 func EditFile(path, oldStr, newStr string) (map[string]any, error) {
