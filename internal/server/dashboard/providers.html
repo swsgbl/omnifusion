@@ -87,6 +87,7 @@ if (!EMBED) document.getElementById('nav').innerHTML = PAGES.map(([id, nk]) => {
 
 function cell(cls, text) { return `<td${cls ? ` class="${cls}"` : ''}>${text}</td>`; }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function vname(id) { return esc(OFD.motion.vendorName(id, LANG)) + ' <span class="meta">(' + esc(id) + ')</span>'; }
 
 async function load() {
   const err = document.getElementById('err');
@@ -100,7 +101,7 @@ async function load() {
       rows.innerHTML = `<tr><td colspan="6" class="empty">${t('empty')}</td></tr>`;
     } else {
       rows.innerHTML = body.providers.map(p => '<tr>' + [
-        cell('', esc(OFD.pname(p.name, LANG))),
+        cell('', vname(p.name)),
         cell('num', p.models),
         cell('num', p.latency_ms ? p.latency_ms.toFixed(0) : '–'),
         cell('num', p.success_rate > 0 ? (p.success_rate * 100).toFixed(0) + '%' : '–'),
@@ -121,7 +122,6 @@ load();
 setInterval(load, 5000);
 </script>
 <script src="assets/gsap.min.js"></script>
-<script src="assets/providers-meta.js"></script>
 <script src="assets/motion.js"></script>
 </body>
 </html>

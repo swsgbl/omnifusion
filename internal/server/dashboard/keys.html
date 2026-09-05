@@ -83,6 +83,7 @@ if (!EMBED) document.getElementById('nav').innerHTML = PAGES.map(([id, nk]) => {
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function srcClass(s) { return s.startsWith('env:') ? 'src-env' : s === 'stored' ? 'src-stored' : s === 'none' ? 'src-none' : ''; }
+function vname(id) { return esc(OFD.motion.vendorName(id, LANG)) + ' <span class="meta">(' + esc(id) + ')</span>'; }
 
 async function load() {
   const err = document.getElementById('err');
@@ -99,7 +100,7 @@ async function load() {
         const cls = srcClass(k.source);
         const get = k.signup_url
           ? `<a href="${esc(k.signup_url)}" target="_blank" rel="noopener noreferrer">${t('apply')}</a>` : '–';
-        return `<tr><td>${esc(OFD.pname(k.provider, LANG))}</td><td${cls ? ` class="${cls}"` : ''}>${esc(k.source)}</td>` +
+        return `<tr><td>${vname(k.provider)}</td><td${cls ? ` class="${cls}"` : ''}>${esc(k.source)}</td>` +
           `<td>${esc(k.label || '–')}</td><td>${k.updated_at ? new Date(k.updated_at.replace(' ', 'T') + 'Z').toLocaleString() : '–'}</td>` +
           `<td>${get}</td></tr>`;
       }).join('');
@@ -115,7 +116,6 @@ load();
 setInterval(load, 5000);
 </script>
 <script src="assets/gsap.min.js"></script>
-<script src="assets/providers-meta.js"></script>
 <script src="assets/motion.js"></script>
 </body>
 </html>

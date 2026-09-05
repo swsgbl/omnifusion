@@ -87,6 +87,7 @@ if (!EMBED) document.getElementById('nav').innerHTML = PAGES.map(([id, nk]) => {
   ` <a href="${pageHref('usage', 'zh')}">中文</a> <a href="${pageHref('usage', 'en')}">EN</a>`;
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function vname(id) { return esc(OFD.motion.vendorName(id, LANG)) + ' <span class="meta">(' + esc(id) + ')</span>'; }
 function fmt(used, limit) {
   const u = used >= 10000 ? (used / 1000).toFixed(0) + 'k' : String(used);
   return limit > 0 ? `${u} / ${limit}` : `${u} / –`;
@@ -112,7 +113,7 @@ async function load() {
       rows.innerHTML = `<tr><td colspan="6" class="empty">${t('empty')}</td></tr>`;
     } else {
       rows.innerHTML = body.usage.map(u => '<tr>' + [
-        cell('', esc(OFD.pname(u.provider, LANG))),
+        cell('', vname(u.provider)),
         cell('num', fmt(u.rpm, u.limits.rpm)),
         cell('num', fmt(u.rpd, u.limits.rpd)),
         cell('num', fmt(u.tpm, u.limits.tpm)),
@@ -134,7 +135,6 @@ load();
 setInterval(load, 5000);
 </script>
 <script src="assets/gsap.min.js"></script>
-<script src="assets/providers-meta.js"></script>
 <script src="assets/motion.js"></script>
 </body>
 </html>

@@ -8,9 +8,9 @@
   var noop = function () {};
   var api = { page: noop, rows: noop, bubble: noop, bar: noop, pulse: noop, dot: noop };
 
-  if (typeof gsap === 'undefined') { window.OFD = { motion: api }; return; }
+  if (typeof gsap === 'undefined') { (window.OFD = window.OFD || {}).motion = api; return; }
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    window.OFD = { motion: api };
+    (window.OFD = window.OFD || {}).motion = api;
     return;
   }
 
@@ -103,5 +103,7 @@
   } else {
     api.page();
   }
-  window.OFD = { motion: api };
+  // 合并而非替换：OFD 命名空间可能已有其他模块（providers-meta 等）。
+  var ofd = window.OFD = window.OFD || {};
+  ofd.motion = api;
 })();
