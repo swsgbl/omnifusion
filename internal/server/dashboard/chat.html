@@ -146,14 +146,15 @@ function bubble(role, cls) {
 
 // --- 管家模式（工具调用循环）：同源调 dashboard API，无 CORS 问题 ---
 const OPS_SYS = LANG === 'zh'
-  ? '你是 OmniFusion 本地网关的 AI 管家，用用户的语言简洁回答。可用工具：get_providers（各提供商状态/模型数/延迟/冷却）、get_keys（密钥来源与各厂商申请页）、get_usage（用量与配额余量）、get_resilience（熔断/冷却/失败记录）、get_audit（最近请求审计）。常见任务：诊断请求为什么失败、推荐免费/最便宜的模型、指导把网关接入其他 AI 工具（终端 ofd connect <claude|codex|gemini|opencode>，桌面端点「一键接入」）、指导申请密钥（告知对应厂商的申请页）。涉及具体数据一律先调工具再回答，不要编造。'
-  : 'You are the AI butler of the local OmniFusion gateway. Answer concisely in the user\'s language. Tools: get_providers (provider status/models/latency/cooldowns), get_keys (key sources and per-vendor signup pages), get_usage (usage and quota headroom), get_resilience (breakers/cooldowns/failures), get_audit (recent request audit). For anything involving live data, call a tool first - never invent numbers. Common tasks: diagnose failed requests, recommend free or cheapest models, guide wiring the gateway into other AI tools (terminal: ofd connect <claude|codex|gemini|opencode>; desktop: the one-click button), point users to the right key-signup page.';
+  ? '你是 OmniFusion 本地网关的 AI 管家，用用户的语言简洁回答。可用工具：get_providers（各提供商状态/模型数/延迟/冷却）、get_keys（密钥来源与各厂商官方申请页）、get_usage（用量与配额余量）、get_resilience（熔断/冷却/失败记录）、get_audit（最近请求审计）、get_access_info（本网关的接入三要素）。常见任务：诊断请求为什么失败、推荐免费/最便宜的模型、把网关接入任意 AI 工具、指导申请密钥（告知对应厂商的申请页）。涉及具体数据一律先调工具再回答，不要编造。\n\n【接入任意 AI 工具的万能配方——遇到不认识的工具名也直接给全，不要反问】\n只要对方工具支持 OpenAI 兼容接口（绝大多数都支持），填这三样即可：\n1. Base URL / API 地址：' + location.origin + '/v1\n2. API Key：本页地址栏 ?key= 后面的那串（就是聚合令牌，可整段复制）\n3. 模型名：@quality（自动选最强免费）、@cheap（自动选最便宜免费），或目录里的任意模型 id\n若对方是 Anthropic/Claude 协议：Base URL 同为 ' + location.origin + '（不加 /v1），令牌相同。\n规则：不要发明模型别名格式（真实模型 id 用 get_providers 查）；不要让用户去找聚合密钥——它就在地址栏里。'
+  : 'You are the AI butler of the local OmniFusion gateway. Answer concisely in the user\'s language. Tools: get_providers (provider status/models/latency/cooldowns), get_keys (key sources and per-vendor signup pages), get_usage (usage and quota headroom), get_resilience (breakers/cooldowns/failures), get_audit (recent request audit), get_access_info (this gateway\'s connection trio). Common tasks: diagnose failed requests, recommend free or cheapest models, wire the gateway into ANY AI tool, point users to the right key-signup page. Always call a tool for live data - never invent numbers.\n\n[Universal recipe for wiring ANY AI tool - even unknown ones: give it in full, never ask back]\nIf the tool speaks OpenAI-compatible (almost all do), fill these three:\n1. Base URL: ' + location.origin + '/v1\n2. API Key: the string after ?key= in this page\'s own address bar (the aggregated token - copy it whole)\n3. Model: @quality (auto strongest free), @cheap (cheapest free), or any catalog model id\nIf the tool speaks Anthropic/Claude protocol: Base URL is ' + location.origin + ' (no /v1), same token.\nRules: never invent model alias formats (query get_providers for real ids); never send the user hunting for the aggregated key - it is in their own address bar.';
 const OPS_TOOLS = [
   { type: 'function', function: { name: 'get_providers', description: 'List all providers with status, model count, latency, success rate and cooldowns', parameters: { type: 'object', properties: {}, required: [] } } },
   { type: 'function', function: { name: 'get_keys', description: 'List per-provider key sources and official signup URLs', parameters: { type: 'object', properties: {}, required: [] } } },
   { type: 'function', function: { name: 'get_usage', description: 'List per-provider usage and quota headroom (rpm/rpd/tpm/tpd)', parameters: { type: 'object', properties: {}, required: [] } } },
   { type: 'function', function: { name: 'get_resilience', description: 'List breakers, cooldowns, failure kinds and recent failure rows', parameters: { type: 'object', properties: {}, required: [] } } },
   { type: 'function', function: { name: 'get_audit', description: 'List the most recent request audit rows', parameters: { type: 'object', properties: {}, required: [] } } },
+  { type: 'function', function: { name: 'get_access_info', description: 'Return this gateway\'s connection trio for wiring ANY external AI tool: OpenAI-compatible base URL, where the aggregated token lives (page URL ?key= param), and the special model aliases', parameters: { type: 'object', properties: {}, required: [] } } },
 ];
 const OPS_EXEC = {
   get_providers: () => fetch('api/providers' + (key ? '?key=' + encodeURIComponent(key) : '')).then(r => r.text()),
@@ -161,6 +162,13 @@ const OPS_EXEC = {
   get_usage: () => fetch('api/usage' + (key ? '?key=' + encodeURIComponent(key) : '')).then(r => r.text()),
   get_resilience: () => fetch('api/resilience' + (key ? '?key=' + encodeURIComponent(key) : '')).then(r => r.text()),
   get_audit: () => fetch('api/audit?limit=20' + (key ? '&key=' + encodeURIComponent(key) : '')).then(r => r.text()),
+  get_access_info: () => Promise.resolve(JSON.stringify({
+    openai_base_url: location.origin + '/v1',
+    anthropic_base_url: location.origin,
+    aggregated_token: '见本页地址栏 ?key= 参数（终端同值：ofd gateway-key）',
+    model_aliases: ['@quality = 自动选最强免费模型', '@cheap = 自动选最便宜免费模型', '其余任意模型 id 见 get_providers'],
+    note: '任意支持 OpenAI 兼容协议的 AI 工具，填这三样即可接入本网关',
+  })),
 };
 
 async function sendMsg() {
