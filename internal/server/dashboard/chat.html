@@ -146,8 +146,8 @@ function bubble(role, cls) {
 
 // --- 管家模式（工具调用循环）：同源调 dashboard API，无 CORS 问题 ---
 const OPS_SYS = LANG === 'zh'
-  ? '你是 OmniFusion 本地网关的 AI 管家，用用户的语言简洁回答。可用工具：get_providers（各提供商状态/模型数/延迟/冷却）、get_keys（密钥来源与各厂商官方申请页）、get_usage（用量与配额余量）、get_resilience（熔断/冷却/失败记录）、get_audit（最近请求审计）、get_access_info（本网关的接入三要素）。常见任务：诊断请求为什么失败、推荐免费/最便宜的模型、把网关接入任意 AI 工具、指导申请密钥（告知对应厂商的申请页）。涉及具体数据一律先调工具再回答，不要编造。\n\n【接入任意 AI 工具的万能配方——遇到不认识的工具名也直接给全，不要反问】\n只要对方工具支持 OpenAI 兼容接口（绝大多数都支持），填这三样即可：\n1. Base URL / API 地址：' + location.origin + '/v1\n2. API Key：本页地址栏 ?key= 后面的那串（就是聚合令牌，可整段复制）\n3. 模型名：@quality（自动选最强免费）、@cheap（自动选最便宜免费），或目录里的任意模型 id\n若对方是 Anthropic/Claude 协议：Base URL 同为 ' + location.origin + '（不加 /v1），令牌相同。\n规则：不要发明模型别名格式（真实模型 id 用 get_providers 查）；不要让用户去找聚合密钥——它就在地址栏里。'
-  : 'You are the AI butler of the local OmniFusion gateway. Answer concisely in the user\'s language. Tools: get_providers (provider status/models/latency/cooldowns), get_keys (key sources and per-vendor signup pages), get_usage (usage and quota headroom), get_resilience (breakers/cooldowns/failures), get_audit (recent request audit), get_access_info (this gateway\'s connection trio). Common tasks: diagnose failed requests, recommend free or cheapest models, wire the gateway into ANY AI tool, point users to the right key-signup page. Always call a tool for live data - never invent numbers.\n\n[Universal recipe for wiring ANY AI tool - even unknown ones: give it in full, never ask back]\nIf the tool speaks OpenAI-compatible (almost all do), fill these three:\n1. Base URL: ' + location.origin + '/v1\n2. API Key: the string after ?key= in this page\'s own address bar (the aggregated token - copy it whole)\n3. Model: @quality (auto strongest free), @cheap (cheapest free), or any catalog model id\nIf the tool speaks Anthropic/Claude protocol: Base URL is ' + location.origin + ' (no /v1), same token.\nRules: never invent model alias formats (query get_providers for real ids); never send the user hunting for the aggregated key - it is in their own address bar.';
+  ? '你是 OmniFusion 本地网关的 AI 管家，用用户的语言简洁回答。可用工具：get_providers（各提供商状态/模型数/延迟/冷却）、get_keys（密钥来源与各厂商官方申请页）、get_usage（用量与配额余量）、get_resilience（熔断/冷却/失败记录）、get_audit（最近请求审计）、get_access_info（本网关的接入三要素）、scan_ai_tools（扫描本机已装的 AI 编码 CLI：Claude Code/Codex/Gemini CLI/OpenCode/pi，报告各工具安装与接入状态）、wire_ai_tool（把聚合密钥确定性接入指定 CLI，tool 取 scan 返回的 id，写前自动备份）、unwire_ai_tool（移除指定 CLI 的接入）。已知 CLI 的接入必须 scan-first：先 scan_ai_tools 看清本机装了什么、什么已接入，再对「已安装且未接入」的逐个 wire_ai_tool，最后逐工具汇报结果；用户没装的工具不要凭空配置，改走下面的万能配方。涉及具体数据一律先调工具再回答，不要编造。\n\n【接入任意 AI 工具的万能配方——遇到不认识的工具名也直接给全，不要反问】\n只要对方工具支持 OpenAI 兼容接口（绝大多数都支持），填这三样即可：\n1. Base URL / API 地址：' + location.origin + '/v1\n2. API Key：本页地址栏 ?key= 后面的那串（就是聚合令牌，可整段复制）\n3. 模型名：@quality（自动选最强免费）、@cheap（自动选最便宜免费），或目录里的任意模型 id\n若对方是 Anthropic/Claude 协议：Base URL 同为 ' + location.origin + '（不加 /v1），令牌相同。\n规则：不要发明模型别名格式（真实模型 id 用 get_providers 查）；不要让用户去找聚合密钥——它就在地址栏里。'
+  : 'You are the AI butler of the local OmniFusion gateway. Answer concisely in the user\'s language. Tools: get_providers (provider status/models/latency/cooldowns), get_keys (key sources and per-vendor signup pages), get_usage (usage and quota headroom), get_resilience (breakers/cooldowns/failures), get_audit (recent request audit), get_access_info (this gateway\'s connection trio), scan_ai_tools (detect installed AI coding CLIs on this machine: Claude Code/Codex/Gemini CLI/OpenCode/pi, with installed/connected status), wire_ai_tool (deterministically wire the aggregated key into one CLI, tool = id returned by scan, auto-backup before write), unwire_ai_tool (remove the wiring from one CLI). For known CLIs always scan-first: scan_ai_tools to see what is installed and already connected, then wire_ai_tool each installed-but-unconnected one, then report per-tool results; never configure tools that are not installed - fall back to the universal recipe below instead. Always call a tool for live data - never invent numbers.\n\n[Universal recipe for wiring ANY AI tool - even unknown ones: give it in full, never ask back]\nIf the tool speaks OpenAI-compatible (almost all do), fill these three:\n1. Base URL: ' + location.origin + '/v1\n2. API Key: the string after ?key= in this page\'s own address bar (the aggregated token - copy it whole)\n3. Model: @quality (auto strongest free), @cheap (cheapest free), or any catalog model id\nIf the tool speaks Anthropic/Claude protocol: Base URL is ' + location.origin + ' (no /v1), same token.\nRules: never invent model alias formats (query get_providers for real ids); never send the user hunting for the aggregated key - it is in their own address bar.';
 const OPS_TOOLS = [
   { type: 'function', function: { name: 'get_providers', description: 'List all providers with status, model count, latency, success rate and cooldowns', parameters: { type: 'object', properties: {}, required: [] } } },
   { type: 'function', function: { name: 'get_keys', description: 'List per-provider key sources and official signup URLs', parameters: { type: 'object', properties: {}, required: [] } } },
@@ -155,6 +155,9 @@ const OPS_TOOLS = [
   { type: 'function', function: { name: 'get_resilience', description: 'List breakers, cooldowns, failure kinds and recent failure rows', parameters: { type: 'object', properties: {}, required: [] } } },
   { type: 'function', function: { name: 'get_audit', description: 'List the most recent request audit rows', parameters: { type: 'object', properties: {}, required: [] } } },
   { type: 'function', function: { name: 'get_access_info', description: 'Return this gateway\'s connection trio for wiring ANY external AI tool: OpenAI-compatible base URL, where the aggregated token lives (page URL ?key= param), and the special model aliases', parameters: { type: 'object', properties: {}, required: [] } } },
+  { type: 'function', function: { name: 'scan_ai_tools', description: 'Scan this machine for known AI coding CLIs (Claude Code, Codex, Gemini CLI, OpenCode, pi) and report each tool\'s installed/connected status and config path', parameters: { type: 'object', properties: {}, required: [] } } },
+  { type: 'function', function: { name: 'wire_ai_tool', description: 'Deterministically wire the aggregated gateway key into one installed AI CLI (auto-backup first). tool must be an id returned by scan_ai_tools', parameters: { type: 'object', properties: { tool: { type: 'string', enum: ['claude', 'codex', 'gemini', 'opencode', 'pi'] } }, required: ['tool'] } } },
+  { type: 'function', function: { name: 'unwire_ai_tool', description: 'Remove the OmniFusion wiring from one AI CLI config (restores prior state). tool must be an id returned by scan_ai_tools', parameters: { type: 'object', properties: { tool: { type: 'string', enum: ['claude', 'codex', 'gemini', 'opencode', 'pi'] } }, required: ['tool'] } } },
 ];
 const OPS_EXEC = {
   get_providers: () => fetch('api/providers' + (key ? '?key=' + encodeURIComponent(key) : '')).then(r => r.text()),
@@ -169,6 +172,13 @@ const OPS_EXEC = {
     model_aliases: ['@quality = 自动选最强免费模型', '@cheap = 自动选最便宜免费模型', '其余任意模型 id 见 get_providers'],
     note: '任意支持 OpenAI 兼容协议的 AI 工具，填这三样即可接入本网关',
   })),
+  scan_ai_tools: () => fetch('api/butler/ai-tools' + (key ? '?key=' + encodeURIComponent(key) : '')).then(r => r.text()),
+  wire_ai_tool: (a) => fetch('api/butler/wire-ai-tool' + (key ? '?key=' + encodeURIComponent(key) : ''), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tool: a && a.tool }),
+  }).then(r => r.text()),
+  unwire_ai_tool: (a) => fetch('api/butler/unwire-ai-tool' + (key ? '?key=' + encodeURIComponent(key) : ''), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tool: a && a.tool }),
+  }).then(r => r.text()),
 };
 
 async function sendMsg() {
@@ -238,10 +248,11 @@ async function runStream(out) {
 }
 
 // runOps：管家模式（非流式 + 工具循环）。LLM 提议工具调用 → 本页同源
-// 执行 dashboard API → 结果回喂 → 直至产出最终回答（上限 4 轮防失控）。
+// 执行 dashboard API → 结果回喂 → 直至产出最终回答（上限 8 轮防失控；
+// "接入全部工具"需要 扫描+逐个接入+总结，比普通问答多）。
 async function runOps(out) {
   const msgs = [{ role: 'system', content: OPS_SYS }, ...history];
-  for (let round = 0; round < 4; round++) {
+  for (let round = 0; round < 8; round++) {
     const resp = await fetch('/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
@@ -258,8 +269,10 @@ async function runOps(out) {
       for (const tc of msg.tool_calls) {
         const name = tc.function.name;
         status.textContent = t('ops_tool') + name;
+        let args = {};
+        try { args = JSON.parse(tc.function.arguments || '{}'); } catch (e) {}
         let result;
-        try { result = await ((OPS_EXEC[name] || (async () => '"unknown tool"'))()); }
+        try { result = await ((OPS_EXEC[name] || (async () => '"unknown tool"'))(args)); }
         catch (e) { result = JSON.stringify({ error: String(e) }); }
         msgs.push({ role: 'tool', tool_call_id: tc.id, content: result });
       }

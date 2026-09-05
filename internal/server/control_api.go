@@ -54,6 +54,12 @@ func (s *Server) handleDashboardAPI(w http.ResponseWriter, r *http.Request) {
 		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleCooldownsClear)
 	case "compression/default":
 		s.scopeGuard(w, r, ScopeCompression, http.MethodPost, s.handleCompressionDefault)
+	case "butler/ai-tools":
+		s.scopeGuard(w, r, ScopeHealth, http.MethodGet, s.handleButlerScan)
+	case "butler/wire-ai-tool":
+		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleButlerWire)
+	case "butler/unwire-ai-tool":
+		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleButlerUnwire)
 	default:
 		http.NotFound(w, r)
 	}

@@ -1,7 +1,8 @@
-// connectcmd_tools.go 承载 Codex / Gemini CLI / OpenCode 三家的写入器。
-// 定位规则逐家遵守其自有约定（CODEX_HOME、~/.gemini/.env、
-// OPENCODE_CONFIG/XDG），写入前备份、--print 只打印。
-package main
+// writers.go 承载五家 CLI 的确定性写入器（从 cmd/ofd 下沉为共享实现，
+// ofd connect 与 dashboard 管家 API 共用）。定位规则逐家遵守其自有约定
+//（CLAUDE_CONFIG_DIR、CODEX_HOME、~/.gemini/.env、XDG、~/.pi/agent），
+// 写前自动备份。
+package connect
 
 import (
 	"encoding/json"
@@ -12,6 +13,49 @@ import (
 	"runtime"
 	"strings"
 )
+
+// applyClaude 写 ~/.claude/settings.json 的 env 块（官方 LLM gateway
+// 接入口径：ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN；base 为根地址，
+// SDK 自行追加 /v1/messages——网关的 Anthropic 入站原生承接）。
+func applyClaude(path, base, token string, connect, printOnly bool) (string, error) {
+	m := map[string]any{}
+	if b, err := os.ReadFile(path); err == nil {
+		if err := json.Unmarshal(b, &m); err != nil {
+			return "", fmt.Errorf("parse %s: %w（手动处理见 ofd connect claude --print）", path, err)
+		}
+	}
+	env, _ := m["env"].(map[string]any)
+	if env == nil {
+		env = map[string]any{}
+	}
+	if connect {
+		env["ANTHROPIC_BASE_URL"] = base
+		env["ANTHROPIC_AUTH_TOKEN"] = token
+	} else {
+		delete(env, "ANTHROPIC_BASE_URL")
+		delete(env, "ANTHROPIC_AUTH_TOKEN")
+	}
+	if len(env) == 0 {
+		delete(m, "env")
+	} else {
+		m["env"] = env
+	}
+	out, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	if printOnly {
+		return fmt.Sprintf("将%s %s:\n%s", map[bool]string{true: "写入", false: "从"}[connect], path, out), nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", err
+	}
+	bak := backupIfExists(path)
+	if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s %s%s（重启 claude 生效）", map[bool]string{true: "已写入", false: "已清除"}[connect], path, bakNote(bak)), nil
+}
 
 // applyCodex 写 ~/.codex/config.toml：model_provider 指向 omnifusion
 //（网关原生承接 Codex 的 wire_api="responses" 协议），密钥经
@@ -54,7 +98,7 @@ func applyCodex(dir, base, token string, connect, printOnly bool) (string, error
 	if err := os.WriteFile(path, []byte(out), 0o600); err != nil {
 		return "", err
 	}
-	envMsg, err := setPersistentEnv("OMNIFUSION_API_KEY", token)
+	envMsg, err := persistEnvVar("OMNIFUSION_API_KEY", token)
 	if err != nil {
 		return "", err
 	}
@@ -99,6 +143,9 @@ func hasTOMLTopKey(content, key string) bool {
 
 // setPersistentEnv 持久化用户级环境变量：Windows 走 setx（标准机制）；
 // unix 追加到 ~/.profile 与 ~/.zshrc（已含则跳过）。
+// persistEnvVar 是可替换钩子：测试钉住它，避免污染真实用户环境。
+var persistEnvVar = setPersistentEnv
+
 func setPersistentEnv(key, value string) (string, error) {
 	if runtime.GOOS == "windows" {
 		if out, err := exec.Command("setx", key, value).CombinedOutput(); err != nil {
@@ -242,6 +289,23 @@ func applyOpenCode(home, base, token string, connect, printOnly bool) (string, e
 	return fmt.Sprintf("%s %s%s（重启 opencode 生效；模型选 OmniFusion ⚡ auto）", map[bool]string{true: "已写入", false: "已清除"}[connect], path, bakNote(bak)), nil
 }
 
+func opencodeSnippet(base, token string, connect bool) string {
+	if !connect {
+		return "{ ... 删除 provider.omnifusion 块 ... }"
+	}
+	b, _ := json.MarshalIndent(map[string]any{
+		"provider": map[string]any{
+			"omnifusion": map[string]any{
+				"npm":  "@ai-sdk/openai-compatible",
+				"name": "OmniFusion",
+				"options": map[string]any{"baseURL": base + "/v1", "apiKey": token},
+				"models": map[string]any{"@quality": map[string]any{"name": "OmniFusion ⚡ auto"}},
+			},
+		},
+	}, "", "  ")
+	return string(b)
+}
+
 // applyPi 合并 ~/.pi/agent/models.json（pi coding agent 的自定义
 // provider 文件）：providers.omnifusion = 聚合网关（OpenAI 兼容端点，
 // 聚合令牌；模型暴露 @quality/@cheap 指令）——pi 从此用聚合密钥驱动，
@@ -295,21 +359,4 @@ func applyPi(path, base, token string, connect, printOnly bool) (string, error) 
 		tail = "（重启 pi 生效）"
 	}
 	return fmt.Sprintf("%s %s%s %s", verb, path, bakNote(bak), tail), nil
-}
-
-func opencodeSnippet(base, token string, connect bool) string {
-	if !connect {
-		return "{ ... 删除 provider.omnifusion 块 ... }"
-	}
-	b, _ := json.MarshalIndent(map[string]any{
-		"provider": map[string]any{
-			"omnifusion": map[string]any{
-				"npm":  "@ai-sdk/openai-compatible",
-				"name": "OmniFusion",
-				"options": map[string]any{"baseURL": base + "/v1", "apiKey": token},
-				"models": map[string]any{"@quality": map[string]any{"name": "OmniFusion ⚡ auto"}},
-			},
-		},
-	}, "", "  ")
-	return string(b)
 }
