@@ -63,6 +63,41 @@
     gsap.to(el.children, { y: -3, duration: 0.35, ease: 'sine.inOut', repeat: -1, yoyo: true, stagger: 0.12 });
   };
 
+  // 厂商双语名：[中文名, English name]。zh 模式 → "中 (En)"，en 模式 → "En (中)"；
+  // 同名只显示一次。新厂商在此登记。
+  var VENDORS = {
+    anthropic: ['Anthropic', 'Anthropic'],
+    ark: ['火山方舟（豆包）', 'Volcengine Ark (Doubao)'],
+    cerebras: ['Cerebras', 'Cerebras'],
+    chutes: ['Chutes', 'Chutes'],
+    cloudflare: ['Cloudflare Workers AI', 'Cloudflare Workers AI'],
+    cohere: ['Cohere', 'Cohere'],
+    deepseek: ['深度求索 DeepSeek', 'DeepSeek'],
+    gemini: ['谷歌 Gemini', 'Google Gemini'],
+    groq: ['Groq', 'Groq'],
+    huggingface: ['HuggingFace', 'HuggingFace'],
+    hunyuan: ['腾讯混元', 'Tencent Hunyuan'],
+    mimo: ['小米 MiMo', 'Xiaomi MiMo'],
+    mistral: ['Mistral', 'Mistral'],
+    modelscope: ['魔搭 ModelScope', 'ModelScope'],
+    nvidia: ['英伟达 NVIDIA NIM', 'NVIDIA NIM'],
+    ollama: ['Ollama（本地）', 'Ollama (local)'],
+    openrouter: ['OpenRouter', 'OpenRouter'],
+    qianfan: ['百度千帆', 'Baidu Qianfan'],
+    qwen: ['通义千问 Qwen', 'Qwen (Alibaba)'],
+    sambanova: ['SambaNova', 'SambaNova'],
+    siliconflow: ['硅基流动 SiliconFlow', 'SiliconFlow'],
+    spark: ['讯飞星火', 'iFlytek Spark'],
+    together: ['Together AI', 'Together AI'],
+    zhipu: ['智谱 BigModel', 'Zhipu BigModel'],
+  };
+  api.vendorName = function (id, lang) {
+    var v = VENDORS[id];
+    if (!v) return id || '';
+    if (v[0] === v[1]) return v[0];
+    return lang === 'zh' ? v[0] + ' (' + v[1] + ')' : v[1] + ' (' + v[0] + ')';
+  };
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { api.page(); });
   } else {

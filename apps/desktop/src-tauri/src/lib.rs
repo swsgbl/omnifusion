@@ -318,7 +318,7 @@ fn key_add(app: AppHandle, bin: String, config: String, provider: String) -> Res
 #[tauri::command]
 fn client_connect(app: AppHandle, bin: String, config: String, cli: String) -> Result<(), String> {
     let cli = cli.trim().to_string();
-    if !["claude", "codex", "gemini", "opencode"].contains(&cli.as_str()) {
+    if !["claude", "codex", "gemini", "opencode", "pi"].contains(&cli.as_str()) {
         return Err("client_connect_invalid".into());
     }
     let bin = resolve_bin(&app, &bin);

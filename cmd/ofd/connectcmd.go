@@ -19,7 +19,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/security"
 )
 
-var connectTargets = []string{"claude", "codex", "gemini", "opencode"}
+var connectTargets = []string{"claude", "codex", "gemini", "opencode", "pi"}
 
 // runConnectCommand / runDisconnectCommand 是入口；apply 目标工具的
 // 写入/清除，disconnect 只是把 mode 参数反过来传给同一套定位逻辑。
@@ -40,8 +40,8 @@ func runConnect(cfg *config.Config, args []string, connect bool) error {
 	}
 	if len(positional) != 1 {
 		return biErr(
-			fmt.Sprintf("用法：ofd %s <claude|codex|gemini|opencode> [--print]", map[bool]string{true: "connect", false: "disconnect"}[connect]),
-			fmt.Sprintf("usage: ofd %s <claude|codex|gemini|opencode> [--print]", map[bool]string{true: "connect", false: "disconnect"}[connect]))
+			fmt.Sprintf("用法：ofd %s <claude|codex|gemini|opencode|pi> [--print]", map[bool]string{true: "connect", false: "disconnect"}[connect]),
+			fmt.Sprintf("usage: ofd %s <claude|codex|gemini|opencode|pi> [--print]", map[bool]string{true: "connect", false: "disconnect"}[connect]))
 	}
 	target := positional[0]
 	known := false
@@ -88,6 +88,8 @@ func runConnect(cfg *config.Config, args []string, connect bool) error {
 		msg, err = applyGemini(filepath.Join(home, ".gemini", ".env"), base, token, connect, *printOnly)
 	case "opencode":
 		msg, err = applyOpenCode(home, base, token, connect, *printOnly)
+	case "pi":
+		msg, err = applyPi(filepath.Join(home, ".pi", "agent", "models.json"), base, token, connect, *printOnly)
 	}
 	if err != nil {
 		return err

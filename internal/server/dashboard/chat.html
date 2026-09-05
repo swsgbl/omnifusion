@@ -25,7 +25,13 @@
   .composer { display: flex; gap: 10px; padding: 12px 20px 16px; }
   textarea { flex: 1; resize: vertical; min-height: 52px; max-height: 200px; padding: 9px 12px; }
   .hint { color: #8b949e; font-size: 12px; }
+  textarea::placeholder { color: #6e7681; }
+  .ops { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+  .ops input { accent-color: #58a6ff; }
 </style>
+<script src="assets/gsap.min.js"></script>
+<script src="assets/providers-meta.js"></script>
+<script src="assets/motion.js"></script>
 </head>
 <body>
 <header>
@@ -35,6 +41,7 @@
 <div class="toolbar">
   <label for="model" class="hint" data-i18n="lbl_model">Model</label>
   <select id="model"><option value="@quality">&#9889; &#33258;&#21160;&#65288;&#26368;&#24378;&#20248;&#20808;&#65289;</option></select>
+  <label class="ops" data-i18n-title="lbl_ops_title"><input type="checkbox" id="ops" checked> <span data-i18n="lbl_ops">Butler</span></label>
   <button id="clear" data-i18n="btn_clear">Clear</button>
   <span class="hint" id="status"></span>
 </div>
@@ -55,26 +62,30 @@ const LANG = (() => {
 })();
 const I18N = {
   en: {
-    page_title: 'OmniFusion · Chat',
+    page_title: 'OmniFusion · Assistant',
     nav_providers: 'Providers', nav_keys: 'Keys', nav_usage: 'Usage',
-    nav_compression: 'Compression', nav_resilience: 'Resilience', nav_chat: 'Chat',
+    nav_compression: 'Compression', nav_resilience: 'Resilience', nav_chat: 'Assistant',
     lbl_model: 'Model', btn_clear: 'Clear', btn_send: 'Send', btn_stop: 'Stop',
+    lbl_ops: 'Butler mode', lbl_ops_title: 'Butler mode: the assistant can query gateway status/usage/keys via tools and guide setup of other AI tools',
     auto: '\u26A1 Auto (strongest first)',
     welcome: 'Chat with your free models here. "Auto" picks the strongest free model automatically; picks are stored per conversation.',
-    ph_input: 'Type a message\u2026 (Enter to send, Shift+Enter for newline)',
+    ph_input: 'Butler ready — ask about usage/keys/resilience, get setup guidance for Claude Code & other AI tools, or just chat. (Enter to send)',
+    ops_tool: '\U0001F527 ',
     err_key: 'Gateway key missing or invalid — open this page from ofd desktop app, or append ?key=<ofd gateway-key> to the URL.',
-    sending: 'streaming\u2026', done: 'done', err: 'failed',
+    sending: 'thinking\u2026', done: 'done', err: 'failed',
   },
   zh: {
-    page_title: 'OmniFusion \u00b7 \u5bf9\u8bdd',
+    page_title: 'OmniFusion \u00b7 \u7ba1\u5bb6',
     nav_providers: '\u63d0\u4f9b\u5546', nav_keys: '\u5bc6\u94a5', nav_usage: '\u7528\u91cf',
-    nav_compression: '\u538b\u7f29', nav_resilience: '\u5f39\u6027', nav_chat: '\u5bf9\u8bdd',
+    nav_compression: '\u538b\u7f29', nav_resilience: '\u5f39\u6027', nav_chat: '\u7ba1\u5bb6',
     lbl_model: '\u6a21\u578b', btn_clear: '\u6e05\u7a7a', btn_send: '\u53d1\u9001', btn_stop: '\u505c\u6b62',
+    lbl_ops: '\u7ba1\u5bb6\u6a21\u5f0f', lbl_ops_title: '\u7ba1\u5bb6\u6a21\u5f0f\uff1a\u52a9\u624b\u53ef\u901a\u8fc7\u5de5\u5177\u67e5\u8be2\u7f51\u5173\u72b6\u6001/\u7528\u91cf/\u5bc6\u94a5\uff0c\u5e76\u6307\u5bfc\u63a5\u5165 Claude Code \u7b49\u5176\u4ed6 AI \u5de5\u5177',
     auto: '\u26a1 \u81ea\u52a8\uff08\u6700\u5f3a\u4f18\u5148\uff09',
     welcome: '\u5728\u8fd9\u91cc\u76f4\u63a5\u4f7f\u7528\u514d\u8d39\u6a21\u578b\u5bf9\u8bdd\u3002\u300c\u81ea\u52a8\u300d\u4f1a\u6309\u80fd\u529b\u5206\u81ea\u52a8\u9009\u6700\u5f3a\u7684\u514d\u8d39\u6a21\u578b\uff1b\u4f1a\u8bdd\u5386\u53f2\u4fdd\u7559\u5728\u672c\u9875\u3002',
-    ph_input: '\u8f93\u5165\u6d88\u606f\u2026\uff08Enter \u53d1\u9001\uff0cShift+Enter \u6362\u884c\uff09',
+    ph_input: '\u7ba1\u5bb6\u5df2\u5c31\u7eea\uff1a\u53ef\u95ee\u7528\u91cf/\u5bc6\u94a5/\u5f39\u6027\u72b6\u6001\u3001\u8bca\u65ad\u8bf7\u6c42\u5931\u8d25\u3001\u6307\u5bfc\u628a\u7f51\u5173\u63a5\u5165 Claude Code \u7b49\u5176\u4ed6 AI \u5de5\u5177\uff1b\u4e5f\u53ef\u76f4\u63a5\u95f2\u804a\u3002Enter \u53d1\u9001',
+    ops_tool: '\U0001F527 ',
     err_key: '\u7f51\u5173\u4ee4\u724c\u7f3a\u5931\u6216\u65e0\u6548\u2014\u2014\u4ece ofd \u684c\u9762\u7aef\u6253\u5f00\u672c\u9875\uff0c\u6216\u5728\u7f51\u5740\u540e\u52a0 ?key=<ofd gateway-key \u7684\u8f93\u51fa>',
-    sending: '\u6d41\u5f0f\u8f93\u51fa\u4e2d\u2026', done: '\u5b8c\u6210', err: '\u5931\u8d25',
+    sending: '\u601d\u8003\u4e2d\u2026', done: '\u5b8c\u6210', err: '\u5931\u8d25',
   },
 };
 const t = (k) => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
@@ -109,7 +120,8 @@ modelSel.options[0].textContent = t('auto');
     const saved = localStorage.getItem('ofd-chat-model') || '';
     for (const m of body.data || []) {
       const o = document.createElement('option');
-      o.value = m.id; o.textContent = (m.owned_by ? m.owned_by + ' / ' : '') + m.id;
+      const vn = (window.OFD && OFD.vendorName) ? OFD.vendorName(m.owned_by || '', LANG) : (m.owned_by || '');
+      o.value = m.id; o.textContent = (vn ? vn + ' · ' : '') + m.id;
       modelSel.appendChild(o);
     }
     if (saved && [...modelSel.options].some(o => o.value === saved)) modelSel.value = saved;
@@ -132,6 +144,25 @@ function bubble(role, cls) {
   return body;
 }
 
+// --- 管家模式（工具调用循环）：同源调 dashboard API，无 CORS 问题 ---
+const OPS_SYS = LANG === 'zh'
+  ? '你是 OmniFusion 本地网关的 AI 管家，用用户的语言简洁回答。可用工具：get_providers（各提供商状态/模型数/延迟/冷却）、get_keys（密钥来源与各厂商申请页）、get_usage（用量与配额余量）、get_resilience（熔断/冷却/失败记录）、get_audit（最近请求审计）。常见任务：诊断请求为什么失败、推荐免费/最便宜的模型、指导把网关接入其他 AI 工具（终端 ofd connect <claude|codex|gemini|opencode>，桌面端点「一键接入」）、指导申请密钥（告知对应厂商的申请页）。涉及具体数据一律先调工具再回答，不要编造。'
+  : 'You are the AI butler of the local OmniFusion gateway. Answer concisely in the user\'s language. Tools: get_providers (provider status/models/latency/cooldowns), get_keys (key sources and per-vendor signup pages), get_usage (usage and quota headroom), get_resilience (breakers/cooldowns/failures), get_audit (recent request audit). For anything involving live data, call a tool first - never invent numbers. Common tasks: diagnose failed requests, recommend free or cheapest models, guide wiring the gateway into other AI tools (terminal: ofd connect <claude|codex|gemini|opencode>; desktop: the one-click button), point users to the right key-signup page.';
+const OPS_TOOLS = [
+  { type: 'function', function: { name: 'get_providers', description: 'List all providers with status, model count, latency, success rate and cooldowns', parameters: { type: 'object', properties: {}, required: [] } } },
+  { type: 'function', function: { name: 'get_keys', description: 'List per-provider key sources and official signup URLs', parameters: { type: 'object', properties: {}, required: [] } } },
+  { type: 'function', function: { name: 'get_usage', description: 'List per-provider usage and quota headroom (rpm/rpd/tpm/tpd)', parameters: { type: 'object', properties: {}, required: [] } } },
+  { type: 'function', function: { name: 'get_resilience', description: 'List breakers, cooldowns, failure kinds and recent failure rows', parameters: { type: 'object', properties: {}, required: [] } } },
+  { type: 'function', function: { name: 'get_audit', description: 'List the most recent request audit rows', parameters: { type: 'object', properties: {}, required: [] } } },
+];
+const OPS_EXEC = {
+  get_providers: () => fetch('api/providers' + (key ? '?key=' + encodeURIComponent(key) : '')).then(r => r.text()),
+  get_keys: () => fetch('api/keys' + (key ? '?key=' + encodeURIComponent(key) : '')).then(r => r.text()),
+  get_usage: () => fetch('api/usage' + (key ? '?key=' + encodeURIComponent(key) : '')).then(r => r.text()),
+  get_resilience: () => fetch('api/resilience' + (key ? '?key=' + encodeURIComponent(key) : '')).then(r => r.text()),
+  get_audit: () => fetch('api/audit?limit=20' + (key ? '&key=' + encodeURIComponent(key) : '')).then(r => r.text()),
+};
+
 async function sendMsg() {
   const text = input.value.trim();
   if (!text || busy) return;
@@ -142,40 +173,82 @@ async function sendMsg() {
   abort = new AbortController();
   const out = bubble(modelSel.value, 'assistant');
   status.textContent = t('sending');
-  let acc = '';
   try {
+    if (document.getElementById('ops').checked) await runOps(out); else await runStream(out);
+    status.textContent = t('done');
+  } catch (e) {
+}
+
+// runStream：普通对话（流式）。ops 关闭时走此路径。
+async function runStream(out) {
+  let acc = '';
+  const resp = await fetch('/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+    signal: abort.signal,
+    body: JSON.stringify({ model: modelSel.value, stream: true, messages: history }),
+  });
+  if (!resp.ok) {
+    const b = await resp.json().catch(() => ({}));
+    throw new Error((b.error && b.error.message) || ('HTTP ' + resp.status));
+  }
+  const reader = resp.body.getReader(), dec = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 1);
+      if (!line.startsWith('data:')) continue;
+      const data = line.slice(5).trim();
+      if (data === '[DONE]') continue;
+      try {
+        const ch = JSON.parse(data);
+        const delta = ch.choices && ch.choices[0] && ch.choices[0].delta && ch.choices[0].delta.content;
+        if (delta) { acc += delta; out.textContent = acc; log.scrollTop = log.scrollHeight; }
+      } catch (e) {}
+    }
+  }
+  if (acc) history.push({ role: 'assistant', content: acc });
+}
+
+// runOps：管家模式（非流式 + 工具循环）。LLM 提议工具调用 → 本页同源
+// 执行 dashboard API → 结果回喂 → 直至产出最终回答（上限 4 轮防失控）。
+async function runOps(out) {
+  const msgs = [{ role: 'system', content: OPS_SYS }, ...history];
+  for (let round = 0; round < 4; round++) {
     const resp = await fetch('/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
       signal: abort.signal,
-      body: JSON.stringify({ model: modelSel.value, stream: true, messages: history }),
+      body: JSON.stringify({ model: modelSel.value, messages: msgs, tools: OPS_TOOLS, max_tokens: 2000 }),
     });
     if (!resp.ok) {
       const b = await resp.json().catch(() => ({}));
       throw new Error((b.error && b.error.message) || ('HTTP ' + resp.status));
     }
-    const reader = resp.body.getReader(), dec = new TextDecoder();
-    let buf = '';
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      let idx;
-      while ((idx = buf.indexOf('\n')) >= 0) {
-        const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 1);
-        if (!line.startsWith('data:')) continue;
-        const data = line.slice(5).trim();
-        if (data === '[DONE]') continue;
-        try {
-          const ch = JSON.parse(data);
-          const delta = ch.choices && ch.choices[0] && ch.choices[0].delta && ch.choices[0].delta.content;
-          if (delta) { acc += delta; out.textContent = acc; log.scrollTop = log.scrollHeight; }
-        } catch (e) {}
+    const msg = (await resp.json()).choices[0].message;
+    if (msg.tool_calls && msg.tool_calls.length) {
+      msgs.push(msg);
+      for (const tc of msg.tool_calls) {
+        const name = tc.function.name;
+        status.textContent = t('ops_tool') + name;
+        let result;
+        try { result = await ((OPS_EXEC[name] || async () => '"unknown tool"')()); }
+        catch (e) { result = JSON.stringify({ error: String(e) }); }
+        msgs.push({ role: 'tool', tool_call_id: tc.id, content: result });
       }
+      continue;
     }
-    if (acc) history.push({ role: 'assistant', content: acc });
-    status.textContent = t('done');
-  } catch (e) {
+    const acc = msg.content || '';
+    out.textContent = acc; log.scrollTop = log.scrollHeight;
+    history.push({ role: 'assistant', content: acc });
+    return;
+  }
+  throw new Error('tool loop exceeded');
+}
     if (e.name === 'AbortError') { if (acc) history.push({ role: 'assistant', content: acc }); status.textContent = t('done'); }
     else { out.innerHTML = '<span class="err">' + esc(String(e.message || e)) + '</span>'; status.textContent = t('err');
            history.pop(); } // 失败回合不入历史

@@ -242,6 +242,61 @@ func applyOpenCode(home, base, token string, connect, printOnly bool) (string, e
 	return fmt.Sprintf("%s %s%s（重启 opencode 生效；模型选 OmniFusion ⚡ auto）", map[bool]string{true: "已写入", false: "已清除"}[connect], path, bakNote(bak)), nil
 }
 
+// applyPi 合并 ~/.pi/agent/models.json（pi coding agent 的自定义
+// provider 文件）：providers.omnifusion = 聚合网关（OpenAI 兼容端点，
+// 聚合令牌；模型暴露 @quality/@cheap 指令）——pi 从此用聚合密钥驱动，
+// 厂商真实密钥不出网关。
+func applyPi(path, base, token string, connect, printOnly bool) (string, error) {
+	m := map[string]any{}
+	if b, err := os.ReadFile(path); err == nil {
+		if err := json.Unmarshal(b, &m); err != nil {
+			return "", fmt.Errorf("parse %s: %w（手动处理见 ofd connect pi --print）", path, err)
+		}
+	}
+	prov, _ := m["providers"].(map[string]any)
+	if prov == nil {
+		prov = map[string]any{}
+	}
+	if connect {
+		prov["omnifusion"] = map[string]any{
+			"baseUrl": base + "/v1",
+			"api":     "openai-completions",
+			"apiKey":  token,
+			"models": []map[string]any{
+				{"id": "@quality"},
+				{"id": "@cheap"},
+			},
+		}
+	} else {
+		delete(prov, "omnifusion")
+	}
+	if len(prov) == 0 {
+		delete(m, "providers")
+	} else {
+		m["providers"] = prov
+	}
+	out, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	if printOnly {
+		return fmt.Sprintf("将%s %s:\n%s", map[bool]string{true: "写入", false: "从"}[connect], path, out), nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", err
+	}
+	bak := backupIfExists(path)
+	if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
+		return "", err
+	}
+	verb := map[bool]string{true: "已写入", false: "已清除"}[connect]
+	tail := "（启动 pi 后 /model 选 omnifusion/@quality 即走聚合网关）"
+	if !connect {
+		tail = "（重启 pi 生效）"
+	}
+	return fmt.Sprintf("%s %s%s %s", verb, path, bakNote(bak), tail), nil
+}
+
 func opencodeSnippet(base, token string, connect bool) string {
 	if !connect {
 		return "{ ... 删除 provider.omnifusion 块 ... }"

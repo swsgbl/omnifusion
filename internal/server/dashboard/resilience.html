@@ -170,7 +170,7 @@ async function load() {
     const cds = document.getElementById('cooldowns');
     cds.innerHTML = body.cooldowns.length
       ? body.cooldowns.map(c => '<tr>' + [
-          cell('', esc(c.provider)), cell('', esc(c.scope)), cell('', esc(c.model || '–')),
+          cell('', esc(OFD.pname(c.provider, LANG))), cell('', esc(c.scope)), cell('', esc(c.model || '–')),
           cell('', untilStr(c.until)), cell('', esc(c.reason)),
         ].join('') + '</tr>').join('')
       : `<tr><td colspan="5" class="empty">${t('empty_isolations')}</td></tr>`;
@@ -188,7 +188,7 @@ async function load() {
     const prs = document.getElementById('providers');
     prs.innerHTML = body.providers.length
       ? body.providers.map(p => '<tr>' + [
-          cell('', esc(p.name)),
+          cell('', esc(OFD.pname(p.name, LANG))),
           cell('num', p.latency_ms ? p.latency_ms.toFixed(0) : '–'),
           cell('num', p.success_rate ? (p.success_rate * 100).toFixed(0) + '%' : '–'),
           cell('', p.last_success_at ? esc(p.last_success_at) : '–'),
@@ -220,6 +220,7 @@ load();
 setInterval(load, 5000);
 </script>
 <script src="assets/gsap.min.js"></script>
+<script src="assets/providers-meta.js"></script>
 <script src="assets/motion.js"></script>
 </body>
 </html>
