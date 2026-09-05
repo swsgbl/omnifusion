@@ -6,11 +6,11 @@ OmniFusion aims to aggregate free-tier models from providers worldwide behind on
 
 ## Now (September 2026)
 
-- Publish a provider/free-tier matrix generated from the built-in registry.
+- Keep the provider/free-tier matrix in `PROVIDERS.md` generated from the built-in registry.
 - Publish a three-minute Windows desktop getting-started video.
 - Add `ofd doctor`: check ports, stored keys, catalog synchronization, upstream reachability, and protocol handshakes.
 - Add route explanations: expose health, latency, quota, cooldown, and model-membership inputs used by routing decisions.
-- Expand Agent/CLI recipes for Claude Code, Codex, Gemini CLI, and OpenCode.
+- Expand screenshots and troubleshooting in the Agent/CLI recipes for Claude Code, Codex, Gemini CLI, and OpenCode.
 
 ## Next (October - November 2026)
 

@@ -22,6 +22,7 @@
 
 - 当前推进方向：[ROADMAP.md](ROADMAP.md)；
 - 内置厂商目录：[PROVIDERS.md](PROVIDERS.md)；
+- Agent / CLI 接入配方：[AGENT_RECIPES.md](AGENT_RECIPES.md)（English）；
 - 用户可感知的变更见 [CHANGELOG.md](CHANGELOG.md)；
 - 部署与编排：[deploy/README.md](deploy/README.md)（Docker/compose/systemd/Prometheus/Grafana，含零密钥 mock 验证栈与冒烟脚本）；
 - 桌面端构建：[apps/desktop](apps/desktop)（build.cmd）。

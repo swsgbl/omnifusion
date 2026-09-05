@@ -22,6 +22,7 @@ Aggregate multiple LLM providers (free tiers first, BYOK — bring your own keys
 
 - Current focus areas: [ROADMAP.md](ROADMAP.md);
 - Built-in provider declarations: [PROVIDERS.md](PROVIDERS.md);
+- Agent and CLI connection recipes: [AGENT_RECIPES.md](AGENT_RECIPES.md);
 - User-visible changes: [CHANGELOG.md](CHANGELOG.md);
 - Deployment & orchestration: [deploy/README.md](deploy/README.md) (Docker/compose/systemd/Prometheus/Grafana, incl. a zero-key mock verification stack and smoke script);
 - Desktop build: [apps/desktop](apps/desktop) (build.cmd).
