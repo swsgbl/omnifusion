@@ -43,10 +43,11 @@ func renderMatrix(date string, entries []registry.Entry) string {
 	var b strings.Builder
 	b.WriteString("# Built-in Provider Matrix\n\n")
 	b.WriteString("Last regenerated: " + mdEscape(date) + "\n\n")
-	b.WriteString(fmt.Sprintf(
+	fmt.Fprintf(
+		&b,
 		"OmniFusion currently ships %d built-in provider declarations and accepts custom OpenAI-compatible, Anthropic, and Gemini provider declarations. ",
 		len(entries),
-	))
+	)
 	b.WriteString("The goal is continuous global free-provider aggregation; the table below describes what this repository currently ships. Upstream quotas and model availability change frequently, so always confirm the provider's current terms before production use.\n\n")
 	b.WriteString("Regenerate this page after changing a declaration:\n\n")
 	b.WriteString("```bash\ngo run ./scripts/provider-matrix -date YYYY-MM-DD -out PROVIDERS.md\n```\n\n")
