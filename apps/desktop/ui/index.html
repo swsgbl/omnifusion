@@ -374,24 +374,37 @@ $("btnKeyAdd").onclick = async () => {
     setMsg(t.msgKeyAddOk, "ok");
   } catch (e) { setMsg(t.msgKeyAddFail + locErr(e), "err"); }
 };
-// 一键申请密钥：从网关 keys API 取该厂商的官方申请页并打开浏览器。
-let signupMap = {};
-async function loadSignupMap() {
-  try {
-    const base = $("inBase").value.trim() || "http://127.0.0.1:20130";
-    const k = encodeURIComponent($("inKey").value.trim());
-    const resp = await fetch(`${base}/dashboard/api/keys${k ? "?key=" + k : ""}`);
-    if (!resp.ok) return;
-    const body = await resp.json();
-    signupMap = {};
-    (body.keys || []).forEach(r => { if (r.signup_url) signupMap[r.provider] = r.signup_url; });
-  } catch { /* 网关未起时静默 */ }
-}
+// 一键申请密钥：静态映射内嵌（与注册表 signup_url 声明同步维护）——
+// 不经网关 API（壳是 tauri.localhost 源，跨源 fetch 会被 CORS 拦截；
+// 且申请第一个 key 时网关可能还没启动，功能必须独立于网关可用）。
+const SIGNUP = {
+  anthropic: "https://console.anthropic.com/settings/keys",
+  ark: "https://console.volcengine.com/ark",
+  cerebras: "https://cloud.cerebras.ai",
+  chutes: "https://chutes.ai",
+  cloudflare: "https://dash.cloudflare.com",
+  cohere: "https://dashboard.cohere.com/api-keys",
+  deepseek: "https://platform.deepseek.com/api_keys",
+  gemini: "https://aistudio.google.com/app/apikey",
+  groq: "https://console.groq.com/keys",
+  huggingface: "https://huggingface.co/settings/tokens",
+  hunyuan: "https://console.cloud.tencent.com/hunyuan/api-key",
+  mimo: "https://mimo.mi.com",
+  mistral: "https://console.mistral.ai/api-keys",
+  modelscope: "https://modelscope.cn/my/tokens",
+  nvidia: "https://build.nvidia.com",
+  openrouter: "https://openrouter.ai/keys",
+  qianfan: "https://console.bce.baidu.com/qianfan",
+  qwen: "https://bailian.console.aliyun.com",
+  sambanova: "https://cloud.sambanova.ai",
+  siliconflow: "https://cloud.siliconflow.cn/account/ak",
+  spark: "https://console.xfyun.cn",
+  together: "https://api.together.ai/settings/api-keys",
+  zhipu: "https://open.bigmodel.cn/usercenter/apikeys",
+};
 $("btnSignup").onclick = async () => {
-  const provider = $("selProvider").value;
-  if (!signupMap[provider]) await loadSignupMap();
-  const url = signupMap[provider];
-  if (!url) { setMsg(t.msgSignupFail + provider, "err"); return; }
+  const url = SIGNUP[$("selProvider").value];
+  if (!url) { setMsg(t.msgSignupFail + $("selProvider").value, "err"); return; }
   try { await invoke("open_signup", { url }); } catch (e) { setMsg(t.msgSignupFail + locErr(e), "err"); }
 };
 $("btnConnect").onclick = async () => {
