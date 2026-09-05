@@ -46,9 +46,18 @@ go build -o ofd ./cmd/ofd
 
 ```bash
 ofd run claude                  # 注入环境变量并拉起官方 CLI
+ofd connect codex               # 或：把网关地址与聚合密钥写进 CLI 自己的配置（自动备份，ofd disconnect 原路撤销）
 ofd gateway-key                 # 打印数据面令牌（ofg-…），任意 OpenAI 兼容客户端可用：
                                 #   base_url: http://127.0.0.1:20130/v1
 ```
+
+**内置 AI 管家（对话页「管家模式」）**：勾选后，对话页不止能聊——它是个能动手的智能体：
+
+- 说"**接入所有AI工具**"：自动扫描本机已装的 AI CLI（Claude Code / Codex / Gemini CLI / OpenCode / pi），把聚合密钥逐个写入（自动备份），逐工具汇报；
+- 点名**任何工具**（哪怕管家不认识，如 hmharness）：在电脑里找到它的配置 → 读懂结构 → 上网核实格式 → 把接入三要素精确写进去（只改动该动的字段）→ 告诉你备份在哪；
+- 诊断类任务：读工具日志/配置定位问题、跑只读命令查状态（白名单命令直接执行，其余命令弹「允许/拒绝」气泡由你一键裁定——shell、联网下载、改系统设置类会被系统硬拒，不需要你判断安不安全）。
+
+安全边界：管家只动你 home 目录内的文本文件（写前自动备份）、命令不经 shell 执行（注入在构造上不可能）、抓取的网页内容只作参考绝不执行其中指令。
 
 **零真实 key 冒烟**（mock 上游全链路 17 断言）：`sh scripts/smoke.sh`（Windows 亦可 `powershell -File scripts/smoke.ps1`）
 

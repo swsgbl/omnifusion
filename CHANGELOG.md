@@ -2,13 +2,36 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
-## [Unreleased]
+## [v0.1.7] - 2026-09-06
+
+AI 管家轮：对话页从"会聊"到"会动手"——发现、读改写、核实、受约束执行。
+> EN: The AI-butler release — the chat page becomes a real agent: discover tools on your machine, read & edit their configs, verify formats online, and run commands within hard safety rails.
 
 ### 新增
 
+- **对话页管家 = 真 AI 智能体（自动发现并接入本机 AI 工具）**：对管家说"接入所有AI工具"或点名任意工具（如 hmharness），它自己动手——
+  - **scan_ai_tools / wire_ai_tool / unwire**：扫描本机已知五款 CLI（Claude Code / Codex / Gemini CLI / OpenCode / pi）的安装与接入状态，把聚合密钥确定性写入（写前自动备份），逐工具汇报；写入器与 `ofd connect` 共用 internal/connect 单一实现；
+  - **find_ai_tool**：按名字找任何工具在本机的踪迹（PATH 可执行、home 点目录、`~/.config`、AppData，目录命中带文件预览），不认识的工具不再只给配方；
+  - **read_file / edit_file / write_file / patch_config**：读 home 内任意文本文件（日志/配置/脚本）；非 JSON 文件唯一匹配精确替换（old 恰好一次，备份先行）；全新文件整写；JSON 配置点补丁（dotted path，只传改动点——大配置永不撞输出上限，用户其余字段机制性保留）。真实场景验证：hmharness 4KB 多厂商配置仅替换接入三要素，其余 10 家厂商条目一字未动；
+  - **web_fetch**：抓公网页面全文核实陌生工具的协议与配置格式（GitHub README 直读 raw.githubusercontent.com）——SSRF 守卫：仅 http/https、逐跳校验目标必须公网地址（回环/内网/链路本地硬拒）、512KB 限额；抓回内容按不可信数据处理，绝不执行其中指令；
+  - **run_command（受约束的执行手，非裸 Bash）**：三档裁定——白名单只读形态（`node -v`、`ofd status`、`tasklist`、`where/which` 等）直接执行；其余形态安全的单行命令须用户在对话页一键批准（允许/拒绝气泡，停止键自动视为拒绝）；shell/解释器/网络下载/系统变更程序（cmd/powershell/curl/wget/reg/setx/taskkill…）一律硬拒。结构性安全：参数数组直 exec 不经 shell（注入按构造不可能）、逐参数字符集白名单、20s 超时、输出 16KB 截断、工作目录钉 home、每次执行写日志；Windows 命令输出（GBK/OEM 码页）自动解码 UTF-8；
+  - **get_gateway_token**：接线步骤按需取聚合令牌明文（闲聊绝不调用；五家已知 CLI 的 wire 仍服务端传令牌，模型不经手）。
+- **密钥页配置状态一目了然**：新增「状态」列（绿 ✓ 已配置 / 灰 — 待申请，Ollama 计为开箱即用）；顶部汇总条（已配置 n 家 / 待申请 n 家）+ 全部/待申请筛选；「去申请 ↗」只在未配置行出现——动作只出现在还有活干的地方；
 - **`ofd connect/disconnect pi`**：pi coding agent 一键接入聚合网关——合并写入 `~/.pi/agent/models.json` 的 omnifusion provider（保留已有 provider，自动备份），pi 用聚合令牌 `ofg-…` 驱动，模型 `@quality`/`@cheap`；厂商真实密钥不出网关；桌面端「接入 CLI 客户端」下拉同步支持 pi；
 - **运维 AI 助手提示词**：`prompts/ops-agent.md`——现成 system prompt（只读优先、不索厂商密钥、免费档优先），pi / Claude Code 挂 `ofd mcp` 即成为网关运维助手；
-- **厂商名双语渲染**：dashboard 各表提供商列按语言显示「中文名 (id)」/「English name (id)」——id 括注保证与 CLI 命令对得上号（`providers-meta.js` 与注册表同步维护）。
+- **厂商名双语渲染**：dashboard 各表提供商列按语言显示「中文名 (id)」/「English name (id)」——id 括注保证与 CLI 命令对得上号。
+
+### 修复
+
+- **上游"200 + 空 choices"伪成功**：个别厂商偶发空响应曾被当成功并进语义缓存钉死 24 小时（同一请求持续命中空回复）——现归类为上游错误触发 failover，绝不入缓存；
+- **管家长链路静默截断（对话"不回复"）**：工具循环输出上限被 4KB 配置重写撞爆，截断消息被当空回复推进历史、页面无显示——上限提升至 12000，截断/空回复改为可见可重试的双语提示，工具参数解析失败回喂模型绝不带空参执行，服务端拒绝写入空内容；
+- **接入写入丢端口**：管家 API 生成的网关地址缺端口号（会打到 80）——与 CLI 共用 connect.Origin 统一归一。
+
+### 维护
+
+- 桌面安装器 PREINSTALL 钩子：静默升级自动退出运行中的旧程序（主程序整树 + 网关兜底），覆盖安装不再产出"版本混合"；
+- 内嵌页两处加载级缺陷：motion.js 重复 script 标签移除；首帧 ReferenceError 根治（脚本入 head + 渲染函数降级守卫）；
+- 仓库新增 `scripts/js-syntax-check.mjs`：dashboard 内联 JS 部署前语法门禁（本轮真拦截过一次字符串裸换行）。
 
 ## [v0.1.6] - 2026-09-05
 

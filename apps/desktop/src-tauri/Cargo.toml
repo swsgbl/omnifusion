@@ -1,6 +1,6 @@
 [package]
 name = "omnifusion-desktop"
-version = "0.1.6"
+version = "0.1.7"
 description = "OmniFusion desktop companion: manage the local gateway process and embed the dashboard"
 edition = "2021"
 

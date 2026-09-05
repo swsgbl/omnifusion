@@ -46,9 +46,18 @@ go build -o ofd ./cmd/ofd
 
 ```bash
 ofd run claude                  # injects env vars and launches the official CLI
+ofd connect codex               # or: write the gateway address + aggregated key into the CLI's own config (auto-backup; ofd disconnect reverts)
 ofd gateway-key                 # prints the data-plane token (ofg-…); any OpenAI-compatible client:
                                 #   base_url: http://127.0.0.1:20130/v1
 ```
+
+**Built-in AI butler** (chat page "Butler mode"): more than chat — an agent that can act:
+
+- Say "**wire all my AI tools**": it scans installed AI CLIs (Claude Code / Codex / Gemini CLI / OpenCode / pi), writes the aggregated key into each (auto-backup), and reports per tool;
+- Name **any tool** (even one it has never heard of, e.g. hmharness): it finds the config on your machine → reads the structure → verifies the format online → surgically writes the connection trio (untouched fields stay untouched) → tells you where the backup is;
+- Diagnostics: reads tool logs/configs to locate problems, runs read-only commands to check state (whitelisted forms run directly; anything else pops an Allow/Deny bubble — shells, network downloaders and system-changing tools are refused outright, no judgment calls needed from you).
+
+Safety boundary: the butler only touches text files inside your home (auto-backup first), runs commands without a shell (injection is impossible by construction), and treats fetched web content as reference data — never executing instructions found in it.
 
 **Zero-key smoke test** (mock upstreams, 17 end-to-end assertions): `sh scripts/smoke.sh` (on Windows: `powershell -File scripts/smoke.ps1`)
 
