@@ -177,6 +177,16 @@ async function sendMsg() {
     if (document.getElementById('ops').checked) await runOps(out); else await runStream(out);
     status.textContent = t('done');
   } catch (e) {
+    if (e.name === 'AbortError') {
+      status.textContent = t('done'); // 用户主动停止：部分回复已显示在 out
+    } else {
+      out.innerHTML = '<span class="err">' + esc(String(e.message || e)) + '</span>';
+      status.textContent = t('err');
+      history.pop(); // 失败回合不入历史
+    }
+  } finally {
+    busy = false; send.disabled = false; send.textContent = t('btn_send'); abort = null;
+  }
 }
 
 // runStream：普通对话（流式）。ops 关闭时走此路径。
@@ -194,22 +204,27 @@ async function runStream(out) {
   }
   const reader = resp.body.getReader(), dec = new TextDecoder();
   let buf = '';
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    let idx;
-    while ((idx = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 1);
-      if (!line.startsWith('data:')) continue;
-      const data = line.slice(5).trim();
-      if (data === '[DONE]') continue;
-      try {
-        const ch = JSON.parse(data);
-        const delta = ch.choices && ch.choices[0] && ch.choices[0].delta && ch.choices[0].delta.content;
-        if (delta) { acc += delta; out.textContent = acc; log.scrollTop = log.scrollHeight; }
-      } catch (e) {}
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 1);
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (data === '[DONE]') continue;
+        try {
+          const ch = JSON.parse(data);
+          const delta = ch.choices && ch.choices[0] && ch.choices[0].delta && ch.choices[0].delta.content;
+          if (delta) { acc += delta; out.textContent = acc; log.scrollTop = log.scrollHeight; }
+        } catch (e) {}
+      }
     }
+  } catch (e) {
+    if (e.name === 'AbortError' && acc) history.push({ role: 'assistant', content: acc }); // 停止保留半程回复
+    throw e;
   }
   if (acc) history.push({ role: 'assistant', content: acc });
 }
@@ -236,7 +251,7 @@ async function runOps(out) {
         const name = tc.function.name;
         status.textContent = t('ops_tool') + name;
         let result;
-        try { result = await ((OPS_EXEC[name] || async () => '"unknown tool"')()); }
+        try { result = await ((OPS_EXEC[name] || (async () => '"unknown tool"'))()); }
         catch (e) { result = JSON.stringify({ error: String(e) }); }
         msgs.push({ role: 'tool', tool_call_id: tc.id, content: result });
       }
@@ -248,13 +263,6 @@ async function runOps(out) {
     return;
   }
   throw new Error('tool loop exceeded');
-}
-    if (e.name === 'AbortError') { if (acc) history.push({ role: 'assistant', content: acc }); status.textContent = t('done'); }
-    else { out.innerHTML = '<span class="err">' + esc(String(e.message || e)) + '</span>'; status.textContent = t('err');
-           history.pop(); } // 失败回合不入历史
-  } finally {
-    busy = false; send.disabled = false; send.textContent = t('btn_send'); abort = null;
-  }
 }
 send.addEventListener('click', () => { if (busy && abort) abort.abort(); else sendMsg(); });
 input.addEventListener('keydown', (e) => {
