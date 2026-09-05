@@ -134,6 +134,10 @@ func TestApplyGeminiOverrideNotice(t *testing.T) {
 // TestApplyOpenCodeMergeAndJSONCGuard opencode.json 合并 + .jsonc 存在
 // 时拒绝自动写、给手动片段。
 func TestApplyOpenCodeMergeAndJSONCGuard(t *testing.T) {
+	// opencode 定位遵守 XDG_CONFIG_HOME——CI（ubuntu）常设该变量，钉住
+	// 空值确保测试的 home/.config 假设成立；OPENCODE_CONFIG 同理防泄漏。
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("OPENCODE_CONFIG", "")
 	home := t.TempDir()
 	dir := filepath.Join(home, ".config", "opencode")
 	if err := os.MkdirAll(dir, 0o755); err != nil {

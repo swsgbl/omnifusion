@@ -2,6 +2,7 @@ package server
 
 import (
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -15,7 +16,10 @@ func TestClassifyCommandTiers(t *testing.T) {
 		{"npm", "-v"}, {"python", "--version"}, {"py", "--version"},
 		{"git", "--version"}, {"go", "version"}, {"tasklist"},
 		{"where", "hmharness"}, {"which", "codex"},
-		{"OFD.EXE", "status"}, // 归一化大小写/.exe
+	}
+	// .exe 归一化仅 Windows 生效（normalizeProgram 按 GOOS 剥后缀）。
+	if runtime.GOOS == "windows" {
+		auto = append(auto, []string{"OFD.EXE", "status"})
 	}
 	for _, f := range auto {
 		if d, _ := classifyCommand(f); d != execAuto {

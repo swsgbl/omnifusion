@@ -8,7 +8,7 @@ import (
 )
 
 // TestFindToolNamedDiscovery 靶向发现：home 点目录与 AppData 变体
-//（hm-harness 子串/宽松匹配）都能找到，且目录命中带顶层预览。
+// （hm-harness 子串/宽松匹配）都能找到，且目录命中带顶层预览。
 func TestFindToolNamedDiscovery(t *testing.T) {
 	orig, err := homedir()
 	if err != nil {
@@ -64,13 +64,14 @@ func TestFindToolSweep(t *testing.T) {
 }
 
 // TestResolveHomePathGuards 相对路径按 home 解析；".." 与越界绝对路径
-// 一律拒绝。
+// 一律拒绝。分隔符平台条件化：反斜杠点对在 Windows 才是路径分隔。
 func TestResolveHomePathGuards(t *testing.T) {
 	home := t.TempDir()
 	if p, err := resolveHomePath(home, ".foo/config.json"); err != nil || !underDir(home, p) {
 		t.Errorf("relative resolve: %q %v", p, err)
 	}
-	if _, err := resolveHomePath(home, `..\..\.gitconfig`); err == nil {
+	dotdot := filepath.Join("..", "..", ".gitconfig")
+	if _, err := resolveHomePath(home, dotdot); err == nil {
 		t.Error("dotdot escape accepted")
 	}
 	outside := filepath.Join(filepath.Dir(home), "elsewhere.json")
@@ -109,7 +110,7 @@ func TestReadFileGuards(t *testing.T) {
 }
 
 // TestWriteFileBackupAndNoMkdir 覆盖自动备份；目录不存在拒写
-//（管家应回问用户，不是乱建目录）。
+// （管家应回问用户，不是乱建目录）。
 func TestWriteFileBackupAndNoMkdir(t *testing.T) {
 	fake := t.TempDir()
 	t.Setenv("USERPROFILE", fake)
