@@ -157,7 +157,7 @@ func TestBackgroundLifecycle(t *testing.T) {
 		t.Fatal("empty id")
 	}
 	// go version 毫秒级退出；轮询至完成态。
-	var alive bool = true
+	alive := true
 	var output string
 	for i := 0; i < 50 && alive; i++ {
 		bgMu.Lock()
