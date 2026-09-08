@@ -72,6 +72,8 @@ func (s *Server) handleDashboardAPI(w http.ResponseWriter, r *http.Request) {
 		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleButlerPatch)
 	case "butler/run-command":
 		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleButlerRunCommand)
+	case "butler/collect-output":
+		s.scopeGuard(w, r, ScopeRoute, http.MethodPost, s.handleButlerCollect)
 	case "butler/web-fetch":
 		s.scopeGuard(w, r, ScopeHealth, http.MethodPost, s.handleButlerWebFetch)
 	default:

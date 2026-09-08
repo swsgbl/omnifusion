@@ -1,10 +1,12 @@
 package server
 
 import (
+	"fmt"
 	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestClassifyCommandTiers 三档裁定：白名单直执 / 安全形态需批准 /
@@ -75,7 +77,7 @@ func TestRunCommandExecNoShell(t *testing.T) {
 		t.Skip("go not in PATH")
 	}
 	s := &Server{}
-	out := s.runCommand([]string{goPath, "version"})
+	out := s.runCommand([]string{goPath, "version"}, time.Minute, 0, 0)
 	if out["error"] != nil {
 		t.Fatalf("run failed: %v", out["error"])
 	}
@@ -85,4 +87,108 @@ func TestRunCommandExecNoShell(t *testing.T) {
 	if !strings.Contains(out["output"].(string), "go version") {
 		t.Errorf("output = %v", out["output"])
 	}
+}
+
+// TestTruncateOutputHeadTail 超长输出保头保尾、行数标注、默认值正确。
+func TestTruncateOutputHeadTail(t *testing.T) {
+	small := strings.Repeat("line\n", 10)
+	if got := truncateOutput(small, 0, 0); got != small {
+		t.Errorf("small output must pass through, got %d chars", len(got))
+	}
+	lines := make([]string, 500)
+	for i := range lines {
+		lines[i] = fmt.Sprintf("%04d-", i) + strings.Repeat("x", 60) // 每行足够长以触发总量超限
+	}
+	big := strings.Join(lines, "\n")
+	got := truncateOutput(big, 2, 3)
+	if !strings.Contains(got, "0001-") || !strings.Contains(got, "0499-") {
+		t.Error("head/tail not preserved")
+	}
+	if !strings.Contains(got, "省略") {
+		t.Error("ellipsis marker missing")
+	}
+	if strings.Contains(got, "0250-") {
+		t.Error("middle lines must be dropped")
+	}
+	// 默认 50/300。
+	got = truncateOutput(big, 0, 0)
+	if !strings.Contains(got, "0049-") || !strings.Contains(got, "0499-") {
+		t.Error("default head/tail wrong")
+	}
+}
+
+// TestClampWait 等待秒数夹取：0/负数回默认 60，超 300 夹 300。
+func TestClampWait(t *testing.T) {
+	if got := clampWait(0); got != 60*time.Second {
+		t.Errorf("0 -> %v, want 60s", got)
+	}
+	if got := clampWait(-5); got != 60*time.Second {
+		t.Errorf("-5 -> %v, want 60s", got)
+	}
+	if got := clampWait(5); got != 5*time.Second {
+		t.Errorf("5 -> %v, want 5s", got)
+	}
+	if got := clampWait(9999); got != 300*time.Second {
+		t.Errorf("9999 -> %v, want 300s", got)
+	}
+}
+
+// TestBackgroundLifecycle 后台任务全生命周期：启动→输出进缓冲→完成态
+// 可观察；完成前单槽拒绝第二个后台。
+func TestBackgroundLifecycle(t *testing.T) {
+	goPath, err := exec.LookPath("go")
+	if err != nil {
+		t.Skip("go not in PATH")
+	}
+	s := &Server{}
+	// 清场：单槽全局，测试前确保空闲。
+	bgMu.Lock()
+	if bgCur != nil && !bgCur.done {
+		bgCur.cancel()
+	}
+	bgCur = nil
+	bgMu.Unlock()
+
+	id, ok := s.startBackground([]string{goPath, "version"}, "go version")
+	if !ok {
+		t.Fatal("startBackground refused")
+	}
+	if id == "" {
+		t.Fatal("empty id")
+	}
+	// go version 毫秒级退出；轮询至完成态。
+	var alive bool = true
+	var output string
+	for i := 0; i < 50 && alive; i++ {
+		bgMu.Lock()
+		task := bgCur
+		bgMu.Unlock()
+		if task == nil {
+			t.Fatal("task vanished")
+		}
+		task.mu.Lock()
+		alive = !task.done
+		output += decodePlatform(task.buf.Bytes())
+		task.buf.Reset()
+		task.mu.Unlock()
+		if alive {
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+	if alive {
+		t.Error("background task never completed")
+	}
+	if !strings.Contains(output, "go version") {
+		t.Errorf("output = %q", output)
+	}
+	// 完成后的任务不再是活跃槽：新后台可再启动。
+	time.Sleep(50 * time.Millisecond)
+	if _, ok2 := s.startBackground([]string{goPath, "version"}, "again"); !ok2 {
+		t.Error("slot still busy after task done")
+	}
+	bgMu.Lock()
+	if bgCur != nil && !bgCur.done {
+		bgCur.cancel()
+	}
+	bgMu.Unlock()
 }

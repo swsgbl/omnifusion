@@ -10,6 +10,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -19,6 +20,8 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -26,10 +29,13 @@ import (
 )
 
 const (
-	execTimeout   = 20 * time.Second
-	execOutCap    = 16 << 10 // 返回给模型的输出上限
+	execOutCap    = 16 << 10 // 单次输出总读取上限
 	execMaxFields = 16       // 程序+参数段数上限
 	execMaxArgLen = 64       // 单参数长度上限
+	execMinWait   = 5        // 等待型命令最短等待秒数
+	execMaxWait   = 300      // 最长等待秒数
+	execDefaultWait = 60     // 默认等待秒数
+	execSneakPeek = 3 * time.Second // 后台命令首轮观察窗
 )
 
 // execDecision 是三档裁定的结果。
@@ -162,10 +168,16 @@ func normalizeProgram(p string) string {
 }
 
 // butlerRunRequest 是 run-command 端点请求体：approved=true 表示用户
-// 已在对话页点过允许（同源 ?key= 鉴权体系内的信任传递）。
+// 已在对话页点过允许（同源 ?key= 鉴权体系内的信任传递）。background=true
+// 起后台任务（不阻塞，回 ID 供 collect/interrupt）；head_lines/tail_lines
+// 是模型声明的截断保留行数（输出过长时保头保尾，错误通常在尾部）。
 type butlerRunRequest struct {
-	Command  string `json:"command"`
-	Approved bool   `json:"approved"`
+	Command   string `json:"command"`
+	Approved  bool   `json:"approved"`
+	Background bool  `json:"background,omitempty"`
+	TimeoutSec int   `json:"timeout_sec,omitempty"`
+	HeadLines int    `json:"head_lines,omitempty"`
+	TailLines int    `json:"tail_lines,omitempty"`
 }
 
 // handleButlerRunCommand 执行 run_command 裁定与运行。
@@ -194,43 +206,193 @@ func (s *Server) handleButlerRunCommand(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	out := s.runCommand(fields)
+	if req.Background {
+		id, started := s.startBackground(fields, cmd)
+		if !started {
+			writeAPIError(w, http.StatusConflict, "background slot busy; collect or interrupt first", "invalid_request_error", "")
+			return
+		}
+		if s.log != nil {
+			s.log.Info("butler exec background", "cmd", cmd, "id", id)
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"background": true, "id": id, "note": "命令已在后台运行；用 collect_output 收新输出、interrupt_command 打断"})
+		return
+	}
+
+	timeout := clampWait(req.TimeoutSec)
+	out := s.runCommand(fields, timeout, req.HeadLines, req.TailLines)
 	if s.log != nil {
 		s.log.Info("butler exec", "cmd", cmd, "approved", decision == execApproval, "exit", out["exit_code"], "timed_out", out["timed_out"])
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
-// runCommand 实际执行：无 shell 直 exec、超时杀、输出截断、cwd=home。
-func (s *Server) runCommand(fields []string) map[string]any {
-	ctx, cancel := context.WithTimeout(context.Background(), execTimeout)
+// clampWait 把模型声明的等待秒数夹到允许区间（缺省/越界回默认）。
+func clampWait(sec int) time.Duration {
+	if sec < execMinWait {
+		sec = execDefaultWait
+	}
+	if sec > execMaxWait {
+		sec = execMaxWait
+	}
+	return time.Duration(sec) * time.Second
+}
+
+// bgTask 是一个后台任务的登记项（单槽：管家一次盯一个长命令足够，
+// 多槽对小白没有增益只有混乱）。
+type bgTask struct {
+	cancel  context.CancelFunc
+	mu      sync.Mutex
+	buf     bytes.Buffer
+	done    bool
+	exitErr error
+	started time.Time
+	cmd     string
+}
+
+var (
+	bgMu    sync.Mutex
+	bgCur   *bgTask
+	bgSeq   atomic.Int64
+)
+
+// startBackground 起一个不阻塞的后台命令：前 3 秒输出同步收集到缓冲，
+// 之后由 goroutine 持续收尾；单槽——已占用时返回 false。
+func (s *Server) startBackground(fields []string, cmd string) (string, bool) {
+	bgMu.Lock()
+	if bgCur != nil && !bgCur.done {
+		bgMu.Unlock()
+		return "", false
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	task := &bgTask{cancel: cancel, started: time.Now(), cmd: cmd}
+	bgCur = task
+	bgMu.Unlock()
+
+	home, _ := os.UserHomeDir()
+	c := exec.CommandContext(ctx, fields[0], fields[1:]...)
+	c.Dir = home
+	c.Stdout = task
+	c.Stderr = task
+	if err := c.Start(); err != nil {
+		task.mu.Lock()
+		task.done, task.exitErr = true, err
+		task.mu.Unlock()
+		bgMu.Lock()
+		bgCur = nil
+		bgMu.Unlock()
+		return fmt.Sprintf("bg-%d", bgSeq.Add(1)), true
+	}
+	go func() {
+		waitErr := c.Wait()
+		task.mu.Lock()
+		task.done, task.exitErr = true, waitErr
+		task.mu.Unlock()
+		if s.log != nil {
+			s.log.Info("butler bg done", "cmd", cmd, "err", fmt.Sprintf("%v", waitErr))
+		}
+	}()
+	return fmt.Sprintf("bg-%d", bgSeq.Add(1)), true
+}
+
+// Write 实现 io.Writer：goroutine 安全地追加输出。
+func (t *bgTask) Write(p []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.buf.Len() < execOutCap {
+		t.buf.Write(p)
+	}
+	return len(p), nil
+}
+
+// handleButlerCollect 返回后台任务的新增输出并清空（长轮询由前端
+// 定频调用即可）。
+func (s *Server) handleButlerCollect(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID    string `json:"id"`
+		Kill  bool   `json:"kill"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<12)).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error(), "invalid_request_error", "")
+		return
+	}
+	bgMu.Lock()
+	task := bgCur
+	bgMu.Unlock()
+	// 单槽设计：ID 只是回执，collect 不传 ID 即"取当前任务"
+	//（工具 schema 不要求 id；传了 ID 但槽空则如实报未运行）。
+	if task == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"alive": false, "output": "", "note": "no background command running"})
+		return
+	}
+	if req.Kill {
+		task.cancel()
+	}
+	task.mu.Lock()
+	defer task.mu.Unlock()
+	out := decodePlatform(task.buf.Bytes())
+	task.buf.Reset()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"alive":     !task.done,
+		"output":    out,
+		"started_at": task.started.UTC().Format(time.RFC3339),
+		"command":   task.cmd,
+	})
+}
+
+// decodePlatform 把命令输出按需做 GBK→UTF-8 解码（Windows OEM 码页）。
+func decodePlatform(raw []byte) string {
+	if runtime.GOOS == "windows" && !utf8.Valid(raw) {
+		if dec, derr := simplifiedchinese.GBK.NewDecoder().Bytes(raw); derr == nil {
+			return string(dec)
+		}
+	}
+	return string(raw)
+}
+
+// runCommand 实际执行：无 shell 直 exec、超时杀、输出头尾智能截断、
+// cwd=home。等待型命令由调用方夹过的 timeout 控制。
+func (s *Server) runCommand(fields []string, timeout time.Duration, headLines, tailLines int) map[string]any {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	home, _ := os.UserHomeDir()
 	c := exec.CommandContext(ctx, fields[0], fields[1:]...)
 	c.Dir = home
 	raw, err := c.CombinedOutput()
 	timedOut := errors.Is(ctx.Err(), context.DeadlineExceeded)
-	// Windows 系统命令（tasklist/netstat 等）输出走 OEM 码页（中文系统
-	// =GBK）：非 UTF-8 字节按 GBK 解码，中文输出对模型可读。
-	if runtime.GOOS == "windows" && !utf8.Valid(raw) {
-		if dec, derr := simplifiedchinese.GBK.NewDecoder().Bytes(raw); derr == nil {
-			raw = dec
-		}
-	}
-	if len(raw) > execOutCap {
-		raw = append(raw[:execOutCap], []byte("\n…(输出截断)")...)
-	}
+	out := truncateOutput(decodePlatform(raw), headLines, tailLines)
 	exitCode := 0
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {
 		exitCode = exitErr.ExitCode()
 	} else if err != nil && !timedOut {
-		return map[string]any{"command": strings.Join(fields, " "), "error": fmt.Sprintf("spawn failed: %v", err), "output": string(raw)}
+		return map[string]any{"command": strings.Join(fields, " "), "error": fmt.Sprintf("spawn failed: %v", err), "output": out}
 	}
 	return map[string]any{
 		"command":   strings.Join(fields, " "),
 		"exit_code": exitCode,
 		"timed_out": timedOut,
-		"output":    string(raw),
+		"output":    out,
 	}
+}
+
+// truncateOutput 输出超长时保头保尾（错误通常在末尾，模型声明
+// head_lines/tail_lines；缺省 头50/尾300——与 uniterm 相同的经验值）。
+func truncateOutput(out string, headLines, tailLines int) string {
+	if len(out) <= execOutCap {
+		return out
+	}
+	if headLines <= 0 {
+		headLines = 50
+	}
+	if tailLines <= 0 {
+		tailLines = 300
+	}
+	lines := strings.Split(out, "\n")
+	if len(lines) <= headLines+tailLines {
+		return out
+	}
+	head := strings.Join(lines[:headLines], "\n")
+	tail := strings.Join(lines[len(lines)-tailLines:], "\n")
+	return head + "\n…（中间省略 " + fmt.Sprint(len(lines)-headLines-tailLines) + " 行）…\n" + tail
 }
