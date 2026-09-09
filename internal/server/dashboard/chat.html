@@ -575,9 +575,22 @@ async function runOps(out) {
     const msg = choice && choice.message;
     if (!msg) throw new Error('empty upstream response');
     if (choice.finish_reason === 'length') throw new Error(t('err_truncated'));
-    if (msg.tool_calls && msg.tool_calls.length) {
-      msgs.push(msg);
-      for (const tc of msg.tool_calls) {
+    // 兼容两种工具调用格式：① OpenAI 结构化 tool_calls；② 国产模型
+    //（GLM/Qwen 等）以纯文本 XML 格式输出的 <tool_call> 块。
+    let toolCalls = msg.tool_calls;
+    if (!toolCalls || !toolCalls.length) {
+      toolCalls = parseXmlToolCalls(msg.content || '');
+    }
+    if (toolCalls && toolCalls.length) {
+      // XML 格式工具调用时：把解析出的 tool_calls 注入 assistant 消息，
+      // content 中的<tool_call> 块去掉（已结构化），保留推理文本。
+      const assistantMsg = { ...msg };
+      if (!msg.tool_calls || !msg.tool_calls.length) {
+        assistantMsg.tool_calls = toolCalls;
+        assistantMsg.content = (msg.content || '').replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim() || null;
+      }
+      msgs.push(assistantMsg);
+      for (const tc of toolCalls) {
         const name = tc.function.name;
         let args = {};
         let result;
