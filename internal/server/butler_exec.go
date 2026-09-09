@@ -351,8 +351,13 @@ func decodePlatform(raw []byte) string {
 }
 
 // runCommand 实际执行：无 shell 直 exec、超时杀、输出头尾智能截断、
-// cwd=home。等待型命令由调用方夹过的 timeout 控制。
+// cwd=home。等待型命令由调用方夹过的 timeout 控制。命令自动翻译
+//（Unix→Windows 等），模型不需要知道平台（Codex exec args 模式）。
 func (s *Server) runCommand(fields []string, timeout time.Duration, headLines, tailLines int) map[string]any {
+	// 自动翻译：模型说"ls"，Windows 上自动变成"cmd /c dir /b"。
+	if translated, did := s.envFacts.TranslateCommand(strings.Join(fields, " ")); did {
+		fields = strings.Fields(translated)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	home, _ := os.UserHomeDir()

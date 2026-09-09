@@ -169,3 +169,8 @@ func (s *Server) handleButlerPatch(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, out)
 }
+
+// handleEnvFacts 返回启动时检测的环境事实（管家系统提示注入用）。
+func (s *Server) handleEnvFacts(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, s.envFacts)
+}

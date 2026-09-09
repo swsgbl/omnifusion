@@ -49,6 +49,7 @@ type Server struct {
 	defCombo atomic.Pointer[string] // 默认压缩组合（；nil/空 = 未设）
 	cstats   comboStats             // 压缩统计聚合（；零值可用，恒装配）
 	updates  *updateChecker         // 更新检查（；nil = 未启用，零行为）
+	envFacts EnvFacts               // 启动时检测的环境事实（管家系统提示注入用）
 }
 
 // New 装配 Server。
@@ -61,6 +62,16 @@ func (s *Server) SetRouter(r *routing.Router) { s.router = r }
 
 // SetCatalog 注入模型目录。
 func (s *Server) SetCatalog(c *routing.Catalog) { s.catalog = c }
+
+// DetectEnvironment 启动时一次性检测本机环境（管家系统提示注入用）。
+func (s *Server) DetectEnvironment() {
+	s.envFacts = DetectEnv()
+	if s.log != nil {
+		s.log.Info("butler environment detected",
+			"os", s.envFacts.OS, "arch", s.envFacts.Arch,
+			"shell", s.envFacts.Shell, "home", s.envFacts.HomeDir)
+	}
+}
 
 // SetCache 注入语义缓存。未装配时三端点非流式路径直通上游。
 func (s *Server) SetCache(c *intelligence.SemCache) { s.cache = c }

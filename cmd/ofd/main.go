@@ -117,6 +117,7 @@ func run() error {
 	}
 
 	srv := server.New(cfg, logger, st)
+	srv.DetectEnvironment() // 启动时检测 OS/shell/可用工具（管家系统提示注入用）
 	router, keySources := buildRouter(cfg, logger, st, kr)
 	srv.SetRouter(router)
 	srv.SetKeySources(keySources) // Dashboard keys 页的来源描述
