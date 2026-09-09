@@ -19,7 +19,7 @@ import (
 // updateSource 是一个 Release 元数据源。国内源（GitCode）直连可达，
 // 排在前；GitHub api.github.com 被墙环境下走系统代理或失败静默。
 var updateSources = []string{
-	"https://gitcode.com/api/v5/repos/swsgbl/omnifusion/releases/latest",
+	"https://gitcode.com/api/v5/repos/hongfu/omnifusion/releases/latest",
 	"https://api.github.com/repos/swsgbl/omnifusion/releases/latest",
 }
 
