@@ -339,6 +339,11 @@ func run() error {
 			"keep the gateway key secret and prefer a reverse proxy with TLS in front of it")
 	}
 
+	// 无遥测更新检查：启动后与每 24h 静默拉一次 Release 元数据（国内
+	// GitCode 直连优先、GitHub 兜底），发现新版本经 dashboard API 供
+	// UI 提示；升级动作永远由用户在浏览器确认。
+	srv.StartUpdateChecker(ctx)
+
 	if err := srv.ListenAndServe(ctx); err != nil && isAddrInUse(err) {
 		return biWrap(err,
 			"端口已被占用——先停掉旧实例（任务管理器结束 ofd.exe 或桌面端「停止网关」），或在配置里改 server.port",

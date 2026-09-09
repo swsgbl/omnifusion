@@ -249,6 +249,35 @@ fn gateway_stop(state: tauri::State<GatewayProc>) -> Result<String, String> {
     }
 }
 
+/// check_updates 代理网关的更新检查快照（壳与网关跨源，JS 不可直
+/// fetch——8f1b5e2 教训）。任何失败返回 Ok(None) 让徽标静默（内嵌页
+/// 横幅是主提醒面）。
+#[tauri::command]
+fn check_updates(app: AppHandle, base: String) -> Result<Option<Value>, String> {
+    let bin = resolve_bin(&app, "");
+    let mut cmd = Command::new(&bin);
+    cmd.arg("gateway-key")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    let out = match cmd.output() {
+        Ok(o) => o,
+        Err(_) => return Ok(None),
+    };
+    let key = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if key.is_empty() {
+        return Ok(None);
+    }
+    let path = format!("/dashboard/api/update?key={key}");
+    let raw = match http_get(&base, &path) {
+        Some(r) => r,
+        None => return Ok(None),
+    };
+    Ok(serde_json::from_str::<Value>(&raw).ok())
+}
+
 #[tauri::command]
 fn fetch_gateway_key(app: AppHandle, bin: String) -> Result<String, String> {
     let bin = resolve_bin(&app, &bin);
@@ -445,7 +474,8 @@ pub fn run() {
             dash_layout,
             dash_navigate,
             dash_visible,
-            open_signup
+            open_signup,
+            check_updates
         ])
         .setup(|app| {
             build_tray(app)?;

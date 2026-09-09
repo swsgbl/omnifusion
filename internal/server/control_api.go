@@ -34,6 +34,8 @@ func (s *Server) handleDashboardAPI(w http.ResponseWriter, r *http.Request) {
 		s.scopeGuard(w, r, ScopeHealth, http.MethodGet, s.handleDashboardModels)
 	case "health":
 		s.scopeGuard(w, r, ScopeHealth, http.MethodGet, s.handleDashboardHealth)
+	case "update":
+		s.scopeGuard(w, r, ScopeHealth, http.MethodGet, s.handleUpdateInfo)
 	case "usage":
 		s.scopeGuard(w, r, ScopeUsage, http.MethodGet, s.handleDashboardUsage)
 	case "audit":

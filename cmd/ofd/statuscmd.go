@@ -175,6 +175,8 @@ func runStatusCommand(cfg *config.Config) error {
 	now := time.Now()
 	stats := buildProviderStatuses(entries, conns, os.Getenv, mustLoadCooldowns(st, now), now)
 	renderStatus(os.Stdout, stats, cfg.Store.Path)
+	// 版本对照（有新版本才显示；查询失败/无更新静默不打扰）。
+	renderUpdateHint(os.Stdout, version)
 	return nil
 }
 

@@ -48,6 +48,7 @@ type Server struct {
 	pinUntil time.Time              // 钉选到期时刻（TTL，默认 30m）
 	defCombo atomic.Pointer[string] // 默认压缩组合（；nil/空 = 未设）
 	cstats   comboStats             // 压缩统计聚合（；零值可用，恒装配）
+	updates  *updateChecker         // 更新检查（；nil = 未启用，零行为）
 }
 
 // New 装配 Server。

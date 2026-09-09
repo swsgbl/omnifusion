@@ -14,6 +14,7 @@
   header { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--panel); }
   header h1 { font-size: 16px; font-weight: 600; }
   .badge { padding: 2px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); color: var(--muted); }
+  .badge.upd { text-decoration: none; border-color: #58a6ff; color: #79c0ff; cursor: pointer; }
   .badge.on { color: var(--accent); border-color: var(--accent); }
   .badge.off { color: var(--muted); }
   .badge.mgd { color: var(--accent2); border-color: var(--accent2); }
@@ -44,6 +45,7 @@
 <header>
   <h1>OmniFusion Desktop</h1>
   <span class="badge off" id="statusBadge"></span>
+  <a id="updateBadge" class="badge upd" style="display:none" target="_blank" rel="noopener noreferrer"></a>
   <div class="grow"></div>
   <select id="selLang" title="Language">
     <option value="auto">跟随系统 / Auto</option>
@@ -343,10 +345,31 @@ async function refresh() {
       navigateDashIfNeeded(); // URL 有变才导航（幂等，无重载）
     }
     dashWasRunning = s.running;
+    if (s.running) loadUpdateBadge(base);
   } catch (e) {
     $("statusBadge").textContent = t.msgProbeFail + e;
     $("statusBadge").className = "badge off";
   }
+}
+
+// loadUpdateBadge 经 Rust 代理命令拉更新快照显示徽标（壳与网关跨源，
+// 壳 JS 永不直接 fetch 网关 API——8f1b5e2 CORS 教训）；内嵌页横幅是
+// 主提醒面，徽标兜底每 40s 一次（等 server 首轮检查完成）。
+let updateTicker = 0;
+function loadUpdateBadge(base) {
+  if (updateTicker) return;
+  updateTicker = setInterval(async () => {
+    try {
+      const u = await invoke("check_updates", { base });
+      if (u && u.update_available) {
+        const el = $("updateBadge");
+        el.href = u.release_url || "https://gitcode.com/hongfu/omnifusion/releases";
+        el.textContent = "✨ " + (u.latest || "") + " ↗";
+        el.style.display = "";
+        clearInterval(updateTicker); updateTicker = 0; // 已展示即停轮询
+      }
+    } catch (e) { /* 静默：内嵌页横幅已覆盖提醒 */ }
+  }, 40000);
 }
 
 $("btnRefresh").onclick = refresh;
