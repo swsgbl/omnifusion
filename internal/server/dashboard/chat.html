@@ -485,7 +485,7 @@ function loadUpdateBar() {
     if (u && u.update_available) {
       const bar = document.getElementById('updatebar');
       const link = document.getElementById('updatelink');
-      link.href = u.release_url || 'https://gitcode.com/hongfu/omnifusion/releases';
+      link.href = u.release_url || 'https://atomgit.com/hongfu/omnifusion/releases';
       link.textContent = t('update_bar').replace('{v}', u.latest || '');
       bar.style.display = '';
     } else {

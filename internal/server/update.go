@@ -16,11 +16,14 @@ import (
 	"time"
 )
 
-// updateSource 是一个 Release 元数据源。国内源（GitCode）直连可达，
+// updateSource 是一个 Release 元数据源。国内主入口（AtomGit）直连可达，
 // 排在前；GitHub api.github.com 被墙环境下走系统代理或失败静默。
+// AtomGit 与 GitCode 是同一仓库的双域入口（数据同源）——主入口用
+// atomgit.com，gitcode 域留作第三路兜底。
 var updateSources = []string{
-	"https://gitcode.com/api/v5/repos/hongfu/omnifusion/releases/latest",
+	"https://atomgit.com/api/v5/repos/hongfu/omnifusion/releases/latest",
 	"https://api.github.com/repos/swsgbl/omnifusion/releases/latest",
+	"https://gitcode.com/api/v5/repos/hongfu/omnifusion/releases/latest",
 }
 
 // updateInterval 常规检查周期（24h）；启动首轮延迟 30s 让网关先就绪。

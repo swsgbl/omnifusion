@@ -363,7 +363,7 @@ function loadUpdateBadge(base) {
       const u = await invoke("check_updates", { base });
       if (u && u.update_available) {
         const el = $("updateBadge");
-        el.href = u.release_url || "https://gitcode.com/hongfu/omnifusion/releases";
+        el.href = u.release_url || "https://atomgit.com/hongfu/omnifusion/releases";
         el.textContent = "✨ " + (u.latest || "") + " ↗";
         el.style.display = "";
         clearInterval(updateTicker); updateTicker = 0; // 已展示即停轮询

@@ -14,10 +14,11 @@ import (
 	"time"
 )
 
-// cliUpdateSources 与 server 侧同源序（国内直连优先）。
+// cliUpdateSources 与 server 侧同源序（国内主入口 AtomGit 优先）。
 var cliUpdateSources = []string{
-	"https://gitcode.com/api/v5/repos/hongfu/omnifusion/releases/latest",
+	"https://atomgit.com/api/v5/repos/hongfu/omnifusion/releases/latest",
 	"https://api.github.com/repos/swsgbl/omnifusion/releases/latest",
+	"https://gitcode.com/api/v5/repos/hongfu/omnifusion/releases/latest",
 }
 
 // renderUpdateHint 查最新版本并在有更新时打一行提示；任何失败静默。
@@ -26,7 +27,7 @@ func renderUpdateHint(w io.Writer, current string) {
 	if tag == "" || !cliNewer(current, tag) {
 		return
 	}
-	_, _ = fmt.Fprintf(w, "\nupdate: %s available (this: %s) — https://gitcode.com/hongfu/omnifusion/releases\n", tag, current)
+	_, _ = fmt.Fprintf(w, "\nupdate: %s available (this: %s) — https://atomgit.com/hongfu/omnifusion/releases\n", tag, current)
 }
 
 // fetchLatestTagCLI 依序拉源，取第一个成功的 tag_name。
