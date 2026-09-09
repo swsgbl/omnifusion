@@ -144,9 +144,13 @@ func fetchLatestRelease(client *http.Client, src string) (tag, htmlURL string, e
 	return body.TagName, url, nil
 }
 
-// releasePageFallback html_url 缺失时的页面地址推导。
+// releasePageFallback html_url 缺失时的页面地址推导（AtomGit/GitCode
+// 同库双域：release JSON 常缺 html_url，回退到各自 Release 页）。
 func releasePageFallback(apiURL string) string {
-	if strings.Contains(apiURL, "gitcode") {
+	switch {
+	case strings.Contains(apiURL, "atomgit"):
+		return "https://atomgit.com/hongfu/omnifusion/releases"
+	case strings.Contains(apiURL, "gitcode"):
 		return "https://gitcode.com/hongfu/omnifusion/releases"
 	}
 	return "https://github.com/swsgbl/omnifusion/releases"
@@ -154,7 +158,10 @@ func releasePageFallback(apiURL string) string {
 
 // sourceName 源的可读名（观测用）。
 func sourceName(src string) string {
-	if strings.Contains(src, "gitcode") {
+	switch {
+	case strings.Contains(src, "atomgit"):
+		return "atomgit"
+	case strings.Contains(src, "gitcode"):
 		return "gitcode"
 	}
 	return "github"
