@@ -371,19 +371,26 @@ function applyLang() {
 }
 
 // --- ☰ 菜单 + 弹窗交互 ---
-$("btnMenu").onclick = (e) => {
+// 子 webview 是原生层，永远浮在壳 HTML 之上（z-index 无效）——打开
+// 菜单/弹窗必须把它藏住，否则菜单被对话页盖掉（v0.1.10 实测 bug）。
+async function hideDash() { if (dashReady) { try { await invoke("dash_visible", { visible: false }); } catch {} } }
+async function showDash() { if (dashReady) { try { await invoke("dash_visible", { visible: true }); } catch {} } }
+$("btnMenu").onclick = async (e) => {
   e.stopPropagation();
   const d = $("menuDrop");
-  d.style.display = d.style.display === "none" ? "flex" : "none";
+  const opening = d.style.display === "none";
+  d.style.display = opening ? "flex" : "none";
+  if (dashReady) { try { await invoke("dash_visible", { visible: !opening }); } catch {} }
 };
-document.addEventListener("click", (e) => {
+document.addEventListener("click", async (e) => {
   const d = $("menuDrop");
   if (d.style.display !== "none" && !d.contains(e.target) && e.target.id !== "btnMenu") {
     d.style.display = "none";
+    if (dashReady) { try { await invoke("dash_visible", { visible: true }); } catch {} }
   }
 });
-$("miSettings").onclick = () => { $("menuDrop").style.display = "none"; $("settingsModal").style.display = "grid"; };
-$("miAbout").onclick = () => { $("menuDrop").style.display = "none"; $("aboutModal").style.display = "grid"; };
+$("miSettings").onclick = () => { $("menuDrop").style.display = "none"; $("settingsModal").style.display = "grid"; hideDash(); };
+$("miAbout").onclick = () => { $("menuDrop").style.display = "none"; $("aboutModal").style.display = "grid"; hideDash(); };
 $("miUpdate").onclick = async () => {
   $("menuDrop").style.display = "none";
   const { base } = currentInputs();
@@ -397,10 +404,10 @@ $("miUpdate").onclick = async () => {
     }
   } catch (e) { setMsg(t.updateFail + e, "err"); }
 };
-$("settingsClose").onclick = () => { $("settingsModal").style.display = "none"; };
-$("aboutClose").onclick = () => { $("aboutModal").style.display = "none"; };
-$("settingsModal").addEventListener("click", (e) => { if (e.target.id === "settingsModal") e.target.style.display = "none"; });
-$("aboutModal").addEventListener("click", (e) => { if (e.target.id === "aboutModal") e.target.style.display = "none"; });
+$("settingsClose").onclick = () => { $("settingsModal").style.display = "none"; showDash(); };
+$("aboutClose").onclick = () => { $("aboutModal").style.display = "none"; showDash(); };
+$("settingsModal").addEventListener("click", (e) => { if (e.target.id === "settingsModal") { e.target.style.display = "none"; showDash(); } });
+$("aboutModal").addEventListener("click", (e) => { if (e.target.id === "aboutModal") { e.target.style.display = "none"; showDash(); } });
 document.querySelectorAll(".mtab").forEach((tab) => {
   tab.onclick = () => {
     document.querySelectorAll(".mtab").forEach(x => x.classList.remove("active"));
