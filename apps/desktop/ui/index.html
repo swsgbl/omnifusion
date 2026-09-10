@@ -39,6 +39,37 @@
   #frameWrap { position: relative; flex: 1; display: flex; background: var(--bg); }
   #gwDown { position: absolute; inset: 0; display: none; place-items: center;
     background: var(--bg); color: var(--muted); font-size: 15px; text-align: center; line-height: 2; }
+  /* ☰ 菜单下拉 */
+  #menuDrop { position: absolute; top: 44px; right: 12px; z-index: 60; display: none;
+    flex-direction: column; min-width: 180px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.45); overflow: hidden; }
+  #menuDrop button { border: none; background: transparent; color: var(--fg); text-align: left;
+    padding: 10px 16px; font-size: 14px; cursor: pointer; }
+  #menuDrop button:hover { background: var(--panel2, #1b2430); }
+  /* 弹窗 */
+  #settingsModal, #aboutModal { position: fixed; inset: 0; z-index: 50; display: none;
+    place-items: center; background: rgba(0,0,0,.55); }
+  .modal-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    width: min(640px, 92vw); max-height: 84vh; overflow: auto; padding: 0 0 12px;
+    box-shadow: 0 16px 48px rgba(0,0,0,.5); }
+  .modal-head { display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px 8px; font-size: 16px; font-weight: 600; }
+  .modal-head button { border: none; background: transparent; color: var(--muted);
+    font-size: 16px; cursor: pointer; padding: 2px 8px; border-radius: 6px; }
+  .modal-head button:hover { color: var(--fg); background: var(--border); }
+  .modal-tabs { display: flex; gap: 4px; padding: 0 18px; border-bottom: 1px solid var(--border); }
+  .modal-tabs .mtab { border: none; border-bottom: 2px solid transparent; background: transparent;
+    color: var(--muted); padding: 8px 14px; cursor: pointer; font-size: 14px; }
+  .modal-tabs .mtab.active { color: var(--fg); border-bottom-color: var(--accent2); }
+  .mpanel { padding: 14px 18px 4px; }
+  /* 关于弹窗 */
+  .modal-about { width: min(420px, 90vw); text-align: center; padding-bottom: 20px; }
+  .about-body { padding: 8px 20px 0; }
+  .about-logo { font-size: 44px; margin: 6px 0; }
+  .about-body h2 { margin: 0 0 4px; font-size: 20px; }
+  .about-body p { margin: 6px 0; color: var(--muted); font-size: 13px; }
+  .about-links a { color: var(--accent); text-decoration: none; margin: 0 4px; }
+  .about-license { font-size: 12px; color: var(--muted); opacity: .8; }
 </style>
 </head>
 <body>
@@ -55,28 +86,50 @@
   <button id="btnRefresh"></button>
   <button id="btnStart" class="primary"></button>
   <button id="btnStop" class="danger"></button>
+  <button id="btnMenu">☰</button>
 </header>
 
-<section class="settings">
-  <div class="grid">
-    <label><span id="lblBin"></span>
-      <input id="inBin" />
-    </label>
-    <label><span id="lblConfig"></span>
-      <input id="inConfig" />
-    </label>
-    <label><span id="lblBase"></span>
-      <input id="inBase" value="http://127.0.0.1:20130" />
-    </label>
-    <button id="btnSave"></button>
-  </div>
-  <div class="row2">
-    <label><span id="lblKey"></span>
-      <input id="inKey" />
-    </label>
-    <button id="btnKey" class="primary"></button>
-  </div>
-  <div class="row2">
+<!-- ☰ 菜单：下拉（设置/检查更新/关于） -->
+<div id="menuDrop" style="display:none">
+  <button id="miSettings"></button>
+  <button id="miUpdate"></button>
+  <button id="miAbout"></button>
+</div>
+
+<!-- 设置弹窗（从平铺主界面移入） -->
+<div id="settingsModal" style="display:none">
+  <div class="modal-card">
+    <div class="modal-head">
+      <span id="settingsTitle"></span>
+      <button id="settingsClose">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="mtab active" data-tab="gateway"></button>
+      <button class="mtab" data-tab="keys"></button>
+      <button class="mtab" data-tab="clients"></button>
+    </div>
+    <div class="mpanel" id="tab-gateway">
+      <div class="grid">
+        <label><span id="lblBin"></span>
+          <input id="inBin" />
+        </label>
+        <label><span id="lblConfig"></span>
+          <input id="inConfig" />
+        </label>
+        <label><span id="lblBase"></span>
+          <input id="inBase" value="http://127.0.0.1:20130" />
+        </label>
+        <button id="btnSave"></button>
+      </div>
+      <div class="row2">
+        <label><span id="lblKey"></span>
+          <input id="inKey" />
+        </label>
+        <button id="btnKey" class="primary"></button>
+      </div>
+    </div>
+    <div class="mpanel" id="tab-keys" style="display:none">
+      <div class="row2">
     <label><span id="lblProvider"></span>
       <select id="selProvider">
         <option value="openrouter">OpenRouter（免费模型聚合）</option>
@@ -109,7 +162,9 @@
     <button id="btnSignup" title=""></button>
     <span class="msg" id="keyAddHint" style="align-self:center"></span>
   </div>
-  <div class="row2">
+    </div>
+    <div class="mpanel" id="tab-clients" style="display:none">
+      <div class="row2">
     <label><span id="lblClient"></span>
       <select id="selClient">
         <option value="claude">Claude Code</option>
@@ -122,8 +177,32 @@
     <button id="btnConnect"></button>
     <span class="msg" id="connectHint" style="align-self:center"></span>
   </div>
-  <div class="msg" id="msg"></div>
-</section>
+    </div>
+    <div class="msg" id="msg"></div>
+  </div>
+</div>
+
+<!-- 关于弹窗 -->
+<div id="aboutModal" style="display:none">
+  <div class="modal-card modal-about">
+    <div class="modal-head">
+      <span id="aboutTitle"></span>
+      <button id="aboutClose">✕</button>
+    </div>
+    <div class="about-body">
+      <div class="about-logo">⚡</div>
+      <h2>OmniFusion Desktop</h2>
+      <p id="aboutVersion"></p>
+      <p id="aboutDesc"></p>
+      <p class="about-links">
+        <a href="https://github.com/swsgbl/omnifusion" target="_blank">GitHub</a> ·
+        <a href="https://atomgit.com/hongfu/omnifusion" target="_blank">AtomGit</a> ·
+        <a href="https://github.com/swsgbl/omnifusion/blob/main/README.zh-CN.md" target="_blank">README</a>
+      </p>
+      <p class="about-license">Apache-2.0 · BYOK 本地优先 · 零遥测</p>
+    </div>
+  </div>
+</div>
 
 <nav class="tabs" id="tabs"></nav>
 <!-- dashboard 承载区：不再是 iframe——由 Rust 侧的子 webview（dash）精确
@@ -154,6 +233,11 @@ const I18N = {
     msgConnectOk: "已打开接入控制台（写入详情见控制台）", msgConnectFail: "拉起接入失败: ",
     tabs: { chat: "对话", providers: "提供商", keys: "密钥", usage: "用量", compression: "压缩", resilience: "弹性" },
     gwDown: "网关未运行<br>点击右上「启动网关」即可开始（安装包自带网关，无需另外下载）",
+    miSettings: "设置", miUpdate: "检查更新", miAbout: "关于",
+    tabGateway: "网关", tabKeys: "密钥", tabClients: "客户端",
+    aboutVersionText: "版本：由网关运行时显示（ofd --version）",
+    aboutDesc: "把全球免费大模型聚合到一个本地端点。BYOK 本地优先，零遥测，密钥永不出本机。",
+    updateFound: "✨ 发现新版本 {v}，已打开下载页", updateNone: "✓ 已是最新版本", updateFail: "检查更新失败: ",
     detail: { managed: "运行中（本应用托管）", external: "运行中（外部启动，本应用仅观测）", stopped: "未运行" },
     err: {
       spawn_failed: "启动进程失败",
@@ -184,6 +268,11 @@ const I18N = {
     msgConnectOk: "Connect console opened (details in the console)", msgConnectFail: "Failed to launch: ",
     tabs: { chat: "Chat", providers: "Providers", keys: "Keys", usage: "Usage", compression: "Compression", resilience: "Resilience" },
     gwDown: "Gateway not running<br>Click \"Start Gateway\" at the top right to begin (the gateway is bundled — nothing else to install)",
+    miSettings: "Settings", miUpdate: "Check for Updates", miAbout: "About",
+    tabGateway: "Gateway", tabKeys: "API Keys", tabClients: "CLI Clients",
+    aboutVersionText: "Version: shown at runtime (ofd --version)",
+    aboutDesc: "Aggregate the world's free LLMs behind one local endpoint. BYOK local-first, zero telemetry, keys never leave your machine.",
+    updateFound: "✨ New version {v} available — download page opened", updateNone: "✓ You are on the latest version", updateFail: "Update check failed: ",
     detail: { managed: "Running (managed by this app)", external: "Running (started externally, observed only)", stopped: "Stopped" },
     err: {
       spawn_failed: "Failed to spawn process",
@@ -267,8 +356,59 @@ function applyLang() {
   $("inConfig").placeholder = t.phConfig;
   $("inKey").placeholder = t.phKey;
   $("statusBadge").textContent = t.detecting;
+  // ☰ 菜单/弹窗文案
+  $("miSettings").textContent = t.miSettings;
+  $("miUpdate").textContent = t.miUpdate;
+  $("miAbout").textContent = t.miAbout;
+  $("settingsTitle").textContent = t.miSettings;
+  $("aboutTitle").textContent = t.miAbout;
+  $("aboutVersion").textContent = t.aboutVersionText;
+  $("aboutDesc").textContent = t.aboutDesc;
+  document.querySelector('[data-tab="gateway"]').textContent = t.tabGateway;
+  document.querySelector('[data-tab="keys"]').textContent = t.tabKeys;
+  document.querySelector('[data-tab="clients"]').textContent = t.tabClients;
   renderTabs();
 }
+
+// --- ☰ 菜单 + 弹窗交互 ---
+$("btnMenu").onclick = (e) => {
+  e.stopPropagation();
+  const d = $("menuDrop");
+  d.style.display = d.style.display === "none" ? "flex" : "none";
+};
+document.addEventListener("click", (e) => {
+  const d = $("menuDrop");
+  if (d.style.display !== "none" && !d.contains(e.target) && e.target.id !== "btnMenu") {
+    d.style.display = "none";
+  }
+});
+$("miSettings").onclick = () => { $("menuDrop").style.display = "none"; $("settingsModal").style.display = "grid"; };
+$("miAbout").onclick = () => { $("menuDrop").style.display = "none"; $("aboutModal").style.display = "grid"; };
+$("miUpdate").onclick = async () => {
+  $("menuDrop").style.display = "none";
+  const { base } = currentInputs();
+  try {
+    const u = await invoke("check_updates", { base });
+    if (u && u.update_available) {
+      setMsg(t.updateFound.replace("{v}", u.latest || ""), "ok");
+      await invoke("open_signup", { url: u.release_url || "https://atomgit.com/hongfu/omnifusion/releases" });
+    } else {
+      setMsg(t.updateNone, "ok");
+    }
+  } catch (e) { setMsg(t.updateFail + e, "err"); }
+};
+$("settingsClose").onclick = () => { $("settingsModal").style.display = "none"; };
+$("aboutClose").onclick = () => { $("aboutModal").style.display = "none"; };
+$("settingsModal").addEventListener("click", (e) => { if (e.target.id === "settingsModal") e.target.style.display = "none"; });
+$("aboutModal").addEventListener("click", (e) => { if (e.target.id === "aboutModal") e.target.style.display = "none"; });
+document.querySelectorAll(".mtab").forEach((tab) => {
+  tab.onclick = () => {
+    document.querySelectorAll(".mtab").forEach(x => x.classList.remove("active"));
+    tab.classList.add("active");
+    document.querySelectorAll(".mpanel").forEach(p => p.style.display = "none");
+    $("tab-" + tab.dataset.tab).style.display = "";
+  };
+});
 
 // --- dashboard 子 webview 驱动层（替代 iframe：WebView2 跨源 iframe
 // 不接收键盘输入的根治方案）。壳只做三件事：布局上报（frameWrap 矩形
