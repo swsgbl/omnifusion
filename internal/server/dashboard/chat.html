@@ -553,6 +553,56 @@ async function runStream(out) {
   if (acc) history.push({ role: 'assistant', content: acc });
 }
 
+// parseXmlToolCalls 从纯文本中提取 <tool_call> 格式的工具调用
+//（@quality 路由的国产模型如 GLM/Qwen 常以 XML 文本而非结构化
+// tool_calls 输出工具调用——没有这个解析器时 XML 块被当纯文本显示、
+// 工具永远不执行，管家看起来"死"了）。返回合成的 tool_calls 数组。
+// 兼容两种参数写法：<parameter=url>value</parameter>（按位置）与
+// <parameter name="key">value</parameter>（按名）。
+function parseXmlToolCalls(text) {
+  if (!text || text.indexOf('<tool_call') === -1) return [];
+  const calls = [];
+  const blockRe = /<tool_call>([\s\S]*?)<\/tool_call>/g;
+  let block, idx = 0;
+  while ((block = blockRe.exec(text)) !== null) {
+    const inner = block[1];
+    const fnMatch = inner.match(/<function[=>\s]+([\w.]+)[^>]*>([\s\S]*?)<\/function>/) || inner.match(/<function=([\w.]+)>([\s\S]*?)<\/function>/) || inner.match(/<name>([\w.]+)<\/name>([\s\S]*)/);
+    if (!fnMatch) continue;
+    const name = fnMatch[1];
+    const paramBlock = fnMatch[2] || inner;
+    const args = {};
+    // 命名参数：<parameter name="key">value</parameter>
+    const namedRe = /<parameter\s+name="(\w+)">\s*([\s\S]*?)\s*<\/parameter>/g;
+    let pm;
+    while ((pm = namedRe.exec(paramBlock)) !== null) {
+      try { args[pm[1]] = JSON.parse(pm[2]); } catch (e) { args[pm[1]] = pm[2]; }
+    }
+    // 位置参数：<parameter>value</parameter> 或 <parameter=key>value</parameter>——
+    // 按常见 schema 猜参数名（command 类工具第一参数就是 command/url/path）。
+    if (!Object.keys(args).length) {
+      const posRe = /<parameter(?:=(\w+))?>\s*([\s\S]*?)\s*<\/parameter>/g;
+      let pos;
+      const positional = [];
+      while ((pos = posRe.exec(paramBlock)) !== null) {
+        const key = pos[1]; // <parameter=url> 形态自带键名
+        let val;
+        try { val = JSON.parse(pos[2]); } catch (e) { val = pos[2]; }
+        if (key) args[key] = val; else positional.push(val);
+      }
+      if (positional.length && !Object.keys(args).length) {
+        // 位置参数按工具第一参数名猜（绝大多数工具第一参数就是这些）。
+        const first = ['command', 'url', 'path', 'name', 'tool', 'question'][0];
+        if (positional.length === 1 && typeof positional[0] === 'object') Object.assign(args, positional[0]);
+        else args[first] = positional.length === 1 ? positional[0] : positional.join(' ');
+      }
+    }
+    if (name) {
+      calls.push({ id: 'xml-' + (idx++), type: 'function', function: { name, arguments: JSON.stringify(args) } });
+    }
+  }
+  return calls;
+}
+
 // runOps：管家模式（工具循环 + 流式最终回答）。工具轮非流式（需要
 // 完整 JSON 解析 tool_calls）；工具循环结束后最后一轮切流式输出，用户
 // 立即看到回答逐字流出。上下文自动压缩：工具轮产出大量中间消息
