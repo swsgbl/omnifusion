@@ -45,6 +45,17 @@
   .sess-bar button { font-size: 12px; padding: 2px 10px; }
   #updatebar { padding: 6px 20px; }
   #updatebar a { display: inline-block; background: #1f3a5f; border: 1px solid #58a6ff; color: #79c0ff; border-radius: 999px; padding: 3px 14px; font-size: 13px; text-decoration: none; }
+  .tool-bubble { margin: 4px 0; padding: 6px 12px; border-left: 3px solid #30363d; background: #0d1117; border-radius: 0 8px 8px 0; font-size: 13px; color: #8b949e; max-width: 860px; }
+  .tool-bubble.running { border-left-color: #d29922; }
+  .tool-bubble.ok { border-left-color: #2ea043; }
+  .tool-bubble .tb-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .tool-bubble .tb-name { color: #79c0ff; font-family: ui-monospace, Consolas, monospace; }
+  .tool-bubble .tb-arg { color: #8b949e; font-family: ui-monospace, Consolas, monospace; word-break: break-all; }
+  .tool-bubble .tb-time { margin-left: auto; color: #6e7681; font-size: 12px; white-space: nowrap; }
+  .tool-bubble .tb-res { margin-top: 4px; color: #6e7681; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 60px; overflow: hidden; }
+  .think-indicator { margin: 4px 0 8px; padding: 8px 14px; background: #161b22; border: 1px dashed #30363d; border-radius: 10px; color: #8b949e; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .think-indicator .pulse { width: 8px; height: 8px; border-radius: 50%; background: #58a6ff; animation: ofd-pulse 1.2s ease-in-out infinite; }
+  @keyframes ofd-pulse { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
 </style>
 <script src="assets/gsap.min.js"></script>
 <script src="assets/motion.js"></script>
@@ -92,6 +103,8 @@ const I18N = {
     err_key: 'Gateway key missing or invalid — open this page from ofd desktop app, or append ?key=<ofd gateway-key> to the URL.',
     err_truncated: 'The model\'s output hit the length cap mid-task and was cut off — press Send to retry (it will continue from history).',
     err_empty: 'The model returned an empty reply — press Send to retry.',
+    thinking: '🧠 thinking', working: '🔧 running', tool_done: '✓ done',
+    sec: 's', result_preview: 'result',
     approval_title: 'The butler asks to run this command:',
     approval_allow: 'Allow', approval_deny: 'Deny',
     ask_other: 'Other (type below)', ask_other_ph: 'type your answer…', ask_cancel: 'Cancel question', ask_cancelled: '(question cancelled)',
@@ -113,6 +126,8 @@ const I18N = {
     err_key: '\u7f51\u5173\u4ee4\u724c\u7f3a\u5931\u6216\u65e0\u6548\u2014\u2014\u4ece ofd \u684c\u9762\u7aef\u6253\u5f00\u672c\u9875\uff0c\u6216\u5728\u7f51\u5740\u540e\u52a0 ?key=<ofd gateway-key \u7684\u8f93\u51fa>',
     err_truncated: '\u6a21\u578b\u8f93\u51fa\u4e2d\u9014\u649e\u5230\u957f\u5ea6\u4e0a\u9650\u88ab\u622a\u65ad\u2014\u2014\u518d\u6309\u4e00\u6b21\u53d1\u9001\u5373\u53ef\u7eed\u63a5\u3002',
     err_empty: '\u6a21\u578b\u8fd4\u56de\u4e86\u7a7a\u56de\u590d\u2014\u2014\u518d\u6309\u4e00\u6b21\u53d1\u9001\u91cd\u8bd5\u3002',
+    thinking: '\ud83e\udde0 \u601d\u8003\u4e2d', working: '\ud83d\udd27 \u6267\u884c\u4e2d', tool_done: '\u2713 \u5b8c\u6210',
+    sec: '\u79d2', result_preview: '\u7ed3\u679c',
     approval_title: '\u7ba1\u5bb6\u8bf7\u6c42\u6267\u884c\u4ee5\u4e0b\u547d\u4ee4\uff1a',
     approval_allow: '\u5141\u8bb8', approval_deny: '\u62d2\u7edd',
     ask_other: '\u5176\u4ed6\uff08\u5728\u4e0b\u9762\u8f93\u5165\uff09', ask_other_ph: '\u8f93\u5165\u4f60\u7684\u7b54\u6848\u2026', ask_cancel: '\u53d6\u6d88\u63d0\u95ee', ask_cancelled: '\uff08\u63d0\u95ee\u5df2\u53d6\u6d88\uff09',
@@ -603,6 +618,67 @@ function parseXmlToolCalls(text) {
   return calls;
 }
 
+// thinkIndicator 在对话流里显示"思考中/执行中 + 计时"——用户永远
+// 知道管家是死是活（uniTerm 的过程可见性：终端里每个命令实时可见，
+// 管家的工具执行不能是黑箱）。
+function thinkIndicator(label) {
+  const box = document.createElement('div');
+  box.className = 'think-indicator';
+  const dot = document.createElement('span'); dot.className = 'pulse';
+  const txt = document.createElement('span'); txt.textContent = label;
+  const timer = document.createElement('span'); timer.className = 'tb-time';
+  box.append(dot, txt, timer);
+  log.appendChild(box); log.scrollTop = log.scrollHeight;
+  const start = Date.now();
+  const tick = setInterval(() => { timer.textContent = Math.round((Date.now() - start) / 1000) + t('sec'); }, 1000);
+  return { box, stop: () => { clearInterval(tick); box.remove(); } };
+}
+
+// toolBubble 工具执行气泡：名称+参数实时显示，完成后打勾+结果摘要。
+function toolBubble(name, argSummary) {
+  const box = document.createElement('div');
+  box.className = 'tool-bubble running';
+  const head = document.createElement('div'); head.className = 'tb-head';
+  const nm = document.createElement('span'); nm.className = 'tb-name'; nm.textContent = name;
+  const arg = document.createElement('span'); arg.className = 'tb-arg'; arg.textContent = argSummary;
+  const time = document.createElement('span'); time.className = 'tb-time';
+  head.append(nm, arg, time);
+  box.append(head);
+  log.appendChild(box); log.scrollTop = log.scrollHeight;
+  const start = Date.now();
+  time.textContent = '0' + t('sec');
+  const tick = setInterval(() => { time.textContent = Math.round((Date.now() - start) / 1000) + t('sec'); }, 1000);
+  return {
+    done: (resultSummary) => {
+      clearInterval(tick);
+      box.classList.remove('running'); box.classList.add('ok');
+      nm.textContent = t('tool_done') + ' ' + name;
+      if (resultSummary) {
+        const res = document.createElement('div'); res.className = 'tb-res';
+        res.textContent = t('result_preview') + ': ' + resultSummary;
+        box.append(res);
+      }
+      log.scrollTop = log.scrollHeight;
+    },
+    fail: (errText) => {
+      clearInterval(tick);
+      box.classList.remove('running');
+      box.style.borderLeftColor = '#da3633';
+      nm.textContent = '✗ ' + name;
+      const res = document.createElement('div'); res.className = 'tb-res';
+      res.textContent = String(errText).slice(0, 200);
+      box.append(res);
+    },
+  };
+}
+
+// argSummary 提取工具调用的人可读参数摘要（command/url/path/tool 等）。
+function argSummary(name, args) {
+  if (!args) return '';
+  const primary = args.command || args.url || args.path || args.tool || args.name || args.question || '';
+  return String(primary).slice(0, 80);
+}
+
 // runOps：管家模式（工具循环 + 流式最终回答）。工具轮非流式（需要
 // 完整 JSON 解析 tool_calls）；工具循环结束后最后一轮切流式输出，用户
 // 立即看到回答逐字流出。上下文自动压缩：工具轮产出大量中间消息
@@ -611,12 +687,15 @@ async function runOps(out) {
   const msgs = [{ role: 'system', content: OPS_SYS + ENV_HINT }, ...history];
   for (let round = 0; round < 12; round++) {
     trimOpsContext(msgs);
+    // 每轮 LLM 等待期都显示思考指示器——用户永远知道管家活着。
+    const think = thinkIndicator(t('thinking') + (round > 0 ? ` (${round + 1})` : ''));
     const resp = await fetch('/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
       signal: abort.signal,
       body: JSON.stringify({ model: modelSel.value, messages: msgs, tools: OPS_TOOLS, max_tokens: 12000 }),
     });
+    think.stop();
     if (!resp.ok) {
       const b = await resp.json().catch(() => ({}));
       throw new Error((b.error && b.error.message) || ('HTTP ' + resp.status));
@@ -651,12 +730,17 @@ async function runOps(out) {
           continue;
         }
         status.textContent = t('ops_tool') + name;
+        const tb = toolBubble(name, argSummary(name, args));
         try { result = await ((OPS_EXEC[name] || (async () => '"unknown tool"'))(args)); }
-        catch (e) { result = JSON.stringify({ error: String(e) }); }
+        catch (e) { result = JSON.stringify({ error: String(e) }); tb.fail(e); }
         // 单工具输出上限：超长输出（如 read_file 读大日志）是 context
         // 爆炸主因——Codex 经验：无上界的工具输出比历史消息更危险。
         if (result && result.length > PER_TOOL_CAP) {
           result = result.slice(0, PER_TOOL_CAP) + '\n...(工具输出被截断，原始 ' + result.length + ' 字符)';
+        }
+        // 气泡收尾：成功打勾+结果摘要（前 200 字符），失败红杠。
+        if (!result || !result.includes('"error"')) {
+          tb.done(String(result).replace(/\n/g, ' ').slice(0, 200));
         }
         msgs.push({ role: 'tool', tool_call_id: tc.id, content: result });
       }
