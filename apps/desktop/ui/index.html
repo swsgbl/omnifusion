@@ -372,20 +372,24 @@ function applyLang() {
 
 // --- ☰ 菜单 + 弹窗交互 ---
 // 子 webview 是原生层，永远浮在壳 HTML 之上（z-index 无效）——打开
-// 菜单/弹窗必须把它藏住，否则菜单被对话页盖掉（v0.1.10 实测 bug）。
-async function hideDash() { if (dashReady) { try { await invoke("dash_visible", { visible: false }); } catch {} } }
-async function showDash() { if (dashReady) { try { await invoke("dash_visible", { visible: true }); } catch {} } }
+// 菜单/弹窗必须把它藏住；且状态轮询每 3s 会重显 webview，故用
+// overlayOpen 标志让轮询尊重浮层状态（v0.1.10 实测两个连环 bug）。
+let overlayOpen = false;
+async function hideDash() { overlayOpen = true; if (dashReady) { try { await invoke("dash_visible", { visible: false }); } catch {} } }
+async function showDash() { overlayOpen = false; if (dashReady) { try { await invoke("dash_visible", { visible: true }); } catch {} } }
 $("btnMenu").onclick = async (e) => {
   e.stopPropagation();
   const d = $("menuDrop");
   const opening = d.style.display === "none";
   d.style.display = opening ? "flex" : "none";
+  overlayOpen = opening;
   if (dashReady) { try { await invoke("dash_visible", { visible: !opening }); } catch {} }
 };
 document.addEventListener("click", async (e) => {
   const d = $("menuDrop");
   if (d.style.display !== "none" && !d.contains(e.target) && e.target.id !== "btnMenu") {
     d.style.display = "none";
+    overlayOpen = false;
     if (dashReady) { try { await invoke("dash_visible", { visible: true }); } catch {} }
   }
 });
@@ -393,6 +397,7 @@ $("miSettings").onclick = () => { $("menuDrop").style.display = "none"; $("setti
 $("miAbout").onclick = () => { $("menuDrop").style.display = "none"; $("aboutModal").style.display = "grid"; hideDash(); };
 $("miUpdate").onclick = async () => {
   $("menuDrop").style.display = "none";
+  showDash();
   const { base } = currentInputs();
   try {
     const u = await invoke("check_updates", { base });
@@ -447,7 +452,10 @@ function navigateDashIfNeeded() {
   invoke("dash_navigate", { url: lastFrameUrl }).catch(() => { dashCurrentUrl = ""; });
 }
 
+// syncDashVisibility 尊重 overlayOpen（声明见菜单交互区）——3s 轮询
+// 期间浮层打开则保持子 webview 隐藏，不把菜单/弹窗盖掉。
 async function syncDashVisibility(running) {
+  if (overlayOpen) return;
   try { await invoke("dash_visible", { visible: running }); } catch { /* 尽力而为 */ }
 }
 
