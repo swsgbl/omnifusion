@@ -185,6 +185,17 @@
   .about-links a { color: var(--accent); text-decoration: none; margin: 0 4px; }
   .about-links a:hover { text-decoration: underline; }
   .about-license { font-size: 11.5px; color: var(--faint); }
+  /* 版本行：桌面端 + 网关 + 平台，chip 式（可选中复制用于报障） */
+  .ver-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 12px 0 4px; }
+  .ver-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px;
+              background: var(--surface-raised); border: 1px solid var(--border);
+              border-radius: 999px; font-size: 12.5px; }
+  .ver-chip b { font-weight: 600; color: var(--fg); font-family: var(--font-mono); font-size: 12px; }
+  .ver-chip span { color: var(--faint); font-size: 11.5px; }
+  .ver-chip.pending b { color: var(--faint); font-weight: 400; }
+  button.ghost { background: transparent; }
+  #aboutCheck, #aboutCopy { margin-top: 12px; }
+  #aboutCopy { margin-left: 8px; }
 
   /* ── Empty state (no tabs open) ── */
   .empty-state { position: absolute; inset: 0; display: none; place-items: center; text-align: center; }
@@ -329,15 +340,17 @@
         <div class="about-wrap">
           <div class="about-logo">⚡</div>
           <h2>OmniFusion Desktop</h2>
-          <p id="aboutVersion"></p>
+          <div class="ver-row" id="aboutVersion"></div>
           <p id="aboutDesc"></p>
           <p class="about-links">
             <a href="https://github.com/swsgbl/omnifusion" target="_blank">GitHub</a> ·
             <a href="https://atomgit.com/hongfu/omnifusion" target="_blank">AtomGit</a> ·
-            <a href="https://github.com/swsgbl/omnifusion/blob/main/README.zh-CN.md" target="_blank">README</a>
+            <a href="https://github.com/swsgbl/omnifusion/blob/main/README.zh-CN.md" target="_blank">README</a> ·
+            <a id="aboutLicenseLink" href="https://github.com/swsgbl/omnifusion/blob/main/NOTICE" target="_blank">NOTICE</a>
           </p>
           <p class="about-license">Apache-2.0 · BYOK 本地优先 · 零遥测</p>
           <button id="aboutCheck"></button>
+          <button id="aboutCopy" class="ghost"></button>
         </div>
       </div>
     </div>
@@ -396,7 +409,8 @@ const I18N = {
     newTab: "打开新标签页",
     emptyTitle: "没有打开的页面", emptyDesc: "从左侧菜单打开一个页面，它会在这里以标签页显示",
     tabGateway: "网关", tabKeys: "密钥", tabClients: "客户端",
-    aboutVersionText: "版本：由网关运行时显示（ofd --version）",
+    verDesktop: "桌面端", verGateway: "网关", verUnknown: "未运行",
+    aboutCopy: "复制版本信息", aboutCopied: "已复制到剪贴板",
     aboutDesc: "把全球免费大模型聚合到一个本地端点。BYOK 本地优先，零遥测，密钥永不出本机。",
     updateFound: "✨ 发现新版本 {v}，已打开下载页", updateNone: "✓ 已是最新版本", updateFail: "检查更新失败: ",
     detail: { managed: "运行中（本应用托管）", external: "运行中（外部启动）", stopped: "未运行" },
@@ -438,7 +452,8 @@ const I18N = {
     newTab: "Open a new tab",
     emptyTitle: "No pages open", emptyDesc: "Pick a page from the left menu — it opens here as a tab",
     tabGateway: "Gateway", tabKeys: "API Keys", tabClients: "CLI Clients",
-    aboutVersionText: "Version: shown at runtime (ofd --version)",
+    verDesktop: "Desktop", verGateway: "Gateway", verUnknown: "not running",
+    aboutCopy: "Copy version info", aboutCopied: "Copied to clipboard",
     aboutDesc: "Aggregate the world's free LLMs behind one local endpoint. BYOK local-first, zero telemetry, keys never leave your machine.",
     updateFound: "✨ New version {v} available — download page opened", updateNone: "✓ You are on the latest version", updateFail: "Update check failed: ",
     detail: { managed: "Running (managed)", external: "Running (external)", stopped: "Stopped" },
@@ -587,6 +602,7 @@ function syncShellPages() {
     overlayOpen = true;
     if (dashReady) { try { invoke("dash_visible", { visible: false }); } catch {} }
     if (activePage === "settings") renderSettingsPanes();
+    if (activePage === "about") renderAboutVersions();
   } else {
     overlayOpen = false;
     if (dashReady) { try { invoke("dash_visible", { visible: true }); } catch {} }
@@ -741,7 +757,7 @@ function applyLang() {
   $("cardKeysHint").textContent = t.cardKeysHint;
   $("cardClients").textContent = t.cardClients;
   $("cardClientsHint").textContent = t.cardClientsHint;
-  $("aboutVersion").textContent = t.aboutVersionText;
+  $("aboutCopy").textContent = t.aboutCopy;
   $("aboutDesc").textContent = t.aboutDesc;
   $("newTab").title = t.newTab;
   $("emptyTitle").textContent = t.emptyTitle;
@@ -762,6 +778,33 @@ function setSettingsTab(name) {
   document.querySelectorAll(".mpanel").forEach((p) => p.classList.toggle("is-active", p.id === "tab-" + name));
 }
 function renderSettingsPanes() { /* 面板显隐由 CSS class 驱动，无需重绘 */ }
+
+// renderAboutVersions 拉真实版本填「关于」页：桌面端版本来自 Rust
+// （Tauri 打包元数据），网关版本由捆绑 ofd --version 实时读取。
+async function renderAboutVersions() {
+  const row = $("aboutVersion");
+  row.innerHTML = `<span class="ver-chip pending"><span>${t.verDesktop}</span><b>…</b></span>`;
+  let info = null;
+  try { info = await invoke("app_info"); } catch { /* 读取失败降级 */ }
+  const chips = [];
+  const desktop = (info && info.desktop) || "dev";
+  chips.push(`<span class="ver-chip"><span>${t.verDesktop}</span><b>v${esc(desktop)}</b></span>`);
+  const gw = info && info.gateway ? String(info.gateway).replace(/^ofd\s*/i, "") : "";
+  chips.push(gw
+    ? `<span class="ver-chip"><span>${t.verGateway}</span><b>${esc(gw)}</b></span>`
+    : `<span class="ver-chip pending"><span>${t.verGateway}</span><b>${t.verUnknown}</b></span>`);
+  if (info && info.os) chips.push(`<span class="ver-chip"><span>${esc(info.os)}/${esc(info.arch || "")}</span></span>`);
+  row.innerHTML = chips.join("");
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+$("aboutCopy").onclick = async () => {
+  try {
+    const info = await invoke("app_info");
+    const line = `OmniFusion Desktop v${(info && info.desktop) || "?"} / gateway ${(info && info.gateway) || "not running"} / ${(info && info.os) || ""}-${(info && info.arch) || ""}`;
+    await navigator.clipboard.writeText(line);
+    setMsg(t.aboutCopied, "ok");
+  } catch (e) { setMsg(String(e), "err"); }
+};
 $("aboutCheck").onclick = async () => {
   const { base } = currentInputs();
   try {

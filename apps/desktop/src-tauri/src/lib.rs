@@ -278,6 +278,34 @@ fn check_updates(app: AppHandle, base: String) -> Result<Option<Value>, String> 
     Ok(serde_json::from_str::<Value>(&raw).ok())
 }
 
+/// app_info 返回真实版本信息供「关于」页展示：桌面端版本取自 Tauri
+/// 打包元数据（compile-time），网关版本由捆绑的 ofd --version 实时读取
+///（读不到则为 null，例如二进制缺失）。
+#[tauri::command]
+fn app_info(app: AppHandle) -> Value {
+    let desktop = app.package_info().version.to_string();
+    let bin = resolve_bin(&app, "");
+    let mut cmd = Command::new(&bin);
+    cmd.arg("--version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    let gateway = cmd
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty());
+    serde_json::json!({
+        "desktop": desktop,
+        "gateway": gateway,
+        "os": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
+    })
+}
+
 #[tauri::command]
 fn fetch_gateway_key(app: AppHandle, bin: String) -> Result<String, String> {
     let bin = resolve_bin(&app, &bin);
@@ -475,7 +503,8 @@ pub fn run() {
             dash_navigate,
             dash_visible,
             open_signup,
-            check_updates
+            check_updates,
+            app_info
         ])
         .setup(|app| {
             build_tray(app)?;
