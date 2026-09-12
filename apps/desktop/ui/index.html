@@ -5,224 +5,378 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>OmniFusion Desktop</title>
 <style>
+  /* ── Design tokens (GitHub Dark anchored, 2026 dev-tool conventions) ── */
   :root {
-    --bg: #0d1117; --panel: #161b22; --border: #30363d;
-    --fg: #e6edf3; --muted: #8b949e; --accent: #3fb950; --accent2: #58a6ff; --danger: #f85149;
+    --bg: #0d1117;            /* app canvas / active tab */
+    --surface: #161b22;       /* sidebar, tab strip, status bar */
+    --surface-raised: #1c2128;/* cards, popovers, modals */
+    --surface-hover: #21262d; /* row hover */
+    --surface-active: #262c36;
+    --border: #30363d;
+    --border-muted: #21262d;
+    --fg: #e6edf3;
+    --muted: #8b949e;
+    --faint: #6e7681;
+    --accent: #2f81f7;
+    --accent-hover: #4b93f8;
+    --accent-subtle: rgba(47, 129, 247, .15);
+    --success: #3fb950;
+    --warning: #d29922;
+    --danger: #f85149;
+    --info: #58a6ff;
+    --focus-ring: 0 0 0 3px rgba(47, 129, 247, .35);
+    --r-sm: 4px; --r-md: 6px; --r-lg: 8px; --r-xl: 12px;
+    --sidebar-w: 240px; --sidebar-w-collapsed: 56px;
+    --tabstrip-h: 40px; --statusbar-h: 28px;
+    --font-ui: "Segoe UI", system-ui, -apple-system, "Microsoft YaHei", sans-serif;
+    --font-mono: ui-monospace, Consolas, "Cascadia Mono", monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--fg); font: 14px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-  header { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--panel); }
-  header h1 { font-size: 16px; font-weight: 600; }
-  .badge { padding: 2px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); color: var(--muted); }
-  .badge.upd { text-decoration: none; border-color: #58a6ff; color: #79c0ff; cursor: pointer; }
-  .badge.on { color: var(--accent); border-color: var(--accent); }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: var(--bg); color: var(--fg); font: 13px/1.4 var(--font-ui);
+         -webkit-font-smoothing: antialiased; }
+
+  /* ── App shell: sidebar | main ── */
+  .app { display: flex; height: 100vh; }
+
+  /* ── Sidebar ── */
+  .sidebar { width: var(--sidebar-w); flex: 0 0 var(--sidebar-w); background: var(--surface);
+             border-right: 1px solid var(--border); display: flex; flex-direction: column;
+             transition: width .15s cubic-bezier(.2,0,0,1), flex-basis .15s cubic-bezier(.2,0,0,1); }
+  .sidebar.collapsed { width: var(--sidebar-w-collapsed); flex-basis: var(--sidebar-w-collapsed); }
+  .side-head { height: 48px; display: flex; align-items: center; gap: 9px; padding: 0 10px;
+               border-bottom: 1px solid var(--border-muted); }
+  .side-logo { width: 26px; height: 26px; flex: 0 0 26px; border-radius: var(--r-md);
+               display: grid; place-items: center; font-size: 14px;
+               background: linear-gradient(135deg, #1f6feb, #3fb950); }
+  .side-brand { font-size: 14px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap;
+                overflow: hidden; flex: 1; }
+  .side-collapse { width: 24px; height: 24px; flex: 0 0 24px; display: grid; place-items: center;
+                   border: none; background: transparent; color: var(--faint); cursor: pointer;
+                   border-radius: var(--r-sm); font-size: 13px; }
+  .side-collapse:hover { background: var(--surface-hover); color: var(--fg); }
+  .side-nav { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+  .nav-section { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase;
+                 color: var(--faint); padding: 14px 10px 6px; white-space: nowrap; }
+  .sidebar.collapsed .nav-section { padding: 14px 0 6px; text-align: center; font-size: 0; }
+  .sidebar.collapsed .nav-section::after { content: "···"; font-size: 11px; letter-spacing: 0; }
+  .nav-item { height: 32px; display: flex; align-items: center; gap: 10px; padding: 0 10px;
+              border: none; background: transparent; color: var(--muted); cursor: pointer;
+              border-radius: var(--r-md); font: 500 13px var(--font-ui); text-align: left; width: 100%; }
+  .nav-item:hover { background: var(--surface-hover); color: var(--fg); }
+  .nav-item.is-active { background: var(--accent-subtle); color: var(--fg); }
+  .nav-item.is-active .nav-ico { color: var(--accent); }
+  .nav-ico { width: 16px; flex: 0 0 16px; text-align: center; font-size: 14px; }
+  .nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sidebar.collapsed .nav-label, .sidebar.collapsed .side-brand { display: none; }
+  .sidebar.collapsed .nav-item { justify-content: center; padding: 0; }
+  .side-foot { border-top: 1px solid var(--border-muted); padding: 8px; display: flex;
+               flex-direction: column; gap: 2px; }
+  .nav-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); margin-left: auto;
+             flex: 0 0 6px; }
+  .nav-dot.on { background: var(--success); }
+  .sidebar.collapsed .nav-dot { display: none; }
+
+  /* ── Main column ── */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
+
+  /* ── Tab strip (browser-style) ── */
+  .tabstrip { height: var(--tabstrip-h); flex: 0 0 var(--tabstrip-h); display: flex;
+              align-items: flex-end; gap: 2px; padding: 0 6px;
+              background: var(--surface); border-bottom: 1px solid var(--border); }
+  .tabstrip-spacer { flex: 1; min-width: 8px; }
+  .tabs-scroll { display: flex; align-items: flex-end; gap: 2px; overflow-x: auto;
+                 scrollbar-width: none; max-width: 100%; }
+  .tabs-scroll::-webkit-scrollbar { display: none; }
+  .tab { position: relative; height: 32px; min-width: 112px; max-width: 220px; display: flex;
+         align-items: center; gap: 8px; padding: 0 8px 0 12px; border: none; cursor: pointer;
+         border-radius: var(--r-lg) var(--r-lg) 0 0; background: transparent; color: var(--muted);
+         font: 500 13px var(--font-ui); white-space: nowrap; }
+  .tab:hover { background: var(--surface-hover); color: var(--fg); }
+  .tab.is-active { background: var(--bg); color: var(--fg); }
+  .tab.is-active::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+                           border-radius: var(--r-lg) var(--r-lg) 0 0; background: var(--accent); }
+  .tab-ico { font-size: 13px; flex: 0 0 14px; text-align: center; }
+  .tab-label { overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: left; }
+  .tab-close { width: 16px; height: 16px; flex: 0 0 16px; display: grid; place-items: center;
+               border: none; background: transparent; color: var(--faint); cursor: pointer;
+               border-radius: var(--r-sm); font-size: 12px; opacity: 0; transition: opacity .12s; }
+  .tab:hover .tab-close, .tab.is-active .tab-close { opacity: 1; }
+  .tab-close:hover { background: var(--surface-hover); color: var(--fg); }
+  .tab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex: 0 0 7px; }
+  .newtab { width: 28px; height: 28px; flex: 0 0 28px; margin-bottom: 2px; display: grid;
+            place-items: center; border: none; background: transparent; color: var(--muted);
+            cursor: pointer; border-radius: var(--r-md); font-size: 15px; }
+  .newtab:hover { background: var(--surface-hover); color: var(--fg); }
+  .strip-right { display: flex; align-items: center; gap: 8px; padding-bottom: 5px; }
+  .badge { padding: 2px 9px; border-radius: 999px; font-size: 11.5px; border: 1px solid var(--border);
+           color: var(--muted); white-space: nowrap; }
+  .badge.upd { text-decoration: none; border-color: var(--accent); color: #79c0ff; cursor: pointer; }
+  .badge.on { color: var(--success); border-color: var(--success); }
   .badge.off { color: var(--muted); }
-  .badge.mgd { color: var(--accent2); border-color: var(--accent2); }
-  .grow { flex: 1; }
-  button { background: #21262d; color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 13px; }
-  button:hover { border-color: #8b949e; }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  button.primary { background: #1f6feb33; border-color: #316dca; }
-  button.danger { background: #da363433; border-color: #b62324; }
-  select { background: #0d1117; color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
-  section.settings { padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--panel); }
-  .grid { display: grid; grid-template-columns: 2fr 2fr 1.4fr auto; gap: 8px; align-items: end; }
-  .grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
-  input { background: #0d1117; border: 1px solid var(--border); color: var(--fg); border-radius: 6px; padding: 6px 10px; font-size: 13px; width: 100%; }
-  .row2 { display: grid; grid-template-columns: 2fr 1.4fr auto auto; gap: 8px; align-items: end; margin-top: 8px; }
-  .msg { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; white-space: pre-wrap; word-break: break-all; }
-  .msg.err { color: var(--danger); }
-  .msg.ok { color: var(--accent); }
-  nav.tabs { display: flex; gap: 4px; padding: 8px 18px 0; background: var(--panel); border-bottom: 1px solid var(--border); }
-  nav.tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0; background: transparent; color: var(--muted); padding: 7px 14px; }
-  nav.tabs button.active { color: var(--fg); border-bottom-color: var(--accent2); }
-  #frameWrap { position: relative; flex: 1; display: flex; background: var(--bg); }
+  .badge.mgd { color: var(--info); border-color: var(--info); }
+
+  /* ── Content (child webview target) ── */
+  #frameWrap { position: relative; flex: 1; display: flex; background: var(--bg); min-height: 0; }
   #gwDown { position: absolute; inset: 0; display: none; place-items: center;
-    background: var(--bg); color: var(--muted); font-size: 15px; text-align: center; line-height: 2; }
-  /* ☰ 菜单下拉 */
-  #menuDrop { position: absolute; top: 44px; right: 12px; z-index: 60; display: none;
-    flex-direction: column; min-width: 180px; background: var(--panel); border: 1px solid var(--border);
-    border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.45); overflow: hidden; }
-  #menuDrop button { border: none; background: transparent; color: var(--fg); text-align: left;
-    padding: 10px 16px; font-size: 14px; cursor: pointer; }
-  #menuDrop button:hover { background: var(--panel2, #1b2430); }
-  /* 弹窗 */
-  #settingsModal, #aboutModal { position: fixed; inset: 0; z-index: 50; display: none;
-    place-items: center; background: rgba(0,0,0,.55); }
-  .modal-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
-    width: min(640px, 92vw); max-height: 84vh; overflow: auto; padding: 0 0 12px;
-    box-shadow: 0 16px 48px rgba(0,0,0,.5); }
-  .modal-head { display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 18px 8px; font-size: 16px; font-weight: 600; }
-  .modal-head button { border: none; background: transparent; color: var(--muted);
-    font-size: 16px; cursor: pointer; padding: 2px 8px; border-radius: 6px; }
-  .modal-head button:hover { color: var(--fg); background: var(--border); }
-  .modal-tabs { display: flex; gap: 4px; padding: 0 18px; border-bottom: 1px solid var(--border); }
+            background: var(--bg); color: var(--muted); font-size: 15px; text-align: center; line-height: 2; }
+
+  /* ── Status bar ── */
+  .statusbar { height: var(--statusbar-h); flex: 0 0 var(--statusbar-h); display: flex;
+               align-items: center; gap: 10px; padding: 0 10px; background: var(--surface);
+               border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .sb-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex: 0 0 7px; }
+  .sb-dot.on { background: var(--success); box-shadow: 0 0 0 3px rgba(63,185,80,.16); }
+  .sb-dot.warn { background: var(--warning); }
+  .sb-sep { color: var(--border); }
+  .sb-mono { font-family: var(--font-mono); font-size: 11.5px; }
+  .statusbar .msg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+                    white-space: nowrap; margin: 0; color: var(--muted); font-size: 11.5px; }
+  .statusbar .msg.err { color: var(--danger); }
+  .statusbar .msg.ok { color: var(--success); }
+  .sb-actions { display: flex; gap: 6px; }
+  .sb-actions button { padding: 3px 10px; font-size: 11.5px; }
+
+  /* ── Buttons & inputs ── */
+  button { background: var(--surface-hover); color: var(--fg); border: 1px solid var(--border);
+           border-radius: var(--r-md); padding: 6px 12px; cursor: pointer; font: 500 13px var(--font-ui); }
+  button:hover { border-color: var(--muted); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: rgba(31,111,235,.22); border-color: #316dca; color: #cae0ff; }
+  button.primary:hover { background: rgba(31,111,235,.32); }
+  button.danger { background: rgba(218,54,52,.2); border-color: #b62324; color: #ffd7d5; }
+  button.danger:hover { background: rgba(218,54,52,.3); }
+  select, input { background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+                  border-radius: var(--r-md); padding: 6px 9px; font-size: 13px; }
+  select { cursor: pointer; }
+  input { width: 100%; }
+  input:focus, select:focus, button:focus-visible { outline: none; border-color: var(--accent);
+                                                     box-shadow: var(--focus-ring); }
+
+  /* ── Shell pages (设置/关于：壳内页面，与 dashboard 页签同级) ── */
+  .shell-page { position: absolute; inset: 0; overflow-y: auto; padding: 24px 28px;
+                background: var(--bg); display: none; }
+  .shell-page.is-active { display: block; }
+  .page-head { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+  .page-sub { color: var(--muted); font-size: 12.5px; margin: 0 0 20px; }
+  .card { background: var(--surface-raised); border: 1px solid var(--border);
+          border-radius: var(--r-xl); padding: 18px 20px; margin-bottom: 16px;
+          max-width: 780px; }
+  .card h3 { font-size: 13px; font-weight: 600; margin: 0 0 12px; color: var(--fg); }
+  .card h3 .hint { font-weight: 400; color: var(--faint); font-size: 12px; margin-left: 8px; }
+  .modal-tabs { display: flex; gap: 2px; margin: 0 0 18px; border-bottom: 1px solid var(--border); }
   .modal-tabs .mtab { border: none; border-bottom: 2px solid transparent; background: transparent;
-    color: var(--muted); padding: 8px 14px; cursor: pointer; font-size: 14px; }
-  .modal-tabs .mtab.active { color: var(--fg); border-bottom-color: var(--accent2); }
-  .mpanel { padding: 14px 18px 4px; }
-  /* 关于弹窗 */
-  .modal-about { width: min(420px, 90vw); text-align: center; padding-bottom: 20px; }
-  .about-body { padding: 8px 20px 0; }
-  .about-logo { font-size: 44px; margin: 6px 0; }
-  .about-body h2 { margin: 0 0 4px; font-size: 20px; }
-  .about-body p { margin: 6px 0; color: var(--muted); font-size: 13px; }
+    color: var(--muted); padding: 8px 14px; cursor: pointer; font-size: 13px; border-radius: 0; }
+  .modal-tabs .mtab:hover { color: var(--fg); }
+  .modal-tabs .mtab.active { color: var(--fg); border-bottom-color: var(--accent); }
+  .mpanel { display: none; }
+  .mpanel.is-active { display: block; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid label:first-child { grid-column: 1 / -1; }
+  .grid label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); }
+  .grid button { grid-column: 2; justify-self: end; align-self: end; }
+  .row2 { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: end; }
+  .row2 + .row2 { margin-top: 12px; }
+  .row2 label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); }
+  .about-wrap { max-width: 430px; text-align: center; margin: 40px auto 0; }
+  .about-logo { font-size: 42px; margin: 4px 0 8px; }
+  .about-wrap h2 { margin: 0 0 6px; font-size: 19px; }
+  .about-wrap p { margin: 7px 0; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
   .about-links a { color: var(--accent); text-decoration: none; margin: 0 4px; }
-  .about-license { font-size: 12px; color: var(--muted); opacity: .8; }
+  .about-links a:hover { text-decoration: underline; }
+  .about-license { font-size: 11.5px; color: var(--faint); }
+
+  /* ── Empty state (no tabs open) ── */
+  .empty-state { position: absolute; inset: 0; display: none; place-items: center; text-align: center; }
+  .empty-state .glyph { font-size: 40px; opacity: .55; }
+  .empty-state h3 { margin: 12px 0 6px; font-size: 15px; font-weight: 600; }
+  .empty-state p { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
+  .chips { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .chip { padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px;
+          background: transparent; color: var(--muted); font-size: 12.5px; cursor: pointer; }
+  .chip:hover { background: var(--surface-hover); color: var(--fg); border-color: var(--muted); }
 </style>
 </head>
 <body>
-<header>
-  <h1>OmniFusion Desktop</h1>
-  <span class="badge off" id="statusBadge"></span>
-  <a id="updateBadge" class="badge upd" style="display:none" target="_blank" rel="noopener noreferrer"></a>
-  <div class="grow"></div>
-  <select id="selLang" title="Language">
-    <option value="auto">跟随系统 / Auto</option>
-    <option value="zh">中文</option>
-    <option value="en">English</option>
-  </select>
-  <button id="btnRefresh"></button>
-  <button id="btnStart" class="primary"></button>
-  <button id="btnStop" class="danger"></button>
-  <button id="btnMenu">☰</button>
-</header>
-
-<!-- ☰ 菜单：下拉（设置/检查更新/关于） -->
-<div id="menuDrop" style="display:none">
-  <button id="miSettings"></button>
-  <button id="miUpdate"></button>
-  <button id="miAbout"></button>
-</div>
-
-<!-- 设置弹窗（从平铺主界面移入） -->
-<div id="settingsModal" style="display:none">
-  <div class="modal-card">
-    <div class="modal-head">
-      <span id="settingsTitle"></span>
-      <button id="settingsClose">✕</button>
+<div class="app">
+  <!-- ── Left sidebar: navigation ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="side-head">
+      <div class="side-logo">⚡</div>
+      <div class="side-brand">OmniFusion</div>
+      <button class="side-collapse" id="sideCollapse" title="Ctrl+B">«</button>
     </div>
-    <div class="modal-tabs">
-      <button class="mtab active" data-tab="gateway"></button>
-      <button class="mtab" data-tab="keys"></button>
-      <button class="mtab" data-tab="clients"></button>
-    </div>
-    <div class="mpanel" id="tab-gateway">
-      <div class="grid">
-        <label><span id="lblBin"></span>
-          <input id="inBin" />
-        </label>
-        <label><span id="lblConfig"></span>
-          <input id="inConfig" />
-        </label>
-        <label><span id="lblBase"></span>
-          <input id="inBase" value="http://127.0.0.1:20130" />
-        </label>
-        <button id="btnSave"></button>
-      </div>
-      <div class="row2">
-        <label><span id="lblKey"></span>
-          <input id="inKey" />
-        </label>
-        <button id="btnKey" class="primary"></button>
+    <nav class="side-nav" id="sideNav"></nav>
+  </aside>
+
+  <!-- ── Main column: tab strip + content + status bar ── -->
+  <div class="main">
+    <div class="tabstrip">
+      <div class="tabs-scroll" id="tabs"></div>
+      <button class="newtab" id="newTab" title="">+</button>
+      <div class="tabstrip-spacer"></div>
+      <div class="strip-right">
+        <a id="updateBadge" class="badge upd" style="display:none" target="_blank" rel="noopener noreferrer"></a>
+        <span class="badge off" id="statusBadge"></span>
+        <select id="selLang" title="Language" style="padding:3px 8px;font-size:11.5px">
+          <option value="auto">跟随系统 / Auto</option>
+          <option value="zh">中文</option>
+          <option value="en">English</option>
+        </select>
       </div>
     </div>
-    <div class="mpanel" id="tab-keys" style="display:none">
-      <div class="row2">
-    <label><span id="lblProvider"></span>
-      <select id="selProvider">
-        <option value="openrouter">OpenRouter（免费模型聚合）</option>
-        <option value="groq">Groq</option>
-        <option value="cerebras">Cerebras</option>
-        <option value="gemini">Google Gemini</option>
-        <option value="nvidia">NVIDIA NIM</option>
-        <option value="cloudflare">Cloudflare Workers AI</option>
-        <option value="huggingface">HuggingFace</option>
-        <option value="zhipu">智谱 BigModel（GLM-Flash 免费）</option>
-        <option value="siliconflow">硅基流动 SiliconFlow（L0 免费档）</option>
-        <option value="modelscope">魔搭 ModelScope（每日 2000 次）</option>
-        <option value="qwen">通义千问（新人每模型 100 万 tokens）</option>
-        <option value="sambanova">SambaNova（每日 20M tokens 免费）</option>
-        <option value="mistral">Mistral（Experiment 免费档，需代理）</option>
-        <option value="cohere">Cohere（Trial：1000 次/月）</option>
-        <option value="chutes">Chutes（免费档限速）</option>
-        <option value="qianfan">百度千帆（ERNIE-Speed/Lite 免费）</option>
-        <option value="spark">讯飞星火（Lite 永久免费）</option>
-        <option value="hunyuan">腾讯混元（100 万 tokens/年）</option>
-        <option value="deepseek">DeepSeek（BYOK 付费）</option>
-        <option value="mimo">小米 MiMo（BYOK 付费）</option>
-        <option value="ark">火山方舟·豆包（BYOK 付费）</option>
-        <option value="together">Together AI（BYOK 付费）</option>
-        <option value="anthropic">Anthropic（BYOK）</option>
-        <option value="ollama">Ollama（本地，免密钥）</option>
-      </select>
-    </label>
-    <button id="btnKeyAdd"></button>
-    <button id="btnSignup" title=""></button>
-    <span class="msg" id="keyAddHint" style="align-self:center"></span>
-  </div>
-    </div>
-    <div class="mpanel" id="tab-clients" style="display:none">
-      <div class="row2">
-    <label><span id="lblClient"></span>
-      <select id="selClient">
-        <option value="claude">Claude Code</option>
-        <option value="codex">Codex CLI</option>
-        <option value="gemini">Gemini CLI</option>
-        <option value="opencode">OpenCode</option>
-        <option value="pi">pi（运维 AI，聚合密钥驱动）</option>
-      </select>
-    </label>
-    <button id="btnConnect"></button>
-    <span class="msg" id="connectHint" style="align-self:center"></span>
-  </div>
-    </div>
-    <div class="msg" id="msg"></div>
-  </div>
-</div>
 
-<!-- 关于弹窗 -->
-<div id="aboutModal" style="display:none">
-  <div class="modal-card modal-about">
-    <div class="modal-head">
-      <span id="aboutTitle"></span>
-      <button id="aboutClose">✕</button>
+    <!-- 子 webview 承载区（Rust 侧精确覆盖此矩形）；壳内页面（设置/关于）
+         与之共用此区域，激活壳页面时隐藏子 webview。 -->
+    <div id="frameWrap">
+      <div id="gwDown"></div>
+      <div class="empty-state" id="emptyState">
+        <div>
+          <div class="glyph">⚡</div>
+          <h3 id="emptyTitle"></h3>
+          <p id="emptyDesc"></p>
+          <div class="chips" id="emptyChips"></div>
+        </div>
+      </div>
+
+      <!-- 设置（内置页签：网关 / 密钥 / 客户端） -->
+      <div class="shell-page" id="page-settings">
+        <h2 class="page-head" id="settingsTitle"></h2>
+        <p class="page-sub" id="settingsSub"></p>
+        <div class="modal-tabs">
+          <button class="mtab active" data-tab="gateway"></button>
+          <button class="mtab" data-tab="keys"></button>
+          <button class="mtab" data-tab="clients"></button>
+        </div>
+        <div class="mpanel is-active" id="tab-gateway">
+          <div class="card">
+            <h3><span id="cardGateway"></span></h3>
+            <div class="grid">
+              <label><span id="lblBin"></span><input id="inBin" /></label>
+              <label><span id="lblConfig"></span><input id="inConfig" /></label>
+              <label><span id="lblBase"></span><input id="inBase" value="http://127.0.0.1:20130" /></label>
+              <button id="btnSave"></button>
+            </div>
+          </div>
+          <div class="card">
+            <h3><span id="cardToken"></span><span class="hint" id="cardTokenHint"></span></h3>
+            <div class="row2">
+              <label><span id="lblKey"></span><input id="inKey" /></label>
+              <button id="btnKey" class="primary"></button>
+            </div>
+          </div>
+        </div>
+        <div class="mpanel" id="tab-keys">
+          <div class="card">
+            <h3><span id="cardKeys"></span><span class="hint" id="cardKeysHint"></span></h3>
+            <div class="row2">
+              <label><span id="lblProvider"></span>
+                <select id="selProvider">
+                  <option value="openrouter">OpenRouter（免费模型聚合）</option>
+                  <option value="groq">Groq</option>
+                  <option value="cerebras">Cerebras</option>
+                  <option value="gemini">Google Gemini</option>
+                  <option value="nvidia">NVIDIA NIM</option>
+                  <option value="cloudflare">Cloudflare Workers AI</option>
+                  <option value="huggingface">HuggingFace</option>
+                  <option value="zhipu">智谱 BigModel（GLM-Flash 免费）</option>
+                  <option value="siliconflow">硅基流动 SiliconFlow（L0 免费档）</option>
+                  <option value="modelscope">魔搭 ModelScope（每日 2000 次）</option>
+                  <option value="qwen">通义千问（新人每模型 100 万 tokens）</option>
+                  <option value="sambanova">SambaNova（每日 20M tokens 免费）</option>
+                  <option value="mistral">Mistral（Experiment 免费档，需代理）</option>
+                  <option value="cohere">Cohere（Trial：1000 次/月）</option>
+                  <option value="chutes">Chutes（免费档限速）</option>
+                  <option value="qianfan">百度千帆（ERNIE-Speed/Lite 免费）</option>
+                  <option value="spark">讯飞星火（Lite 永久免费）</option>
+                  <option value="hunyuan">腾讯混元（100 万 tokens/年）</option>
+                  <option value="deepseek">DeepSeek（BYOK 付费）</option>
+                  <option value="mimo">小米 MiMo（BYOK 付费）</option>
+                  <option value="ark">火山方舟·豆包（BYOK 付费）</option>
+                  <option value="together">Together AI（BYOK 付费）</option>
+                  <option value="anthropic">Anthropic（BYOK）</option>
+                  <option value="ollama">Ollama（本地，免密钥）</option>
+                </select>
+              </label>
+              <button id="btnKeyAdd"></button>
+              <button id="btnSignup" title=""></button>
+            </div>
+            <div class="msg" id="keyAddHint"></div>
+          </div>
+        </div>
+        <div class="mpanel" id="tab-clients">
+          <div class="card">
+            <h3><span id="cardClients"></span><span class="hint" id="cardClientsHint"></span></h3>
+            <div class="row2">
+              <label><span id="lblClient"></span>
+                <select id="selClient">
+                  <option value="claude">Claude Code</option>
+                  <option value="codex">Codex CLI</option>
+                  <option value="gemini">Gemini CLI</option>
+                  <option value="opencode">OpenCode</option>
+                  <option value="pi">pi（运维 AI，聚合密钥驱动）</option>
+                </select>
+              </label>
+              <button id="btnConnect"></button>
+            </div>
+            <div class="msg" id="connectHint"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 关于 -->
+      <div class="shell-page" id="page-about">
+        <div class="about-wrap">
+          <div class="about-logo">⚡</div>
+          <h2>OmniFusion Desktop</h2>
+          <p id="aboutVersion"></p>
+          <p id="aboutDesc"></p>
+          <p class="about-links">
+            <a href="https://github.com/swsgbl/omnifusion" target="_blank">GitHub</a> ·
+            <a href="https://atomgit.com/hongfu/omnifusion" target="_blank">AtomGit</a> ·
+            <a href="https://github.com/swsgbl/omnifusion/blob/main/README.zh-CN.md" target="_blank">README</a>
+          </p>
+          <p class="about-license">Apache-2.0 · BYOK 本地优先 · 零遥测</p>
+          <button id="aboutCheck"></button>
+        </div>
+      </div>
     </div>
-    <div class="about-body">
-      <div class="about-logo">⚡</div>
-      <h2>OmniFusion Desktop</h2>
-      <p id="aboutVersion"></p>
-      <p id="aboutDesc"></p>
-      <p class="about-links">
-        <a href="https://github.com/swsgbl/omnifusion" target="_blank">GitHub</a> ·
-        <a href="https://atomgit.com/hongfu/omnifusion" target="_blank">AtomGit</a> ·
-        <a href="https://github.com/swsgbl/omnifusion/blob/main/README.zh-CN.md" target="_blank">README</a>
-      </p>
-      <p class="about-license">Apache-2.0 · BYOK 本地优先 · 零遥测</p>
+
+    <!-- ── Status bar: gateway state + actions ── -->
+    <div class="statusbar">
+      <span class="sb-dot" id="sbDot"></span>
+      <span id="sbText"></span>
+      <span class="sb-sep">|</span>
+      <span class="sb-mono" id="sbBase"></span>
+      <div class="msg" id="msg"></div>
+      <div class="sb-actions">
+        <button id="btnRefresh"></button>
+        <button id="btnStart" class="primary"></button>
+        <button id="btnStop" class="danger"></button>
+      </div>
     </div>
   </div>
-</div>
-
-<nav class="tabs" id="tabs"></nav>
-<!-- dashboard 承载区：不再是 iframe——由 Rust 侧的子 webview（dash）精确
-     覆盖本区域（跨源 iframe 在 WebView2 下不接收键盘输入的根治方案）；
-     gwDown 遮罩在子 webview 隐藏时露出。 -->
-<div id="frameWrap">
-  <div id="gwDown"></div>
 </div>
 
 <script>
 const { invoke } = window.__TAURI__.core;
-const PAGES = ["chat", "providers", "keys", "usage", "compression", "resilience"];
+// 可打开的页面（顺序即侧边栏顺序）。
+// 可打开的页面。DASH_PAGES 由子 webview 承载（dashboard 路由）；
+// SHELL_PAGES 是壳内页面（设置要用 Tauri 命令，不能跑在网关源里）。
+// 两类都是标签页，侧边栏统一入口、统一开法。
+const DASH_PAGES = ["chat", "providers", "keys", "usage", "compression", "resilience"];
+const SHELL_PAGES = ["settings", "about"];
+const PAGES = DASH_PAGES.concat(SHELL_PAGES);
+const PAGE_ICON = { chat: "💬", providers: "🔌", keys: "🔑", usage: "📊", compression: "🗜", resilience: "⚡", settings: "⚙", about: "ℹ" };
+const isShellPage = (id) => SHELL_PAGES.includes(id);
 const I18N = {
   zh: {
-    refresh: "刷新状态", start: "启动网关", stop: "停止网关", save: "保存设置",
+    refresh: "刷新", start: "启动网关", stop: "停止", save: "保存",
     readKey: "从 ofd 读取 Key", detecting: "检测中…",
     lblBin: "ofd 可执行文件路径", phBin: "C:\\path\\to\\ofd.exe（留空则按 PATH 解析 ofd.exe）",
     lblConfig: "配置文件（可选）", phConfig: "C:\\path\\to\\config.yaml（留空用内置默认值）",
     lblBase: "网关地址",
-    lblKey: "网关 API Key（本机明文存储于应用配置目录）",
+    lblKey: "网关 API Key（明文存于应用配置目录）",
     phKey: "ofg-…（点击右侧按钮从 ofd 读取）",
     lblProvider: "提供商密钥管理", btnKeyAdd: "添加/更新密钥…", btnSignup: "申请密钥 ↗",
     signupHint: "在浏览器打开该厂商的官方申请页", msgSignupFail: "打开申请页失败: ",
@@ -232,17 +386,24 @@ const I18N = {
     connectHint: "弹出控制台自动写入该 CLI 的配置（原文件自动备份），完成后重启对应 CLI 生效",
     msgConnectOk: "已打开接入控制台（写入详情见控制台）", msgConnectFail: "拉起接入失败: ",
     tabs: { chat: "对话", providers: "提供商", keys: "密钥", usage: "用量", compression: "压缩", resilience: "弹性" },
-    gwDown: "网关未运行<br>点击右上「启动网关」即可开始（安装包自带网关，无需另外下载）",
+    navMain: "导航", navSystem: "系统",
+    settingsSub: "网关接入、密钥与客户端配置。所有设置只影响本机，不涉及云端。",
+    cardGateway: "网关进程", cardToken: "网关令牌", cardTokenHint: "页面与 API 的访问凭证，仅存本机",
+    cardKeys: "厂商密钥", cardKeysHint: "每家独立申请；密钥加密存于本机，不经过任何服务器",
+    cardClients: "接入 CLI 工具", cardClientsHint: "把聚合密钥写进本机已装的 CLI（自动备份原配置）",
+    gwDown: "网关未运行<br>点右下「启动网关」即可开始（安装包自带网关，无需另外下载）",
     miSettings: "设置", miUpdate: "检查更新", miAbout: "关于",
+    newTab: "打开新标签页",
+    emptyTitle: "没有打开的页面", emptyDesc: "从左侧菜单打开一个页面，它会在这里以标签页显示",
     tabGateway: "网关", tabKeys: "密钥", tabClients: "客户端",
     aboutVersionText: "版本：由网关运行时显示（ofd --version）",
     aboutDesc: "把全球免费大模型聚合到一个本地端点。BYOK 本地优先，零遥测，密钥永不出本机。",
     updateFound: "✨ 发现新版本 {v}，已打开下载页", updateNone: "✓ 已是最新版本", updateFail: "检查更新失败: ",
-    detail: { managed: "运行中（本应用托管）", external: "运行中（外部启动，本应用仅观测）", stopped: "未运行" },
+    detail: { managed: "运行中（本应用托管）", external: "运行中（外部启动）", stopped: "未运行" },
     err: {
       spawn_failed: "启动进程失败",
       early_exit: "网关进程立即退出（附日志尾部）：请检查二进制路径与配置文件",
-      health_timeout: "网关已拉起但 20s 内未就绪（重启后首次运行过杀毒扫描可能较慢；进程仍在运行，稍候点「刷新状态」查看）。日志尾部：",
+      health_timeout: "网关已拉起但 20s 内未就绪（首次运行可能因杀毒扫描较慢），点「刷新」查看",
       not_managed: "当前实例非本应用托管（外部启动），请自行停止",
       gateway_key_failed: "ofd gateway-key 退出码非 0", gateway_key_empty: "ofd gateway-key 输出为空",
     },
@@ -252,12 +413,12 @@ const I18N = {
     healthOk: " · /healthz OK",
   },
   en: {
-    refresh: "Refresh Status", start: "Start Gateway", stop: "Stop Gateway", save: "Save Settings",
+    refresh: "Refresh", start: "Start Gateway", stop: "Stop", save: "Save",
     readKey: "Read Key from ofd", detecting: "Checking…",
-    lblBin: "ofd executable path", phBin: "C:\\path\\to\\ofd.exe (empty = resolve ofd.exe from PATH)",
+    lblBin: "ofd executable path", phBin: "C:\\path\\to\\ofd.exe (empty = resolve from PATH)",
     lblConfig: "Config file (optional)", phConfig: "C:\\path\\to\\config.yaml (empty = built-in defaults)",
     lblBase: "Gateway base URL",
-    lblKey: "Gateway API Key (stored in plaintext in the app config dir)",
+    lblKey: "Gateway API Key (plaintext in the app config dir)",
     phKey: "ofg-… (click the button on the right to read from ofd)",
     lblProvider: "Provider key management", btnKeyAdd: "Add / update key…", btnSignup: "Get key ↗",
     signupHint: "Opens the provider's official key page in your browser", msgSignupFail: "Failed to open: ",
@@ -267,17 +428,24 @@ const I18N = {
     connectHint: "Opens a console that writes the CLI's config (original backed up); restart that CLI afterwards",
     msgConnectOk: "Connect console opened (details in the console)", msgConnectFail: "Failed to launch: ",
     tabs: { chat: "Chat", providers: "Providers", keys: "Keys", usage: "Usage", compression: "Compression", resilience: "Resilience" },
-    gwDown: "Gateway not running<br>Click \"Start Gateway\" at the top right to begin (the gateway is bundled — nothing else to install)",
+    navMain: "Navigate", navSystem: "System",
+    settingsSub: "Gateway, keys and CLI wiring. Everything here is local-only.",
+    cardGateway: "Gateway process", cardToken: "Gateway token", cardTokenHint: "Credential for pages and API — stored locally",
+    cardKeys: "Provider keys", cardKeysHint: "Apply per provider; encrypted locally, never sent to any server",
+    cardClients: "Wire a CLI", cardClientsHint: "Writes the aggregated key into an installed CLI (original backed up)",
+    gwDown: "Gateway not running<br>Click \"Start Gateway\" at the bottom right to begin (the gateway is bundled)",
     miSettings: "Settings", miUpdate: "Check for Updates", miAbout: "About",
+    newTab: "Open a new tab",
+    emptyTitle: "No pages open", emptyDesc: "Pick a page from the left menu — it opens here as a tab",
     tabGateway: "Gateway", tabKeys: "API Keys", tabClients: "CLI Clients",
     aboutVersionText: "Version: shown at runtime (ofd --version)",
     aboutDesc: "Aggregate the world's free LLMs behind one local endpoint. BYOK local-first, zero telemetry, keys never leave your machine.",
     updateFound: "✨ New version {v} available — download page opened", updateNone: "✓ You are on the latest version", updateFail: "Update check failed: ",
-    detail: { managed: "Running (managed by this app)", external: "Running (started externally, observed only)", stopped: "Stopped" },
+    detail: { managed: "Running (managed)", external: "Running (external)", stopped: "Stopped" },
     err: {
       spawn_failed: "Failed to spawn process",
       early_exit: "Gateway exited immediately (log tail attached): check the binary path and config file",
-      health_timeout: "Gateway started but not ready within 20s (first run after a reboot may be slowed by antivirus scanning; the process is still running — click \"Refresh Status\" in a moment). Log tail: ",
+      health_timeout: "Gateway started but not ready within 20s (first run may be slowed by antivirus scanning) — click Refresh",
       not_managed: "Current instance is not managed by this app (started externally); stop it yourself",
       gateway_key_failed: "ofd gateway-key exited non-zero", gateway_key_empty: "ofd gateway-key output is empty",
     },
@@ -289,21 +457,21 @@ const I18N = {
 };
 const $ = (id) => document.getElementById(id);
 let settings = { bin: "", config: "", base: "http://127.0.0.1:20130", key: "", lang: "auto" };
-let activePage = "providers";
 let t = I18N.en;
+
+// ── Tab model（浏览器式：标签 = 已打开的页面；切换标签 = 导航子 webview）──
+let openTabs = [];
+let activePage = "";
 
 function effLang() {
   if (settings.lang === "zh" || settings.lang === "en") return settings.lang;
   return (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
 }
-
 function setMsg(text, cls) {
   const el = $("msg");
   el.textContent = text || "";
   el.className = "msg" + (cls ? " " + cls : "");
 }
-
-// 后端错误形如 "code: raw detail"，code 映射本地文案，detail 原样保留。
 function locErr(e) {
   const s = String(e);
   const i = s.indexOf(":");
@@ -311,26 +479,234 @@ function locErr(e) {
   const rest = i > 0 ? s.slice(i) : "";
   return t.err[code] ? t.err[code] + rest : s;
 }
-
 function currentInputs() {
   return {
     bin: $("inBin").value.trim(),
     config: $("inConfig").value.trim(),
     base: $("inBase").value.trim() || "http://127.0.0.1:20130",
     key: $("inKey").value.trim(),
-    lang: settings.lang || "auto",
+    lang: $("selLang").value,
   };
 }
-
 function applySettings(s) {
-  settings = { bin: "", config: "", base: "http://127.0.0.1:20130", key: "", lang: "auto", ...(s || {}) };
-  if (settings.lang !== "zh" && settings.lang !== "en") settings.lang = "auto";
+  settings = Object.assign(settings, s || {});
   $("inBin").value = settings.bin;
   $("inConfig").value = settings.config;
   $("inBase").value = settings.base;
   $("inKey").value = settings.key;
 }
 
+// ── 标签页持久化（重启后恢复上次打开的标签） ──
+const TABS_KEY = "ofd-desktop-tabs";
+function saveTabs() {
+  try { localStorage.setItem(TABS_KEY, JSON.stringify({ open: openTabs, active: activePage })); } catch {}
+}
+function restoreTabs() {
+  try {
+    const s = JSON.parse(localStorage.getItem(TABS_KEY) || "{}");
+    if (Array.isArray(s.open)) openTabs = s.open.filter((p) => PAGES.includes(p));
+    if (PAGES.includes(s.active)) activePage = s.active;
+  } catch {}
+  if (!openTabs.length) { openTabs = ["chat"]; activePage = "chat"; }
+  if (!openTabs.includes(activePage)) activePage = openTabs[0];
+}
+
+// ── 侧边栏渲染 + 折叠 ──
+// ── 侧边栏渲染（两段：导航页 + 系统页，全部统一为标签页入口）──
+function renderSidebar() {
+  const nav = $("sideNav");
+  nav.innerHTML = "";
+  const addSection = (label) => {
+    const sec = document.createElement("div");
+    sec.className = "nav-section";
+    sec.textContent = label;
+    nav.appendChild(sec);
+  };
+  const addItem = (id) => {
+    const b = document.createElement("button");
+    b.className = "nav-item" + (id === activePage ? " is-active" : "");
+    b.title = t.tabs[id];
+    b.innerHTML = `<span class="nav-ico">${PAGE_ICON[id]}</span><span class="nav-label"></span>`;
+    b.querySelector(".nav-label").textContent = t.tabs[id];
+    b.onclick = () => openTab(id);
+    nav.appendChild(b);
+  };
+  addSection(t.navMain);
+  DASH_PAGES.forEach(addItem);
+  addSection(t.navSystem);
+  SHELL_PAGES.forEach(addItem);
+}
+function setCollapsed(collapsed) {
+  $("sidebar").classList.toggle("collapsed", collapsed);
+  $("sideCollapse").textContent = collapsed ? "»" : "«";
+  try { localStorage.setItem("ofd-desktop-sidebar", collapsed ? "1" : "0"); } catch {}
+  setTimeout(layoutDash, 170); // 折叠动画结束后重新对齐子 webview
+}
+$("sideCollapse").onclick = () => setCollapsed(!$("sidebar").classList.contains("collapsed"));
+
+// ── 标签条渲染 ──
+function renderTabs() {
+  const strip = $("tabs");
+  strip.innerHTML = "";
+  for (const id of openTabs) {
+    const tab = document.createElement("button");
+    tab.className = "tab" + (id === activePage ? " is-active" : "");
+    tab.title = t.tabs[id];
+    tab.innerHTML = `<span class="tab-ico">${PAGE_ICON[id]}</span><span class="tab-label"></span><span class="tab-close">✕</span>`;
+    tab.querySelector(".tab-label").textContent = t.tabs[id];
+    tab.onclick = (e) => { if (!e.target.classList.contains("tab-close")) activateTab(id); };
+    tab.querySelector(".tab-close").onclick = (e) => { e.stopPropagation(); closeTab(id); };
+    strip.appendChild(tab);
+  }
+  const empty = $("emptyState");
+  empty.style.display = openTabs.length ? "none" : "grid";
+  $("newTab").style.display = openTabs.length ? "grid" : "none";
+  saveTabs();
+}
+
+// ── 标签操作 ──
+function openTab(id) {
+  if (!PAGES.includes(id)) return;
+  if (!openTabs.includes(id)) openTabs.push(id);
+  activateTab(id);
+}
+function activateTab(id) {
+  activePage = id;
+  renderTabs(); renderSidebar(); loadFrame();
+}
+
+// syncShellPages 壳内页面（设置/关于）与子 webview 互斥显示：激活壳页面
+// 时隐藏 webview 并显示对应面板；切回 dashboard 页时反之。reuse overlayOpen
+// 让 3s 状态轮询不会把 webview 重新显示出来盖住壳页面。
+function syncShellPages() {
+  const shellActive = isShellPage(activePage);
+  for (const id of SHELL_PAGES) {
+    $("page-" + id).classList.toggle("is-active", activePage === id);
+  }
+  if (shellActive) {
+    overlayOpen = true;
+    if (dashReady) { try { invoke("dash_visible", { visible: false }); } catch {} }
+    if (activePage === "settings") renderSettingsPanes();
+  } else {
+    overlayOpen = false;
+    if (dashReady) { try { invoke("dash_visible", { visible: true }); } catch {} }
+  }
+}
+
+function closeTab(id) {
+  const i = openTabs.indexOf(id);
+  if (i < 0) return;
+  openTabs.splice(i, 1);
+  if (activePage === id) {
+    activePage = openTabs[Math.min(i, openTabs.length - 1)] || "";
+    renderTabs(); renderSidebar();
+    if (activePage) loadFrame(); else { syncShellPages(); hideDash(); }
+    syncShellPages();
+    return;
+  }
+  renderTabs(); renderSidebar();
+}
+$("newTab").onclick = () => {
+  const next = PAGES.find((p) => !openTabs.includes(p)) || PAGES[0];
+  openTab(next);
+};
+
+// ── dashboard 子 webview 驱动层（WebView2 跨源 iframe 不接收键盘输入的
+// 根治方案）。壳只做三件事：布局上报、按需导航（URL 变才导航）、随状态显隐。──
+let dashReady = false;
+let lastFrameUrl = "";
+let dashCurrentUrl = "";
+let dashWasRunning = false;
+let overlayOpen = false;
+
+async function layoutDash() {
+  const r = $("frameWrap").getBoundingClientRect();
+  if (r.width < 2 || r.height < 2) return;
+  const args = { x: r.left, y: r.top, w: r.width, h: r.height };
+  try {
+    if (!dashReady) {
+      await invoke("dash_create", { url: lastFrameUrl || "http://127.0.0.1:20130/", ...args });
+      dashReady = true;
+      await syncDashVisibility(true);
+    } else {
+      await invoke("dash_layout", args);
+    }
+  } catch { /* 尽力而为 */ }
+}
+function navigateDashIfNeeded() {
+  if (!dashReady || !lastFrameUrl || lastFrameUrl === dashCurrentUrl) return;
+  dashCurrentUrl = lastFrameUrl;
+  invoke("dash_navigate", { url: lastFrameUrl }).catch(() => { dashCurrentUrl = ""; });
+}
+// 浮层（菜单/弹窗）打开期间隐藏子 webview；轮询也尊重该状态。
+async function hideDash() { overlayOpen = true; if (dashReady) { try { await invoke("dash_visible", { visible: false }); } catch {} } }
+async function showDash() { overlayOpen = false; if (dashReady) { try { await invoke("dash_visible", { visible: true }); } catch {} } }
+async function syncDashVisibility(running) {
+  if (overlayOpen) return;
+  try { await invoke("dash_visible", { visible: running }); } catch { /* 尽力而为 */ }
+}
+
+function loadFrame() {
+  if (!activePage) { syncShellPages(); hideDash(); return; }
+  if (isShellPage(activePage)) { syncShellPages(); return; } // 壳内页面不导航 webview
+  syncShellPages(); // 从壳页面切回 dashboard 页：恢复 webview
+  const base = $("inBase").value.trim() || "http://127.0.0.1:20130";
+  const key = encodeURIComponent($("inKey").value.trim());
+  const lang = `&lang=${effLang()}&embed=1`;
+  lastFrameUrl = `${base}/dashboard/${activePage}?key=${key}${lang}`;
+  navigateDashIfNeeded();
+}
+
+// ── 状态轮询 ──
+async function refresh() {
+  const { base } = currentInputs();
+  try {
+    const s = await invoke("gateway_status", { base });
+    const badge = $("statusBadge");
+    badge.textContent = t.detail[s.detail] || s.detail;
+    badge.className = "badge " + (s.running ? (s.managed ? "mgd" : "on") : "off");
+    $("btnStop").disabled = !s.managed;
+    $("btnStart").disabled = s.running;
+    $("gwDown").style.display = s.running ? "none" : "grid";
+    $("gwDown").innerHTML = t.gwDown;
+    // 状态栏
+    $("sbDot").className = "sb-dot " + (s.running ? "on" : "");
+    $("sbText").textContent = t.detail[s.detail] || s.detail;
+    try { $("sbBase").textContent = new URL(base).host; } catch { $("sbBase").textContent = base; }
+    await syncDashVisibility(s.running);
+    if (s.running) {
+      if (!dashWasRunning) dashCurrentUrl = ""; // 停→起：强制重导航
+      navigateDashIfNeeded();
+    }
+    dashWasRunning = s.running;
+    if (s.running) loadUpdateBadge(base);
+  } catch (e) {
+    $("statusBadge").textContent = t.msgProbeFail + e;
+    $("statusBadge").className = "badge off";
+    $("sbDot").className = "sb-dot warn";
+    $("sbText").textContent = t.msgProbeFail + e;
+  }
+}
+
+// loadUpdateBadge 经 Rust 代理命令拉更新快照（壳与网关跨源，JS 不直 fetch）。
+let updateTicker = 0;
+function loadUpdateBadge(base) {
+  if (updateTicker) return;
+  updateTicker = setInterval(async () => {
+    try {
+      const u = await invoke("check_updates", { base });
+      if (u && u.update_available) {
+        const el = $("updateBadge");
+        el.href = u.release_url || "https://atomgit.com/hongfu/omnifusion/releases";
+        el.textContent = "✨ " + (u.latest || "") + " ↗";
+        el.style.display = "";
+        clearInterval(updateTicker); updateTicker = 0;
+      }
+    } catch { /* 静默 */ }
+  }, 40000);
+}
+
+// ── 文案应用 ──
 function applyLang() {
   t = I18N[effLang()];
   document.documentElement.lang = effLang() === "zh" ? "zh-CN" : "en";
@@ -355,49 +731,38 @@ function applyLang() {
   $("inBin").placeholder = t.phBin;
   $("inConfig").placeholder = t.phConfig;
   $("inKey").placeholder = t.phKey;
-  $("statusBadge").textContent = t.detecting;
-  // ☰ 菜单/弹窗文案
-  $("miSettings").textContent = t.miSettings;
-  $("miUpdate").textContent = t.miUpdate;
-  $("miAbout").textContent = t.miAbout;
+  $("aboutCheck").textContent = t.miUpdate;
   $("settingsTitle").textContent = t.miSettings;
-  $("aboutTitle").textContent = t.miAbout;
+  $("settingsSub").textContent = t.settingsSub;
+  $("cardGateway").textContent = t.cardGateway;
+  $("cardToken").textContent = t.cardToken;
+  $("cardTokenHint").textContent = t.cardTokenHint;
+  $("cardKeys").textContent = t.cardKeys;
+  $("cardKeysHint").textContent = t.cardKeysHint;
+  $("cardClients").textContent = t.cardClients;
+  $("cardClientsHint").textContent = t.cardClientsHint;
   $("aboutVersion").textContent = t.aboutVersionText;
   $("aboutDesc").textContent = t.aboutDesc;
+  $("newTab").title = t.newTab;
+  $("emptyTitle").textContent = t.emptyTitle;
+  $("emptyDesc").textContent = t.emptyDesc;
   document.querySelector('[data-tab="gateway"]').textContent = t.tabGateway;
   document.querySelector('[data-tab="keys"]').textContent = t.tabKeys;
   document.querySelector('[data-tab="clients"]').textContent = t.tabClients;
-  renderTabs();
+  renderTabs(); renderSidebar();
 }
 
-// --- ☰ 菜单 + 弹窗交互 ---
-// 子 webview 是原生层，永远浮在壳 HTML 之上（z-index 无效）——打开
-// 菜单/弹窗必须把它藏住；且状态轮询每 3s 会重显 webview，故用
-// overlayOpen 标志让轮询尊重浮层状态（v0.1.10 实测两个连环 bug）。
-let overlayOpen = false;
-async function hideDash() { overlayOpen = true; if (dashReady) { try { await invoke("dash_visible", { visible: false }); } catch {} } }
-async function showDash() { overlayOpen = false; if (dashReady) { try { await invoke("dash_visible", { visible: true }); } catch {} } }
-$("btnMenu").onclick = async (e) => {
-  e.stopPropagation();
-  const d = $("menuDrop");
-  const opening = d.style.display === "none";
-  d.style.display = opening ? "flex" : "none";
-  overlayOpen = opening;
-  if (dashReady) { try { await invoke("dash_visible", { visible: !opening }); } catch {} }
-};
-document.addEventListener("click", async (e) => {
-  const d = $("menuDrop");
-  if (d.style.display !== "none" && !d.contains(e.target) && e.target.id !== "btnMenu") {
-    d.style.display = "none";
-    overlayOpen = false;
-    if (dashReady) { try { await invoke("dash_visible", { visible: true }); } catch {} }
-  }
+// ── 设置页内标签（网关/密钥/客户端） + 关于页 ──
+// 设置与关于是壳内页签（由侧边栏 openTab 打开），不再是浮层弹窗。
+document.querySelectorAll(".mtab").forEach((tab) => {
+  tab.onclick = () => setSettingsTab(tab.dataset.tab);
 });
-$("miSettings").onclick = () => { $("menuDrop").style.display = "none"; $("settingsModal").style.display = "grid"; hideDash(); };
-$("miAbout").onclick = () => { $("menuDrop").style.display = "none"; $("aboutModal").style.display = "grid"; hideDash(); };
-$("miUpdate").onclick = async () => {
-  $("menuDrop").style.display = "none";
-  showDash();
+function setSettingsTab(name) {
+  document.querySelectorAll(".mtab").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
+  document.querySelectorAll(".mpanel").forEach((p) => p.classList.toggle("is-active", p.id === "tab-" + name));
+}
+function renderSettingsPanes() { /* 面板显隐由 CSS class 驱动，无需重绘 */ }
+$("aboutCheck").onclick = async () => {
   const { base } = currentInputs();
   try {
     const u = await invoke("check_updates", { base });
@@ -409,136 +774,29 @@ $("miUpdate").onclick = async () => {
     }
   } catch (e) { setMsg(t.updateFail + e, "err"); }
 };
-$("settingsClose").onclick = () => { $("settingsModal").style.display = "none"; showDash(); };
-$("aboutClose").onclick = () => { $("aboutModal").style.display = "none"; showDash(); };
-$("settingsModal").addEventListener("click", (e) => { if (e.target.id === "settingsModal") { e.target.style.display = "none"; showDash(); } });
-$("aboutModal").addEventListener("click", (e) => { if (e.target.id === "aboutModal") { e.target.style.display = "none"; showDash(); } });
-document.querySelectorAll(".mtab").forEach((tab) => {
-  tab.onclick = () => {
-    document.querySelectorAll(".mtab").forEach(x => x.classList.remove("active"));
-    tab.classList.add("active");
-    document.querySelectorAll(".mpanel").forEach(p => p.style.display = "none");
-    $("tab-" + tab.dataset.tab).style.display = "";
-  };
-});
 
-// --- dashboard 子 webview 驱动层（替代 iframe：WebView2 跨源 iframe
-// 不接收键盘输入的根治方案）。壳只做三件事：布局上报（frameWrap 矩形
-// → Rust set_position/size）、按需导航（URL 变化才 navigate，杜绝
-// 周期刷新重载）、随网关状态显隐。 ---
-let dashReady = false;        // 子 webview 已创建
-let lastFrameUrl = "";        // 当前应当显示的 URL
-let dashCurrentUrl = "";      // 子 webview 实际所在的 URL
-let dashWasRunning = false;   // 网关上次状态（停→起需强制重导航）
-
-async function layoutDash() {
-  const r = $("frameWrap").getBoundingClientRect();
-  if (r.width < 2 || r.height < 2) return;
-  const args = { x: r.left, y: r.top, w: r.width, h: r.height };
-  try {
-    if (!dashReady) {
-      await invoke("dash_create", { url: lastFrameUrl || "http://127.0.0.1:20130/", ...args });
-      dashReady = true;
-      await syncDashVisibility(true);
-    } else {
-      await invoke("dash_layout", args);
-    }
-  } catch { /* 布局失败下一帧重试（ResizeObserver 持续触发） */ }
-}
-
-function navigateDashIfNeeded() {
-  if (!dashReady || !lastFrameUrl || lastFrameUrl === dashCurrentUrl) return;
-  dashCurrentUrl = lastFrameUrl;
-  invoke("dash_navigate", { url: lastFrameUrl }).catch(() => { dashCurrentUrl = ""; });
-}
-
-// syncDashVisibility 尊重 overlayOpen（声明见菜单交互区）——3s 轮询
-// 期间浮层打开则保持子 webview 隐藏，不把菜单/弹窗盖掉。
-async function syncDashVisibility(running) {
-  if (overlayOpen) return;
-  try { await invoke("dash_visible", { visible: running }); } catch { /* 尽力而为 */ }
-}
-
-function loadFrame() {
-  const base = $("inBase").value.trim() || "http://127.0.0.1:20130";
-  const key = encodeURIComponent($("inKey").value.trim());
-  // 子 webview 模式：壳强制传 lang（壳语言是唯一真源）+ embed=1
-  //（隐藏页内导航与语言切换——桌面标签已提供导航，避免双控制源打架）。
-  const lang = `&lang=${effLang()}&embed=1`;
-  lastFrameUrl = `${base}/dashboard/${activePage}?key=${key}${lang}`;
-  navigateDashIfNeeded();
-}
-
-function renderTabs() {
-  const nav = $("tabs");
-  nav.innerHTML = "";
-  for (const id of PAGES) {
+// ── 空态建议 chips ──
+function renderEmptyChips() {
+  const box = $("emptyChips");
+  box.innerHTML = "";
+  ["chat", "keys", "providers"].forEach((id) => {
     const b = document.createElement("button");
-    b.textContent = t.tabs[id];
-    b.className = id === activePage ? "active" : "";
-    b.onclick = () => { activePage = id; renderTabs(); loadFrame(); };
-    nav.appendChild(b);
-  }
+    b.className = "chip";
+    b.textContent = PAGE_ICON[id] + " " + t.tabs[id];
+    b.onclick = () => openTab(id);
+    box.appendChild(b);
+  });
 }
 
-async function refresh() {
-  const { base } = currentInputs();
-  try {
-    const s = await invoke("gateway_status", { base });
-    const badge = $("statusBadge");
-    badge.textContent = (t.detail[s.detail] || s.detail) + (s.running ? t.healthOk : "");
-    badge.className = "badge " + (s.running ? (s.managed ? "mgd" : "on") : "off");
-    $("btnStop").disabled = !s.managed;
-    $("btnStart").disabled = s.running;
-    $("gwDown").style.display = s.running ? "none" : "grid";
-    $("gwDown").innerHTML = t.gwDown;
-    await syncDashVisibility(s.running);
-    if (s.running) {
-      // 停→起过渡：子 webview 里可能还停着网关停机时的错误页（URL 未变
-      // 不会触发重导航），强制重载一次。
-      if (!dashWasRunning) dashCurrentUrl = "";
-      navigateDashIfNeeded(); // URL 有变才导航（幂等，无重载）
-    }
-    dashWasRunning = s.running;
-    if (s.running) loadUpdateBadge(base);
-  } catch (e) {
-    $("statusBadge").textContent = t.msgProbeFail + e;
-    $("statusBadge").className = "badge off";
-  }
-}
-
-// loadUpdateBadge 经 Rust 代理命令拉更新快照显示徽标（壳与网关跨源，
-// 壳 JS 永不直接 fetch 网关 API——8f1b5e2 CORS 教训）；内嵌页横幅是
-// 主提醒面，徽标兜底每 40s 一次（等 server 首轮检查完成）。
-let updateTicker = 0;
-function loadUpdateBadge(base) {
-  if (updateTicker) return;
-  updateTicker = setInterval(async () => {
-    try {
-      const u = await invoke("check_updates", { base });
-      if (u && u.update_available) {
-        const el = $("updateBadge");
-        el.href = u.release_url || "https://atomgit.com/hongfu/omnifusion/releases";
-        el.textContent = "✨ " + (u.latest || "") + " ↗";
-        el.style.display = "";
-        clearInterval(updateTicker); updateTicker = 0; // 已展示即停轮询
-      }
-    } catch (e) { /* 静默：内嵌页横幅已覆盖提醒 */ }
-  }, 40000);
-}
-
+// ── 按钮接线 ──
 $("btnRefresh").onclick = refresh;
 $("btnSave").onclick = async () => {
-  try {
-    await invoke("save_settings", { settings: currentInputs() });
-    setMsg(t.msgSaved, "ok");
-  } catch (e) { setMsg(t.msgSaveFail + e, "err"); }
+  try { await invoke("save_settings", { settings: currentInputs() }); setMsg(t.msgSaved, "ok"); }
+  catch (e) { setMsg(t.msgSaveFail + e, "err"); }
 };
 $("btnKey").onclick = async () => {
   const { bin } = currentInputs();
   try {
-    // bin 留空原样传空：后端 resolve_bin 先找安装目录捆绑副本再回落
-    // PATH——前端预填 "ofd.exe" 会让该解析永远走不到（v0.1.2 实测缺陷）。
     const key = await invoke("fetch_gateway_key", { bin });
     $("inKey").value = key;
     setMsg(t.msgKeyOk, "ok");
@@ -547,15 +805,11 @@ $("btnKey").onclick = async () => {
 };
 $("btnKeyAdd").onclick = async () => {
   const { bin, config } = currentInputs();
-  const provider = $("selProvider").value;
-  try {
-    await invoke("key_add", { bin, config, provider });
-    setMsg(t.msgKeyAddOk, "ok");
-  } catch (e) { setMsg(t.msgKeyAddFail + locErr(e), "err"); }
+  try { await invoke("key_add", { bin, config, provider: $("selProvider").value }); setMsg(t.msgKeyAddOk, "ok"); }
+  catch (e) { setMsg(t.msgKeyAddFail + locErr(e), "err"); }
 };
-// 一键申请密钥：静态映射内嵌（与注册表 signup_url 声明同步维护）——
-// 不经网关 API（壳是 tauri.localhost 源，跨源 fetch 会被 CORS 拦截；
-// 且申请第一个 key 时网关可能还没启动，功能必须独立于网关可用）。
+// 一键申请密钥：静态映射内嵌（不经网关 API——壳是 tauri.localhost 源，
+// 跨源 fetch 会被 CORS 拦死；且申请第一个 key 时网关可能还没启动）。
 const SIGNUP = {
   anthropic: "https://console.anthropic.com/settings/keys",
   ark: "https://console.volcengine.com/ark",
@@ -588,11 +842,8 @@ $("btnSignup").onclick = async () => {
 };
 $("btnConnect").onclick = async () => {
   const { bin, config } = currentInputs();
-  const cli = $("selClient").value;
-  try {
-    await invoke("client_connect", { bin, config, cli });
-    setMsg(t.msgConnectOk, "ok");
-  } catch (e) { setMsg(t.msgConnectFail + locErr(e), "err"); }
+  try { await invoke("client_connect", { bin, config, cli: $("selClient").value }); setMsg(t.msgConnectOk, "ok"); }
+  catch (e) { setMsg(t.msgConnectFail + locErr(e), "err"); }
 };
 $("btnStart").onclick = async () => {
   const { bin, config, base } = currentInputs();
@@ -619,50 +870,62 @@ $("selLang").onchange = async () => {
   try {
     await invoke("set_language", { lang: effLang() });
     await invoke("save_settings", { settings: currentInputs() });
-  } catch { /* 托盘同步/持久化失败不阻塞界面语言切换 */ }
+  } catch { /* 托盘同步/持久化失败不阻塞语言切换 */ }
   loadFrame();
   refresh();
 };
 ["inBase", "inKey"].forEach((id) => $(id).addEventListener("change", loadFrame));
 
+// ── 键盘快捷键（浏览器/编辑器约定） ──
+document.addEventListener("keydown", (e) => {
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (ctrl && e.key.toLowerCase() === "b") { e.preventDefault(); setCollapsed(!$("sidebar").classList.contains("collapsed")); }
+  if (ctrl && e.key.toLowerCase() === "w" && activePage) { e.preventDefault(); closeTab(activePage); }
+  if (ctrl && e.key === ",") { e.preventDefault(); openTab("settings"); }
+});
+
 (async function init() {
   try { applySettings(await invoke("load_settings")); } catch { /* 首次运行为空 */ }
+  try { setCollapsed(localStorage.getItem("ofd-desktop-sidebar") === "1"); } catch {}
+  restoreTabs();
   applyLang();
-  // 自动读取网关 key（best-effort）：装完即用的一部分——桌面端知道
-  // 捆绑 ofd 的位置，无需用户手点「从 ofd 读取 Key」；读不到静默跳过
-  //（尚未录入任何 key 的全新安装会走首启引导）。
+  renderEmptyChips();
+  renderTabs();
+  renderSidebar();
+  // 自动读取网关 key（best-effort）：装完即用的一部分。
   if (!$("inKey").value.trim()) {
     try {
       const { bin } = currentInputs();
       const k = await invoke("fetch_gateway_key", { bin });
       $("inKey").value = k;
-      try { await invoke("save_settings", { settings: currentInputs() }); } catch { /* 持久化尽力而为 */ }
+      try { await invoke("save_settings", { settings: currentInputs() }); } catch {}
     } catch { /* 静默 */ }
   }
   loadFrame();
   layoutDash();
   new ResizeObserver(() => layoutDash()).observe($("frameWrap"));
   window.addEventListener("resize", () => layoutDash());
-  try { await invoke("set_language", { lang: effLang() }); } catch { /* 托盘语言同步尽力而为 */ }
+  try { await invoke("set_language", { lang: effLang() }); } catch {}
   await refresh();
   setInterval(refresh, 3000);
 })();
 </script>
 <script src="assets/gsap.min.js"></script>
 <script>
-// 桌面壳微动效（与 dashboard 同库同纪律）：徽标呼吸 + 标签按下回弹。
+// 桌面壳微动效（与 dashboard 同库同纪律）：骨架进场 + 状态点呼吸。
 (function () {
   'use strict';
   if (typeof gsap === 'undefined' || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   gsap.defaults({ duration: 0.35, ease: 'power2.out' });
-  gsap.from(['header', 'section.settings', 'nav.tabs'], { autoAlpha: 0, y: 8, stagger: 0.06, duration: 0.3, clearProps: 'all' });
-  const badge = document.getElementById('statusBadge');
-  if (badge) {
-    const pulse = () => { if (badge.className.indexOf('off') < 0) gsap.to(badge, { scale: 1.08, duration: 0.9, ease: 'sine.inOut', repeat: -1, yoyo: true }); };
+  gsap.from(['.sidebar', '.tabstrip', '.statusbar'], { autoAlpha: 0, y: 6, stagger: 0.05, duration: 0.28, clearProps: 'all' });
+  gsap.from('.nav-item', { autoAlpha: 0, x: -6, stagger: 0.025, duration: 0.25, delay: 0.06, clearProps: 'all' });
+  const dot = document.getElementById('sbDot');
+  if (dot) {
+    const pulse = () => { if (dot.className.indexOf('on') >= 0) gsap.to(dot, { scale: 1.25, duration: 1.1, ease: 'sine.inOut', repeat: -1, yoyo: true }); };
     pulse();
   }
-  document.querySelectorAll('nav.tabs button, section button').forEach(b => {
-    b.addEventListener('pointerdown', () => gsap.fromTo(b, { scale: 0.96 }, { scale: 1, duration: 0.25, ease: 'back.out(2)' }));
+  document.querySelectorAll('button').forEach((b) => {
+    b.addEventListener('pointerdown', () => gsap.fromTo(b, { scale: 0.97 }, { scale: 1, duration: 0.22, ease: 'back.out(2)' }));
   });
 })();
 </script>
