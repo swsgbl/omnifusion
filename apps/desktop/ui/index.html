@@ -27,7 +27,7 @@
     --focus-ring: 0 0 0 3px rgba(47, 129, 247, .35);
     --r-sm: 4px; --r-md: 6px; --r-lg: 8px; --r-xl: 12px;
     --sidebar-w: 240px; --sidebar-w-collapsed: 56px;
-    --tabstrip-h: 40px; --statusbar-h: 28px;
+    --tabstrip-h: 40px; --statusbar-h: 32px;
     --font-ui: "Segoe UI", system-ui, -apple-system, "Microsoft YaHei", sans-serif;
     --font-mono: ui-monospace, Consolas, "Cascadia Mono", monospace;
   }
@@ -118,8 +118,14 @@
 
   /* ── Content (child webview target) ── */
   #frameWrap { position: relative; flex: 1; display: flex; background: var(--bg); min-height: 0; }
-  #gwDown { position: absolute; inset: 0; display: none; place-items: center;
-            background: var(--bg); color: var(--muted); font-size: 15px; text-align: center; line-height: 2; }
+  #gwDown { position: absolute; inset: 0; display: none; place-items: center; z-index: 2;
+            background: var(--bg); color: var(--muted); text-align: center; }
+  .gw-down-card { display: flex; flex-direction: column; align-items: center; gap: 8px;
+                  max-width: 460px; padding: 0 24px; }
+  .gw-down-glyph { font-size: 40px; opacity: .5; }
+  .gw-down-card h3 { font-size: 17px; font-weight: 600; color: var(--fg); }
+  .gw-down-card p { font-size: 13px; line-height: 1.7; }
+  button.xl { margin-top: 10px; padding: 11px 30px; font-size: 15px; font-weight: 600; }
 
   /* ── Status bar ── */
   .statusbar { height: var(--statusbar-h); flex: 0 0 var(--statusbar-h); display: flex;
@@ -130,12 +136,15 @@
   .sb-dot.warn { background: var(--warning); }
   .sb-sep { color: var(--border); }
   .sb-mono { font-family: var(--font-mono); font-size: 11.5px; }
+  /* 状态文字可截断，动作区永不被挤出窗口（flex:0 0 auto）——曾因文字变宽
+     把「启动网关」推到可视区之外。 */
+  #sbText, #sbBase { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .statusbar .msg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
                     white-space: nowrap; margin: 0; color: var(--muted); font-size: 11.5px; }
   .statusbar .msg.err { color: var(--danger); }
   .statusbar .msg.ok { color: var(--success); }
-  .sb-actions { display: flex; gap: 6px; }
-  .sb-actions button { padding: 3px 10px; font-size: 11.5px; }
+  .sb-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+  .sb-actions button { padding: 4px 12px; font-size: 12px; }
 
   /* ── Buttons & inputs ── */
   button { background: var(--surface-hover); color: var(--fg); border: 1px solid var(--border);
@@ -154,7 +163,7 @@
                                                      box-shadow: var(--focus-ring); }
 
   /* ── Shell pages (设置/关于：壳内页面，与 dashboard 页签同级) ── */
-  .shell-page { position: absolute; inset: 0; overflow-y: auto; padding: 24px 28px;
+  .shell-page { position: absolute; inset: 0; z-index: 3; overflow-y: auto; padding: 24px 28px;
                 background: var(--bg); display: none; }
   .shell-page.is-active { display: block; }
   .page-head { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
@@ -198,7 +207,7 @@
   #aboutCopy { margin-left: 8px; }
 
   /* ── Empty state (no tabs open) ── */
-  .empty-state { position: absolute; inset: 0; display: none; place-items: center; text-align: center; }
+  .empty-state { position: absolute; inset: 0; z-index: 1; display: none; place-items: center; text-align: center; }
   .empty-state .glyph { font-size: 40px; opacity: .55; }
   .empty-state h3 { margin: 12px 0 6px; font-size: 15px; font-weight: 600; }
   .empty-state p { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
@@ -240,7 +249,16 @@
     <!-- 子 webview 承载区（Rust 侧精确覆盖此矩形）；壳内页面（设置/关于）
          与之共用此区域，激活壳页面时隐藏子 webview。 -->
     <div id="frameWrap">
-      <div id="gwDown"></div>
+      <!-- 网关未运行时的首选入口：整块内容区就是一个「启动网关」大按钮。
+           状态栏的小按钮不显眼，小白找不到——这里才是视线落点。 -->
+      <div id="gwDown">
+        <div class="gw-down-card">
+          <div class="gw-down-glyph">⚡</div>
+          <h3 id="gwDownTitle"></h3>
+          <p id="gwDownSub"></p>
+          <button id="btnStartBig" class="primary xl"></button>
+        </div>
+      </div>
       <div class="empty-state" id="emptyState">
         <div>
           <div class="glyph">⚡</div>
@@ -356,7 +374,7 @@
     </div>
 
     <!-- ── Status bar: gateway state + actions ── -->
-    <div class="statusbar">
+    <div class="statusbar" id="statusbar">
       <span class="sb-dot" id="sbDot"></span>
       <span id="sbText"></span>
       <span class="sb-sep">|</span>
@@ -404,7 +422,8 @@ const I18N = {
     cardGateway: "网关进程", cardToken: "网关令牌", cardTokenHint: "页面与 API 的访问凭证，仅存本机",
     cardKeys: "厂商密钥", cardKeysHint: "每家独立申请；密钥加密存于本机，不经过任何服务器",
     cardClients: "接入 CLI 工具", cardClientsHint: "把聚合密钥写进本机已装的 CLI（自动备份原配置）",
-    gwDown: "网关未运行<br>点右下「启动网关」即可开始（安装包自带网关，无需另外下载）",
+    gwDownTitle: "网关未运行",
+    gwDownSub: "点击下面的按钮即可启动（安装包自带网关，无需另外下载）",
     miSettings: "设置", miUpdate: "检查更新", miAbout: "关于",
     newTab: "打开新标签页",
     emptyTitle: "没有打开的页面", emptyDesc: "从左侧菜单打开一个页面，它会在这里以标签页显示",
@@ -447,7 +466,8 @@ const I18N = {
     cardGateway: "Gateway process", cardToken: "Gateway token", cardTokenHint: "Credential for pages and API — stored locally",
     cardKeys: "Provider keys", cardKeysHint: "Apply per provider; encrypted locally, never sent to any server",
     cardClients: "Wire a CLI", cardClientsHint: "Writes the aggregated key into an installed CLI (original backed up)",
-    gwDown: "Gateway not running<br>Click \"Start Gateway\" at the bottom right to begin (the gateway is bundled)",
+    gwDownTitle: "Gateway is not running",
+    gwDownSub: "Click the button below to start it (the gateway is bundled — nothing to download)",
     miSettings: "Settings", miUpdate: "Check for Updates", miAbout: "About",
     newTab: "Open a new tab",
     emptyTitle: "No pages open", emptyDesc: "Pick a page from the left menu — it opens here as a tab",
@@ -637,8 +657,11 @@ let overlayOpen = false;
 
 async function layoutDash() {
   const r = $("frameWrap").getBoundingClientRect();
-  if (r.width < 2 || r.height < 2) return;
-  const args = { x: r.left, y: r.top, w: r.width, h: r.height };
+  // 子 webview 是原生层（浮在壳 HTML 之上），所以高度按状态栏顶边夹紧：
+  // 任何取整/DPI 偏差都不会让它压住底部的「启动网关/停止」按钮。
+  const h = Math.min(r.height, $("statusbar").getBoundingClientRect().top - r.top);
+  if (r.width < 2 || h < 2) return;
+  const args = { x: r.left, y: r.top, w: r.width, h };
   try {
     if (!dashReady) {
       await invoke("dash_create", { url: lastFrameUrl || "http://127.0.0.1:20130/", ...args });
@@ -684,7 +707,7 @@ async function refresh() {
     $("btnStop").disabled = !s.managed;
     $("btnStart").disabled = s.running;
     $("gwDown").style.display = s.running ? "none" : "grid";
-    $("gwDown").innerHTML = t.gwDown;
+    $("btnStartBig").disabled = s.running;
     // 状态栏
     $("sbDot").className = "sb-dot " + (s.running ? "on" : "");
     $("sbText").textContent = t.detail[s.detail] || s.detail;
@@ -730,6 +753,9 @@ function applyLang() {
   $("btnRefresh").textContent = t.refresh;
   $("btnStart").textContent = t.start;
   $("btnStop").textContent = t.stop;
+  $("btnStartBig").textContent = t.start;          // 内容区大按钮（同一动作）
+  $("gwDownTitle").textContent = t.gwDownTitle;
+  $("gwDownSub").textContent = t.gwDownSub;
   $("btnSave").textContent = t.save;
   $("btnKey").textContent = t.readKey;
   $("lblBin").textContent = t.lblBin;
@@ -888,9 +914,10 @@ $("btnConnect").onclick = async () => {
   try { await invoke("client_connect", { bin, config, cli: $("selClient").value }); setMsg(t.msgConnectOk, "ok"); }
   catch (e) { setMsg(t.msgConnectFail + locErr(e), "err"); }
 };
-$("btnStart").onclick = async () => {
+async function startGw() {
   const { bin, config, base } = currentInputs();
   $("btnStart").disabled = true;
+  $("btnStartBig").disabled = true;
   setMsg(t.msgStarting);
   try {
     const r = await invoke("gateway_start", { bin, config, base });
@@ -899,7 +926,9 @@ $("btnStart").onclick = async () => {
     else setMsg(r, "ok");
   } catch (e) { setMsg(t.msgStartFail + locErr(e), "err"); }
   refresh();
-};
+}
+$("btnStart").onclick = startGw;
+$("btnStartBig").onclick = startGw;
 $("btnStop").onclick = async () => {
   try {
     const r = await invoke("gateway_stop");
