@@ -5,6 +5,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -32,6 +33,8 @@ func (s *Server) handleDashboardAPI(w http.ResponseWriter, r *http.Request) {
 		s.scopeGuard(w, r, ScopeHealth, http.MethodGet, s.handleDashboardKeys)
 	case "models":
 		s.scopeGuard(w, r, ScopeHealth, http.MethodGet, s.handleDashboardModels)
+	case "models/refresh":
+		s.scopeGuard(w, r, ScopeHealth, http.MethodPost, s.handleModelsRefresh)
 	case "health":
 		s.scopeGuard(w, r, ScopeHealth, http.MethodGet, s.handleDashboardHealth)
 	case "update":
@@ -109,6 +112,31 @@ func (s *Server) handleWhoami(w http.ResponseWriter, r *http.Request) {
 		kind = "master"
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"kind": kind, "scopes": scopes})
+}
+
+// handleModelsRefresh 手动触发一轮模型目录同步（providers 页「刷新模型」
+// 按钮）：后台执行、立即返回；进行中重复触发返回 already_running。周期
+// 性自动刷新（启动即一轮 + 每 1h）在 catalog.Run 不变，此端点只是把
+// "厂商上新了想立刻刷"的主动权交给用户。
+func (s *Server) handleModelsRefresh(w http.ResponseWriter, _ *http.Request) {
+	if s.catalog == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"started": false, "reason": "catalog not configured"})
+		return
+	}
+	if !s.modelsSyncing.CompareAndSwap(false, true) {
+		writeJSON(w, http.StatusOK, map[string]any{"started": false, "reason": "already_running"})
+		return
+	}
+	go func() {
+		defer s.modelsSyncing.Store(false)
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+		changed := s.catalog.Sync(ctx)
+		if s.log != nil {
+			s.log.Info("manual model catalog sync done", "changed_providers", changed)
+		}
+	}()
+	writeJSON(w, http.StatusOK, map[string]any{"started": true})
 }
 
 // handleDashboardModels 返回模型目录快照（health scope）。

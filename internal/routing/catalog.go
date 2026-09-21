@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/swsgbl/omnifusion/internal/provider"
@@ -68,6 +69,10 @@ type Catalog struct {
 	//（SetStaticPrices，cmd/ofd 装配），feed 可随版本更新价格。
 	staticPrices map[string]map[string]provider.Price
 	feedPrices   map[string]map[string]provider.Price
+
+	// lastSync 是最近一次 Sync 完成时刻（unix 秒；0 = 尚未同步过）。
+	// Dashboard providers 页据此展示"上次模型同步"，手动刷新端点共用。
+	lastSync atomic.Int64
 }
 
 // NewCatalog 装配目录并从 SQLite 恢复快照（有 store 时）。
@@ -139,7 +144,16 @@ func (c *Catalog) Sync(ctx context.Context) int {
 			changed++
 		}
 	}
+	c.lastSync.Store(time.Now().Unix())
 	return changed
+}
+
+// LastSyncAt 返回最近一次同步完成时刻（零值 = 尚未同步过）。
+func (c *Catalog) LastSyncAt() time.Time {
+	if v := c.lastSync.Load(); v > 0 {
+		return time.Unix(v, 0)
+	}
+	return time.Time{}
 }
 
 // syncOne 同步单个 provider：live 拉取 → ErrNotSupported 回落静态 →

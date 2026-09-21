@@ -43,9 +43,16 @@ func (s *Server) handleDashboardProviders(w http.ResponseWriter, _ *http.Request
 	cds := s.activeCooldowns()
 
 	out := struct {
-		Providers   []dashProvider `json:"providers"`
-		ModelsTotal int            `json:"models_total"`
+		Providers      []dashProvider `json:"providers"`
+		ModelsTotal    int            `json:"models_total"`
+		ModelsSyncedAt *string        `json:"models_synced_at,omitempty"`
 	}{Providers: []dashProvider{}}
+	if s.catalog != nil {
+		if ts := s.catalog.LastSyncAt(); !ts.IsZero() {
+			str := ts.UTC().Format(time.RFC3339)
+			out.ModelsSyncedAt = &str
+		}
+	}
 	if s.router != nil {
 		for _, p := range s.router.Providers {
 			dp := dashProvider{

@@ -126,6 +126,7 @@ func TestScopedTokenCrossScopeDenied(t *testing.T) {
 		{http.MethodGet, "/dashboard/api/models", "", 200},
 		{http.MethodGet, "/dashboard/api/health", "", 200},
 		{http.MethodGet, "/dashboard/api/keys", "", 200},
+		{http.MethodPost, "/dashboard/api/models/refresh", "", 200},
 		{http.MethodGet, "/dashboard/api/usage", "", 403},
 		{http.MethodGet, "/dashboard/api/combos", "", 403},
 		{http.MethodGet, "/dashboard/api/route/status", "", 403},

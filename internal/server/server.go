@@ -50,6 +50,8 @@ type Server struct {
 	cstats   comboStats             // 压缩统计聚合（；零值可用，恒装配）
 	updates  *updateChecker         // 更新检查（；nil = 未启用，零行为）
 	envFacts EnvFacts               // 启动时检测的环境事实（管家系统提示注入用）
+
+	modelsSyncing atomic.Bool // 手动模型目录同步进行中（models/refresh 防重入）
 }
 
 // New 装配 Server。

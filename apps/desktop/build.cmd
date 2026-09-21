@@ -18,7 +18,7 @@ cd /d "%~dp0"
 if not "%~1"=="check" (
   echo [build.cmd] building ofd.exe for bundling...
   pushd ..\..
-  go build -ldflags "-X main.version=v0.1.12" -o apps\desktop\src-tauri\bin\ofd.exe ./cmd/ofd
+  go build -ldflags "-X main.version=v0.1.13" -o apps\desktop\src-tauri\bin\ofd.exe ./cmd/ofd
   if errorlevel 1 ( popd & echo [build.cmd] ofd build failed 1>&2 & exit /b 1 )
   popd
 )
@@ -27,5 +27,9 @@ if "%~1"=="check" (
   cargo check
   exit /b %errorlevel%
 )
-pnpm tauri build %*
+rem Direct node invocation instead of `pnpm tauri build`: pnpm's shim chain
+rem (mise) drops the vcvars PATH additions, and rustc then resolves `link.exe`
+rem to Git's coreutils link ("link: extra operand ..." build failure). Calling
+rem the tauri CLI through node keeps this script's environment intact.
+node node_modules\@tauri-apps\cli\tauri.js build %*
 exit /b %errorlevel%

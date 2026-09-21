@@ -180,10 +180,24 @@ fn gateway_start(
     if http_get(&base, "/healthz").is_some() {
         return Ok("already-running".into());
     }
+    // config 留空时默认吃安装目录自带的 config.yaml（若有）：用户把自定义
+    // provider/模型写在那里即可被桌面端启动的网关识别，不必进设置填路径。
+    let config = if !config.trim().is_empty() {
+        config.trim().to_string()
+    } else {
+        let mut eff = String::new();
+        if let Ok(dir) = app.path().resource_dir() {
+            let def = dir.join("config.yaml");
+            if def.is_file() {
+                eff = def.to_string_lossy().to_string();
+            }
+        }
+        eff
+    };
     let mut args: Vec<String> = Vec::new();
-    if !config.trim().is_empty() {
+    if !config.is_empty() {
         args.push("-config".into());
-        args.push(config.trim().to_string());
+        args.push(config);
     }
     // 网关日志落盘（安装目录 data/gateway.log）：无窗口进程的失败
     // 只有在这里才可见；早退/超时错误附尾部原文。
@@ -475,19 +489,46 @@ fn dash_navigate(app: AppHandle, url: String) -> Result<(), String> {
 }
 
 /// dash_visible 网关未运行时隐藏子 webview（露出壳的引导遮罩）。
+/// 显示时必须补一次 set_focus：WebView2 的多控制器布局里键盘焦点靠宿主
+/// 主动 MoveFocus 落进 webview，光靠显示动作键盘进不去（「输入框打不了字」
+/// 的第二根因；第一根因是前端轮询无条件重发 show，已在前端改为仅变化时下发）。
 #[tauri::command]
 fn dash_visible(app: AppHandle, visible: bool) -> Result<(), String> {
     let Some(wv) = app.get_webview("dash") else {
         return Ok(());
     };
-    let r = if visible { wv.show() } else { wv.hide() };
+    let r = if visible {
+        let r = wv.show();
+        if r.is_ok() {
+            let _ = wv.set_focus();
+        }
+        r
+    } else {
+        wv.hide()
+    };
+    if let Some(state) = app.try_state::<DashShown>() {
+        state.0.store(visible, std::sync::atomic::Ordering::Relaxed);
+    }
     r.map_err(|e| format!("visible: {e}"))
 }
+
+/// 子 webview 当前是否处于显示态（窗口激活事件据此决定是否归还键盘焦点）。
+struct DashShown(std::sync::atomic::AtomicBool);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // 单实例：二次启动不再开新进程（多实例会各自拉网关抢端口、多个托盘
+        // 图标），而是唤起已有主窗口。
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(w) = app.get_window("main") {
+                let _ = w.unminimize();
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }))
         .manage(GatewayProc::default())
+        .manage(DashShown(std::sync::atomic::AtomicBool::new(false)))
         .invoke_handler(tauri::generate_handler![
             gateway_status,
             gateway_start,
@@ -511,10 +552,27 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                // 关闭 = 收进托盘；真正退出走托盘菜单「退出」。
-                let _ = window.hide();
-                api.prevent_close();
+            match event {
+                WindowEvent::CloseRequested { api, .. } => {
+                    // 关闭 = 收进托盘；真正退出走托盘菜单「退出」。
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
+                // 窗口重新激活（alt-tab/任务栏/托盘唤起）时把键盘焦点归还给
+                // 可见中的子 webview，否则键盘会停在壳上，管家输入框打不了字。
+                WindowEvent::Focused(true) => {
+                    let app = window.app_handle().clone();
+                    let shown = app
+                        .try_state::<DashShown>()
+                        .map(|s| s.0.load(std::sync::atomic::Ordering::Relaxed))
+                        .unwrap_or(false);
+                    if shown {
+                        if let Some(wv) = app.get_webview("dash") {
+                            let _ = wv.set_focus();
+                        }
+                    }
+                }
+                _ => {}
             }
         })
         .run(tauri::generate_context!())
@@ -578,7 +636,20 @@ fn build_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                     let _ = w.set_focus();
                 }
             }
-            "quit" => app.exit(0),
+            "quit" => {
+                // 退出前停掉本应用拉起的网关子进程：否则留下孤儿 ofd.exe 占着
+                // 端口，下次启动状态栏显示「外部启动」且停止按钮不可用。只动
+                // 自己管理的实例（外部/CLI 启动的网关不属于本应用生命周期）。
+                if let Some(state) = app.try_state::<GatewayProc>() {
+                    if let Ok(mut guard) = state.child.lock() {
+                        if let Some(mut child) = guard.take() {
+                            let _ = child.kill();
+                            let _ = child.wait();
+                        }
+                    }
+                }
+                app.exit(0)
+            }
             _ => {}
         })
         .build(app)?;

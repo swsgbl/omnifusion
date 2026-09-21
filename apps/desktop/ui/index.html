@@ -620,12 +620,12 @@ function syncShellPages() {
   }
   if (shellActive) {
     overlayOpen = true;
-    if (dashReady) { try { invoke("dash_visible", { visible: false }); } catch {} }
+    applyDashVisible(false);
     if (activePage === "settings") renderSettingsPanes();
     if (activePage === "about") renderAboutVersions();
   } else {
     overlayOpen = false;
-    if (dashReady) { try { invoke("dash_visible", { visible: true }); } catch {} }
+    applyDashVisible(true);
   }
 }
 
@@ -653,7 +653,17 @@ let dashReady = false;
 let lastFrameUrl = "";
 let dashCurrentUrl = "";
 let dashWasRunning = false;
+let gwRunning = false; // 最近一次状态轮询的网关运行态（创建 webview 后按它显隐，避免强制 show 闪屏）
 let overlayOpen = false;
+let dashShown = null; // 最后一次成功应用的子 webview 可见性（null = 尚未应用过）
+
+// applyDashVisible 是子 webview 显隐的唯一出口，且只在状态真正变化时下发：
+// wry 的 show() 每次都执行 ShowWindow(SW_SHOW)+SetIsVisible(true)，状态轮询
+// 每 3 秒无条件重发会反复扰动键盘焦点——这是「输入框打不了字」的根因。
+async function applyDashVisible(v) {
+  if (dashShown === v) return;
+  try { await invoke("dash_visible", { visible: v }); dashShown = v; } catch { /* 尽力而为 */ }
+}
 
 async function layoutDash() {
   const r = $("frameWrap").getBoundingClientRect();
@@ -666,7 +676,9 @@ async function layoutDash() {
     if (!dashReady) {
       await invoke("dash_create", { url: lastFrameUrl || "http://127.0.0.1:20130/", ...args });
       dashReady = true;
-      await syncDashVisibility(true);
+      // 按最近已知的网关状态显隐：强制 show 会在网关未运行时闪出空白页
+      // 并抢走键盘焦点（真正的状态由 3s 轮询持续校正）。
+      await syncDashVisibility(gwRunning);
     } else {
       await invoke("dash_layout", args);
     }
@@ -678,11 +690,11 @@ function navigateDashIfNeeded() {
   invoke("dash_navigate", { url: lastFrameUrl }).catch(() => { dashCurrentUrl = ""; });
 }
 // 浮层（菜单/弹窗）打开期间隐藏子 webview；轮询也尊重该状态。
-async function hideDash() { overlayOpen = true; if (dashReady) { try { await invoke("dash_visible", { visible: false }); } catch {} } }
-async function showDash() { overlayOpen = false; if (dashReady) { try { await invoke("dash_visible", { visible: true }); } catch {} } }
+async function hideDash() { overlayOpen = true; await applyDashVisible(false); }
+async function showDash() { overlayOpen = false; await applyDashVisible(true); }
 async function syncDashVisibility(running) {
   if (overlayOpen) return;
-  try { await invoke("dash_visible", { visible: running }); } catch { /* 尽力而为 */ }
+  await applyDashVisible(running);
 }
 
 function loadFrame() {
@@ -718,6 +730,7 @@ async function refresh() {
       navigateDashIfNeeded();
     }
     dashWasRunning = s.running;
+    gwRunning = s.running;
     if (s.running) loadUpdateBadge(base);
   } catch (e) {
     $("statusBadge").textContent = t.msgProbeFail + e;
