@@ -755,8 +755,17 @@ async function refresh() {
     }
     gwRunning = s.running; // 必须先于下面的导航判断（navigate 的门用它）
     if (s.running) {
-      if (!dashWasRunning) dashCurrentUrl = ""; // 停→起：强制重导航
-      navigateDashIfNeeded();
+      if (!dashWasRunning) {
+        // 停→起：强制重导航。长时间隐藏的子 webview 会被 WebView2 挂起，
+        // 显示后立刻导航可能被静默吞掉（白屏：日志证实网关起来后页面
+        // 一次都没被请求）。等显示生效后再补两轮强制导航兜底。
+        dashCurrentUrl = "";
+        navigateDashIfNeeded();
+        setTimeout(() => { dashCurrentUrl = ""; navigateDashIfNeeded(); }, 400);
+        setTimeout(() => { dashCurrentUrl = ""; navigateDashIfNeeded(); }, 1600);
+      } else {
+        navigateDashIfNeeded();
+      }
     }
     dashWasRunning = s.running;
     if (s.running) loadUpdateBadge(base);
@@ -907,7 +916,12 @@ function renderEmptyChips() {
 }
 
 // ── 按钮接线 ──
-$("btnRefresh").onclick = refresh;
+// 刷新：状态轮询 + 强制重载内嵌页（长时间隐藏的 webview 被挂起后导航
+// 可能被吞成白屏——这里是用户手里的自愈手段）。
+$("btnRefresh").onclick = () => {
+  if (gwRunning) { dashCurrentUrl = ""; navigateDashIfNeeded(); }
+  refresh();
+};
 $("btnSave").onclick = async () => {
   try { await invoke("save_settings", { settings: currentInputs() }); setMsg(t.msgSaved, "ok"); }
   catch (e) { setMsg(t.msgSaveFail + e, "err"); }

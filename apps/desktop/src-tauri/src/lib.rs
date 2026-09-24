@@ -24,6 +24,8 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
+mod clickthrough;
+
 /// 本应用拉起的网关子进程句柄（None = 未管理任何实例）。
 #[derive(Default)]
 struct GatewayProc {
@@ -145,7 +147,16 @@ fn resolve_bin(app: &AppHandle, bin: &str) -> String {
 }
 
 #[tauri::command]
-fn gateway_status(base: String, state: tauri::State<GatewayProc>) -> StatusResult {
+fn gateway_status(
+    app: AppHandle,
+    base: String,
+    state: tauri::State<GatewayProc>,
+) -> StatusResult {
+    // 点击穿透自愈：外部覆盖层工具可能给本进程窗口挂 WS_EX_TRANSPARENT
+    // （鼠标整窗穿透、键盘正常——"点什么都没反应"）。每轮轮询剥一次。
+    if cfg!(windows) {
+        clickthrough::heal();
+    }
     let mut managed = false;
     if let Ok(mut guard) = state.child.lock() {
         if let Some(child) = guard.as_mut() {
@@ -531,8 +542,30 @@ fn dash_visible(app: AppHandle, visible: bool) -> Result<(), String> {
 /// 子 webview 当前是否处于显示态（窗口激活事件据此决定是否归还键盘焦点）。
 struct DashShown(std::sync::atomic::AtomicBool);
 
+/// bust_stale_shell_cache：每次启动物理清除 WebView2 的 HTTP 缓存。
+/// WebView2 会缓存 tauri.localhost 的壳页面且不可靠阻止——装了新版、跑的
+/// 还是旧壳 JS（2026-09-24 全案真因：用户连续多轮"修复没用"皆此）。必须
+/// 在任何 webview 创建之前执行；代价可忽略（壳资产内嵌在 exe 里）。
+fn bust_stale_shell_cache() {
+    let Some(ld) = std::env::var_os("LOCALAPPDATA") else {
+        return;
+    };
+    let base = std::path::Path::new(&ld).join("com.omnifusion.desktop");
+    for sub in [
+        "EBWebView/Default/Cache",
+        "EBWebView/Default/Code Cache",
+        "EBWebView/Cache",
+        "EBWebView/Code Cache",
+        "EBWebView/Service Worker",
+    ] {
+        let _ = std::fs::remove_dir_all(base.join(sub));
+    }
+    let _ = std::fs::create_dir_all(&base);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    bust_stale_shell_cache();
     tauri::Builder::default()
         // 单实例：二次启动不再开新进程（多实例会各自拉网关抢端口、多个托盘
         // 图标），而是唤起已有主窗口。
