@@ -625,7 +625,10 @@ function syncShellPages() {
     if (activePage === "about") renderAboutVersions();
   } else {
     overlayOpen = false;
-    applyDashVisible(true);
+    // 只有网关真的在跑才显示子 webview：网关未运行时显示它只会亮出
+    // HTTP 缓存里的旧页面（看着活着、实际连不上——输入框"打不了字"
+    // 的假象）。引导卡（gwDown）才是停机时的唯一真相。
+    applyDashVisible(gwRunning);
   }
 }
 
@@ -684,8 +687,25 @@ async function layoutDash() {
     }
   } catch { /* 尽力而为 */ }
 }
+// scheduleLayout 把拖拽缩放期间的布局上报合并成 ~8 次/秒：每次 invoke 都
+// 是主线程上的两回 SetWindowPos（COM 同步调用），风暴式直发会把它堵死
+// （v0.1.14 拖拽缩放"程序未响应"）。
+let layoutTimer = 0, layoutBusy = false, layoutDirty = false;
+function scheduleLayout() {
+  if (layoutTimer) return;
+  layoutTimer = setTimeout(async () => {
+    layoutTimer = 0;
+    if (layoutBusy) { layoutDirty = true; return; }
+    layoutBusy = true;
+    try { await layoutDash(); } finally {
+      layoutBusy = false;
+      if (layoutDirty) { layoutDirty = false; scheduleLayout(); }
+    }
+  }, 120);
+}
 function navigateDashIfNeeded() {
   if (!dashReady || !lastFrameUrl || lastFrameUrl === dashCurrentUrl) return;
+  if (!gwRunning) return; // 网关未运行不导航：加载的只会是缓存里的死页面
   dashCurrentUrl = lastFrameUrl;
   invoke("dash_navigate", { url: lastFrameUrl }).catch(() => { dashCurrentUrl = ""; });
   // 导航（页面重载）会吃掉键盘焦点：页面加载后补两次焦点（dash_focus 是
@@ -729,16 +749,16 @@ async function refresh() {
     $("sbText").textContent = t.detail[s.detail] || s.detail;
     try { $("sbBase").textContent = new URL(base).host; } catch { $("sbBase").textContent = base; }
     await syncDashVisibility(s.running);
+    if (gwRunning !== s.running) {
+      // 网关状态变了：让托盘菜单标签跟随（同步命令=主线程重建，安全）。
+      invoke("tray_gateway", { up: s.running }).catch(() => {});
+    }
+    gwRunning = s.running; // 必须先于下面的导航判断（navigate 的门用它）
     if (s.running) {
       if (!dashWasRunning) dashCurrentUrl = ""; // 停→起：强制重导航
       navigateDashIfNeeded();
     }
     dashWasRunning = s.running;
-    if (gwRunning !== s.running) {
-      // 网关状态变了：让托盘菜单标签跟随（同步命令=主线程重建，安全）。
-      invoke("tray_gateway", { up: s.running }).catch(() => {});
-    }
-    gwRunning = s.running;
     if (s.running) loadUpdateBadge(base);
   } catch (e) {
     // 冷启动竞态：首查可能赶在 Tauri IPC 就绪之前（报 command not
@@ -980,6 +1000,12 @@ try {
     if (action === "gateway-toggle") { if (gwRunning) $("btnStop").click(); else if (!$("btnStart").disabled) startGw(); return; }
     if (action === "check-update") checkUpdateFromTray();
   });
+  // 窗口激活（Rust 发的 ofd://activ）：延时把键盘焦点交给子 webview。
+  // 延时是关键——让命令落在事件泵的正常派发点，而不是激活通知的重入点。
+  window.__TAURI__.event.listen("ofd://activ", () => {
+    if (overlayOpen || !activePage || isShellPage(activePage)) return;
+    setTimeout(() => { invoke("dash_focus").catch(() => {}); }, 30);
+  });
 } catch { /* 事件 API 缺席时静默（老壳） */ }
 $("btnStop").onclick = async () => {
   try {
@@ -1037,8 +1063,8 @@ async function waitIpcReady() {
   }
   loadFrame();
   layoutDash();
-  new ResizeObserver(() => layoutDash()).observe($("frameWrap"));
-  window.addEventListener("resize", () => layoutDash());
+  new ResizeObserver(() => scheduleLayout()).observe($("frameWrap"));
+  window.addEventListener("resize", () => scheduleLayout());
   try { await invoke("set_language", { lang: effLang() }); } catch {}
   await refresh();
   setInterval(refresh, 3000);

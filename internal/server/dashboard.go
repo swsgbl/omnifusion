@@ -121,7 +121,9 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// serveDashboardPage 输出一张内嵌页面。
+// serveDashboardPage 输出一张内嵌页面。no-store：dashboard HTML 与网关
+// 二进制同体发布，客户端（浏览器/WebView2）按启发式缓存旧页会让升级
+// "看起来没生效"（桌面端子 webview 曾显示网关已停时的死页面）。
 func (s *Server) serveDashboardPage(w http.ResponseWriter, page string) {
 	data, err := dashboardFS.ReadFile("dashboard/" + page + ".html")
 	if err != nil {
@@ -129,6 +131,7 @@ func (s *Server) serveDashboardPage(w http.ResponseWriter, page string) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
 }

@@ -574,7 +574,11 @@ pub fn run() {
                     api.prevent_close();
                 }
                 // 窗口重新激活（alt-tab/任务栏/托盘唤起）时把键盘焦点归还给
-                // 可见中的子 webview，否则键盘会停在壳上，管家输入框打不了字。
+                // 可见中的子 webview。注意不在这里直接调 set_focus：窗口事件
+                // 处理器里内联 MoveFocus（COM 同步调用）会在 WM_ACTIVATE 的
+                // 派发点重入事件循环——用户拖拽缩放窗口即挂死（v0.1.14 实录
+                // 2026-09-24 AppHang）。改为发事件给壳，由壳在安全泵点延时
+                // 调 dash_focus。
                 WindowEvent::Focused(true) => {
                     let app = window.app_handle().clone();
                     let shown = app
@@ -582,9 +586,8 @@ pub fn run() {
                         .map(|s| s.0.load(std::sync::atomic::Ordering::Relaxed))
                         .unwrap_or(false);
                     if shown {
-                        if let Some(wv) = app.get_webview("dash") {
-                            let _ = wv.set_focus();
-                        }
+                        use tauri::Emitter;
+                        let _ = app.emit("ofd://activ", ());
                     }
                 }
                 _ => {}
