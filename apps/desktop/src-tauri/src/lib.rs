@@ -168,13 +168,15 @@ fn gateway_status(base: String, state: tauri::State<GatewayProc>) -> StatusResul
     }
 }
 
+// async（线程池执行）而非同步命令：健康等待最长 20s，同步命令会占住
+// 主线程——期间整个窗口事件与其余 invoke 全部冻结（状态栏假死）。
 #[tauri::command]
-fn gateway_start(
+async fn gateway_start(
     app: AppHandle,
     bin: String,
     config: String,
     base: String,
-    state: tauri::State<GatewayProc>,
+    state: tauri::State<'_, GatewayProc>,
 ) -> Result<String, String> {
     let bin = resolve_bin(&app, &bin);
     if http_get(&base, "/healthz").is_some() {
@@ -479,11 +481,25 @@ fn dash_layout(app: AppHandle, x: f64, y: f64, w: f64, h: f64) -> Result<(), Str
 }
 
 /// dash_navigate 切换子 webview 的页面（等价原 iframe.src 赋值）。
+/// 导航（页面重载）会吃掉此前交入的键盘焦点——焦点补交由前端在导航后
+/// 延时调 dash_focus（见 index.html），不要在本命令里起后台线程做这件事：
+/// run_on_main_thread 跨线程投递实测会把主线程拖死（整个 IPC 假死）。
 #[tauri::command]
 fn dash_navigate(app: AppHandle, url: String) -> Result<(), String> {
     if let Some(wv) = app.get_webview("dash") {
         let parsed: tauri::Url = url.parse().map_err(|e| format!("parse url: {e}"))?;
         wv.navigate(parsed).map_err(|e| format!("navigate: {e}"))?;
+    }
+    Ok(())
+}
+
+/// dash_focus 把键盘焦点交给子 webview（WebView2 多控制器布局需要宿主
+/// 主动 MoveFocus）。同步命令天然在主线程执行——与 dash_visible 的
+/// set_focus 同一已验证机制。
+#[tauri::command]
+fn dash_focus(app: AppHandle) -> Result<(), String> {
+    if let Some(wv) = app.get_webview("dash") {
+        return wv.set_focus().map_err(|e| format!("focus: {e}"));
     }
     Ok(())
 }
@@ -521,14 +537,11 @@ pub fn run() {
         // 单实例：二次启动不再开新进程（多实例会各自拉网关抢端口、多个托盘
         // 图标），而是唤起已有主窗口。
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(w) = app.get_window("main") {
-                let _ = w.unminimize();
-                let _ = w.show();
-                let _ = w.set_focus();
-            }
+            reveal_main_window(app);
         }))
         .manage(GatewayProc::default())
         .manage(DashShown(std::sync::atomic::AtomicBool::new(false)))
+        .manage(GatewayUp(std::sync::atomic::AtomicBool::new(false)))
         .invoke_handler(tauri::generate_handler![
             gateway_status,
             gateway_start,
@@ -543,9 +556,11 @@ pub fn run() {
             dash_layout,
             dash_navigate,
             dash_visible,
+            dash_focus,
             open_signup,
             check_updates,
-            app_info
+            app_info,
+            tray_gateway
         ])
         .setup(|app| {
             build_tray(app)?;
@@ -579,21 +594,55 @@ pub fn run() {
         .expect("error while running OmniFusion Desktop");
 }
 
-/// 托盘菜单文案表（zh/en）。
-fn tray_labels(lang: &str) -> (&'static str, &'static str) {
+/// 托盘菜单文案表（zh/en）：显示主窗口 / 打开对话 / 网关启停（按状态）/
+/// 检查更新 / 退出。
+fn tray_labels(lang: &str, gateway_up: bool) -> [(&'static str, &'static str); 5] {
     if lang.starts_with("zh") {
-        ("显示主窗口", "退出")
+        [
+            ("显示主窗口", "show"),
+            ("打开对话", "chat"),
+            (if gateway_up { "停止网关" } else { "启动网关" }, "gateway"),
+            ("检查更新", "update"),
+            ("退出", "quit"),
+        ]
     } else {
-        ("Show Main Window", "Quit")
+        [
+            ("Show Main Window", "show"),
+            ("Open Chat", "chat"),
+            (if gateway_up { "Stop Gateway" } else { "Start Gateway" }, "gateway"),
+            ("Check for Updates", "update"),
+            ("Quit", "quit"),
+        ]
     }
 }
 
-/// 按 lang 重建托盘菜单（托盘 id 不变，事件处理器常驻）。
+/// 唤起主窗口：unminimize + show + set_focus。仅在窗口最小化时被 hide 收
+/// 走的话，show() 会以最小化状态回不来（用户报「点了没反应」）；前台被
+/// 其它进程占着时 SetForegroundWindow 会被锁，用置顶一拍把窗口带到最前。
+fn reveal_main_window(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+        let _ = w.set_always_on_top(true);
+        let _ = w.set_always_on_top(false);
+    }
+}
+
+/// 按 lang 与网关状态重建托盘菜单（托盘 id 不变，事件处理器常驻）。
 fn rebuild_tray_menu(app: &AppHandle, lang: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let (show_label, quit_label) = tray_labels(lang);
-    let show = MenuItem::with_id(app, "show", show_label, true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", quit_label, true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &quit])?;
+    let gateway_up = app
+        .try_state::<GatewayUp>()
+        .map(|s| s.0.load(std::sync::atomic::Ordering::Relaxed))
+        .unwrap_or(false);
+    let labels = tray_labels(lang, gateway_up);
+    let items = labels
+        .iter()
+        .map(|(label, id)| MenuItem::with_id(app, *id, *label, true, None::<&str>))
+        .collect::<Result<Vec<_>, _>>()?;
+    let refs: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> =
+        items.iter().map(|i| i as &dyn tauri::menu::IsMenuItem<tauri::Wry>).collect();
+    let menu = Menu::with_items(app, &refs)?;
     app.tray_by_id("omnifusion-tray")
         .ok_or("tray not found")?
         .set_menu(Some(menu))?;
@@ -613,13 +662,31 @@ fn initial_lang(app: &AppHandle) -> String {
     }
 }
 
+/// 网关运行态（托盘菜单标签用）。**不在后台线程探测/重建菜单**——muda 菜单
+/// 操作必须发生在主线程，跨线程 set_menu 实测会把主线程拖死（整个 IPC 假
+/// 死、状态栏冻结）。状态的唯一来源是壳的 3s 轮询：变化时调 tray_gateway。
+struct GatewayUp(std::sync::atomic::AtomicBool);
+
+#[tauri::command]
+fn tray_gateway(app: AppHandle, up: bool) -> Result<(), String> {
+    let changed = app
+        .try_state::<GatewayUp>()
+        .map(|s| s.0.swap(up, std::sync::atomic::Ordering::Relaxed) != up)
+        .unwrap_or(false);
+    if changed {
+        rebuild_tray_menu(&app, &initial_lang(&app)).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn set_language(app: AppHandle, lang: String) -> Result<(), String> {
     let lang = if lang.starts_with("zh") { "zh" } else { "en" };
     rebuild_tray_menu(&app, lang).map_err(|e| e.to_string())
 }
 
-/// 组装系统托盘：显示主窗口 / 退出。
+/// 组装系统托盘。网关启停/检查更新不在 Rust 侧重复实现——发给壳
+/// （ofd://tray 事件），由壳走既有 startGw/停止/更新徽标逻辑（带 settings）。
 fn build_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let icon = app
         .default_window_icon()
@@ -629,28 +696,39 @@ fn build_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .icon(icon)
         .tooltip("OmniFusion Desktop")
         .show_menu_on_left_click(true)
-        .on_menu_event(|app, event| match event.id.as_ref() {
-            "show" => {
-                if let Some(w) = app.get_webview_window("main") {
-                    let _ = w.show();
-                    let _ = w.set_focus();
+        .on_menu_event(|app, event| {
+            use tauri::Emitter;
+            match event.id.as_ref() {
+                "show" => reveal_main_window(app),
+                "chat" => {
+                    reveal_main_window(app);
+                    let _ = app.emit("ofd://tray", "open-chat");
                 }
-            }
-            "quit" => {
-                // 退出前停掉本应用拉起的网关子进程：否则留下孤儿 ofd.exe 占着
-                // 端口，下次启动状态栏显示「外部启动」且停止按钮不可用。只动
-                // 自己管理的实例（外部/CLI 启动的网关不属于本应用生命周期）。
-                if let Some(state) = app.try_state::<GatewayProc>() {
-                    if let Ok(mut guard) = state.child.lock() {
-                        if let Some(mut child) = guard.take() {
-                            let _ = child.kill();
-                            let _ = child.wait();
+                "gateway" => {
+                    reveal_main_window(app);
+                    // 壳知道真实状态（含外部实例）——由它决定启动还是停止。
+                    let _ = app.emit("ofd://tray", "gateway-toggle");
+                }
+                "update" => {
+                    reveal_main_window(app);
+                    let _ = app.emit("ofd://tray", "check-update");
+                }
+                "quit" => {
+                    // 退出前停掉本应用拉起的网关子进程：否则留下孤儿 ofd.exe 占着
+                    // 端口，下次启动状态栏显示「外部启动」且停止按钮不可用。只动
+                    // 自己管理的实例（外部/CLI 启动的网关不属于本应用生命周期）。
+                    if let Some(state) = app.try_state::<GatewayProc>() {
+                        if let Ok(mut guard) = state.child.lock() {
+                            if let Some(mut child) = guard.take() {
+                                let _ = child.kill();
+                                let _ = child.wait();
+                            }
                         }
                     }
+                    app.exit(0)
                 }
-                app.exit(0)
+                _ => {}
             }
-            _ => {}
         })
         .build(app)?;
     rebuild_tray_menu(&app.handle(), &initial_lang(&app.handle()))?;

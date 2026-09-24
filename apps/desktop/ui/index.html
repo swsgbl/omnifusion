@@ -688,6 +688,10 @@ function navigateDashIfNeeded() {
   if (!dashReady || !lastFrameUrl || lastFrameUrl === dashCurrentUrl) return;
   dashCurrentUrl = lastFrameUrl;
   invoke("dash_navigate", { url: lastFrameUrl }).catch(() => { dashCurrentUrl = ""; });
+  // 导航（页面重载）会吃掉键盘焦点：页面加载后补两次焦点（dash_focus 是
+  // 同步命令，在主线程执行 MoveFocus——与显示路径同一已验证机制）。
+  setTimeout(() => { invoke("dash_focus").catch(() => {}); }, 1200);
+  setTimeout(() => { invoke("dash_focus").catch(() => {}); }, 3000);
 }
 // 浮层（菜单/弹窗）打开期间隐藏子 webview；轮询也尊重该状态。
 async function hideDash() { overlayOpen = true; await applyDashVisible(false); }
@@ -730,9 +734,21 @@ async function refresh() {
       navigateDashIfNeeded();
     }
     dashWasRunning = s.running;
+    if (gwRunning !== s.running) {
+      // 网关状态变了：让托盘菜单标签跟随（同步命令=主线程重建，安全）。
+      invoke("tray_gateway", { up: s.running }).catch(() => {});
+    }
     gwRunning = s.running;
     if (s.running) loadUpdateBadge(base);
   } catch (e) {
+    // 冷启动竞态：首查可能赶在 Tauri IPC 就绪之前（报 command not
+    // found），下个轮询周期自愈——按"检测中"展示，不当错误吓人。
+    if (String(e).includes("command not found")) {
+      $("statusBadge").textContent = t.detecting;
+      $("statusBadge").className = "badge off";
+      $("sbText").textContent = t.detecting;
+      return;
+    }
     $("statusBadge").textContent = t.msgProbeFail + e;
     $("statusBadge").className = "badge off";
     $("sbDot").className = "sb-dot warn";
@@ -942,6 +958,29 @@ async function startGw() {
 }
 $("btnStart").onclick = startGw;
 $("btnStartBig").onclick = startGw;
+
+// 托盘菜单动作（Rust 侧 emit "ofd://tray"）：复用壳内既有逻辑（带
+// settings 的启停与更新检查），不在 Rust 重复实现第二份。
+async function checkUpdateFromTray() {
+  const { base } = currentInputs();
+  try {
+    const u = await invoke("check_updates", { base });
+    if (u && u.update_available) {
+      invoke("open_signup", { url: u.release_url || "https://atomgit.com/hongfu/omnifusion/releases" });
+      setMsg(t.updateFound.replace("{v}", u.latest || ""), "ok");
+    } else {
+      setMsg(t.updateNone, "ok");
+    }
+  } catch (e) { setMsg(t.updateFail + locErr(e), "err"); }
+}
+try {
+  window.__TAURI__.event.listen("ofd://tray", (e) => {
+    const action = e.payload;
+    if (action === "open-chat") { openTab("chat"); return; }
+    if (action === "gateway-toggle") { if (gwRunning) $("btnStop").click(); else if (!$("btnStart").disabled) startGw(); return; }
+    if (action === "check-update") checkUpdateFromTray();
+  });
+} catch { /* 事件 API 缺席时静默（老壳） */ }
 $("btnStop").onclick = async () => {
   try {
     const r = await invoke("gateway_stop");
@@ -969,7 +1008,17 @@ document.addEventListener("keydown", (e) => {
   if (ctrl && e.key === ",") { e.preventDefault(); openTab("settings"); }
 });
 
+// 等待 Tauri IPC 就绪：冷启动时最早的 invoke 可能赶在就绪前（command
+// not found 竞态）——轻探一条命令直到通（或确认不是该错误）再进初始化。
+async function waitIpcReady() {
+  for (let i = 0; i < 30; i++) {
+    try { await invoke("app_info"); return; } catch (e) { if (!String(e).includes("command not found")) return; }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+}
+
 (async function init() {
+  await waitIpcReady();
   try { applySettings(await invoke("load_settings")); } catch { /* 首次运行为空 */ }
   try { setCollapsed(localStorage.getItem("ofd-desktop-sidebar") === "1"); } catch {}
   restoreTabs();

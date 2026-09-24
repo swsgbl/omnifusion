@@ -811,13 +811,17 @@ function trimOpsContext(msgs) {
     sys.content += '\n\n[上下文压缩：' + trimmed.length + ' 条早期消息已省略。以下是摘要：\n' + summary.slice(0, 2000) + ']';
   }
 }
-send.addEventListener('click', () => { if (busy && abort) abort.abort(); else sendMsg(); });
+send.addEventListener('click', () => { if (busy && abort) abort.abort(); else { sendMsg(); input.focus(); } });
 input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
 });
+// 页面加载即聚焦输入框：桌面端子 webview 重导航后即便 OS 焦点已交还，
+// DOM 焦点也停在 body 上（还得再点一下才能打字）——这里直接落到输入框。
+input.focus();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) input.focus(); });
 document.getElementById('clear').addEventListener('click', () => {
   history = []; sessionName = ''; log.innerHTML = '<div class="hint">' + t('welcome') + '</div>';
-  renderSessionBar();
+  renderSessionBar(); input.focus();
 });
 </script>
 <script src="assets/gsap.min.js"></script>
