@@ -146,7 +146,8 @@ const key = new URLSearchParams(location.search).get('key') || '';
 const PAGES = [['providers','nav_providers'],['keys','nav_keys'],['usage','nav_usage'],
                ['compression','nav_compression'],['resilience','nav_resilience'],['chat','nav_chat']];
 const pageHref = (id, lang) => id + '.html?' + (key ? 'key=' + encodeURIComponent(key) + '&' : '') + 'lang=' + lang;
-const EMBED = new URLSearchParams(location.search).has('embed'); // 桌面端内嵌：壳是唯一语言/导航控制源
+const EMBED = new URLSearchParams(location.search).has('embed');
+try { document.cookie = 'ofdPageLoaded=' + Date.now() + '; path=/; SameSite=Lax'; } catch (e) {} // 桌面端内嵌：壳是唯一语言/导航控制源
 if (!EMBED) document.getElementById('nav').innerHTML = PAGES.map(([id, nk]) => {
   const cur = id === 'chat' ? ' aria-current="page"' : '';
   return `<a href="${pageHref(id, LANG)}"${cur}>${t(nk)}</a>`;

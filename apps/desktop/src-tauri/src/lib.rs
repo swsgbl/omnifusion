@@ -443,10 +443,29 @@ fn open_signup(url: String) -> Result<(), String> {
     }
 }
 
+/// dash_recreate 销毁并重建子 webview（停→起转换的首选路径）。长时间
+/// 隐藏的 webview 会被 WebView2 挂起：对它 eval 自导航无响应（实测页面
+/// 一次都不加载）、宿主侧 Navigate 又会毒化 IPC 分发。新建控制器在
+/// 创建时原生加载 URL——这是被反复验证可靠的唯一加载路径。
+#[tauri::command]
+async fn dash_recreate(app: AppHandle, url: String, x: f64, y: f64, w: f64, h: f64) -> Result<(), String> {
+    if let Some(old) = app.get_webview("dash") {
+        let _ = old.close();
+    }
+    // close 的实际清理在事件循环上异步完成，稍等再建，避免同名冲突。
+    std::thread::sleep(Duration::from_millis(150));
+    dash_create_inner(&app, url, x, y, w, h)?;
+    Ok(())
+}
+
 /// dash_create 幂等创建子 webview（Windows 在同步命令/事件回调里创建
 /// 会死锁——官方要求 async 命令，故本命令为 async）。
 #[tauri::command]
 async fn dash_create(app: AppHandle, url: String, x: f64, y: f64, w: f64, h: f64) -> Result<(), String> {
+    dash_create_inner(&app, url, x, y, w, h)
+}
+
+fn dash_create_inner(app: &AppHandle, url: String, x: f64, y: f64, w: f64, h: f64) -> Result<(), String> {
     if let Some(win) = app.get_window("main") {
         if app.get_webview("dash").is_none() {
             let parsed: tauri::Url = url.parse().map_err(|e| format!("parse url: {e}"))?;
@@ -475,7 +494,7 @@ async fn dash_create(app: AppHandle, url: String, x: f64, y: f64, w: f64, h: f64
             let _ = wv.hide();
         }
     }
-    dash_layout(app, x, y, w, h)
+    dash_layout(app.clone(), x, y, w, h)
 }
 
 /// dash_layout 让子 webview 精确覆盖壳的 frameWrap 区域（窗口缩放/
@@ -491,15 +510,20 @@ fn dash_layout(app: AppHandle, x: f64, y: f64, w: f64, h: f64) -> Result<(), Str
     Ok(())
 }
 
-/// dash_navigate 切换子 webview 的页面（等价原 iframe.src 赋值）。
-/// 导航（页面重载）会吃掉此前交入的键盘焦点——焦点补交由前端在导航后
-/// 延时调 dash_focus（见 index.html），不要在本命令里起后台线程做这件事：
-/// run_on_main_thread 跨线程投递实测会把主线程拖死（整个 IPC 假死）。
+/// dash_navigate 切换子 webview 的页面。**不用宿主侧 load_url/navigate**
+/// ——实测在活动 webview 上调 WebView2 的 Navigate 会破坏整条 IPC 命令
+/// 分发（所有 invoke 开始被拒"Command ... not found"，壳的点击/轮询全灭
+/// 而子页照常；2026-09-25 时间线实锤：healthz 恰死在用户点击页签那一刻）。
+/// 改为向子页注入 location.href 自导航——浏览器自己发起的导航不经过宿主
+/// 的 Navigate 通道。焦点补交仍由前端延时调 dash_focus。
 #[tauri::command]
 fn dash_navigate(app: AppHandle, url: String) -> Result<(), String> {
     if let Some(wv) = app.get_webview("dash") {
-        let parsed: tauri::Url = url.parse().map_err(|e| format!("parse url: {e}"))?;
-        wv.navigate(parsed).map_err(|e| format!("navigate: {e}"))?;
+        let js = format!(
+            "(function(){{ try {{ if (location.href !== {u}) location.href = {u}; }} catch(e) {{}} }})()",
+            u = serde_json::to_string(&url).unwrap_or_else(|_| format!("\"{url}\""))
+        );
+        wv.eval(js).map_err(|e| format!("eval navigate: {e}"))?;
     }
     Ok(())
 }
@@ -536,15 +560,21 @@ fn dash_visible(app: AppHandle, visible: bool) -> Result<(), String> {
 /// 子 webview 当前是否处于显示态（窗口激活事件据此决定是否归还键盘焦点）。
 struct DashShown(std::sync::atomic::AtomicBool);
 
-/// bust_stale_shell_cache：每次启动物理清除 WebView2 的 HTTP 缓存。
-/// WebView2 会缓存 tauri.localhost 的壳页面且不可靠阻止——装了新版、跑的
-/// 还是旧壳 JS（2026-09-24 全案真因：用户连续多轮"修复没用"皆此）。必须
-/// 在任何 webview 创建之前执行；代价可忽略（壳资产内嵌在 exe 里）。
+/// bust_stale_shell_cache：**仅当版本变化时**物理清除 WebView2 缓存。
+/// 2026-09-25 实测：每次启动都删缓存会在上一实例的 WebView2 进程还占用
+/// 时损坏新会话的自定义协议（ipc://localhost）——新装应用连 invoke 分发
+/// 都立即失效（"Command ... not found"、轮询/页面全死）。只在升级后清
+/// 一次，正常重启不再碰缓存。
 fn bust_stale_shell_cache() {
     let Some(ld) = std::env::var_os("LOCALAPPDATA") else {
         return;
     };
     let base = std::path::Path::new(&ld).join("com.omnifusion.desktop");
+    let marker = base.join(".shell-version");
+    let cur = env!("CARGO_PKG_VERSION");
+    if std::fs::read_to_string(&marker).unwrap_or_default() == cur {
+        return; // 版本没变：不动缓存
+    }
     for sub in [
         "EBWebView/Default/Cache",
         "EBWebView/Default/Code Cache",
@@ -555,6 +585,7 @@ fn bust_stale_shell_cache() {
         let _ = std::fs::remove_dir_all(base.join(sub));
     }
     let _ = std::fs::create_dir_all(&base);
+    let _ = std::fs::write(&marker, cur);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -580,6 +611,7 @@ pub fn run() {
             key_add,
             client_connect,
             dash_create,
+            dash_recreate,
             dash_layout,
             dash_navigate,
             dash_visible,
