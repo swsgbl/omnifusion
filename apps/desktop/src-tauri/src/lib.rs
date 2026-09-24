@@ -516,23 +516,17 @@ fn dash_focus(app: AppHandle) -> Result<(), String> {
 }
 
 /// dash_visible 网关未运行时隐藏子 webview（露出壳的引导遮罩）。
-/// 显示时必须补一次 set_focus：WebView2 的多控制器布局里键盘焦点靠宿主
-/// 主动 MoveFocus 落进 webview，光靠显示动作键盘进不去（「输入框打不了字」
-/// 的第二根因；第一根因是前端轮询无条件重发 show，已在前端改为仅变化时下发）。
+/// 注意：显示时**不**在这里立即 set_focus——长时间隐藏的 webview 会被
+/// WebView2 挂起，show 后紧接着 MoveFocus 实测会毒化整条 IPC 响应通路
+/// （请求活着、响应全部丢失：徽标冻结、页面不显示、"command not found"
+/// 表象，2026-09-25 用户侧实录）。焦点交给前端在显示 1.2s/3s 后经
+/// dash_focus 补（那时 webview 已恢复）。
 #[tauri::command]
 fn dash_visible(app: AppHandle, visible: bool) -> Result<(), String> {
     let Some(wv) = app.get_webview("dash") else {
         return Ok(());
     };
-    let r = if visible {
-        let r = wv.show();
-        if r.is_ok() {
-            let _ = wv.set_focus();
-        }
-        r
-    } else {
-        wv.hide()
-    };
+    let r = if visible { wv.show() } else { wv.hide() };
     if let Some(state) = app.try_state::<DashShown>() {
         state.0.store(visible, std::sync::atomic::Ordering::Relaxed);
     }

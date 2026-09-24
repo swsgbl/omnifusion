@@ -756,13 +756,11 @@ async function refresh() {
     gwRunning = s.running; // 必须先于下面的导航判断（navigate 的门用它）
     if (s.running) {
       if (!dashWasRunning) {
-        // 停→起：强制重导航。长时间隐藏的子 webview 会被 WebView2 挂起，
-        // 显示后立刻导航可能被静默吞掉（白屏：日志证实网关起来后页面
-        // 一次都没被请求）。等显示生效后再补两轮强制导航兜底。
-        dashCurrentUrl = "";
-        navigateDashIfNeeded();
-        setTimeout(() => { dashCurrentUrl = ""; navigateDashIfNeeded(); }, 400);
-        setTimeout(() => { dashCurrentUrl = ""; navigateDashIfNeeded(); }, 1600);
+        // 停→起：长时间隐藏的子 webview 会被 WebView2 挂起，显示后立刻
+        // set_focus/navigate 都可能毒化 IPC 或被吞。等恢复窗口（1.2s/2.6s）
+        // 再强制导航兜底，焦点由导航后的 dash_focus 定时器补。
+        setTimeout(() => { dashCurrentUrl = ""; navigateDashIfNeeded(); }, 1200);
+        setTimeout(() => { dashCurrentUrl = ""; navigateDashIfNeeded(); }, 2600);
       } else {
         navigateDashIfNeeded();
       }
@@ -784,6 +782,23 @@ async function refresh() {
     $("sbText").textContent = t.msgProbeFail + e;
   }
 }
+
+// ── IPC 看门狗：无论什么把响应通路毒化（实测存在：请求活着、响应全失、
+// 徽标冻结、页面不显示），只要 12 秒内没有任何一次 refresh 完整结算
+// （成功或失败都算结算——挂起不归才是通路死亡），壳就整页自愈重载。
+// 用户看到的最多是一次界面闪动，而不是死界面。──
+let lastRefreshSettled = Date.now();
+function tickRefresh() {
+  const p = refresh();
+  if (p && typeof p.finally === "function") {
+    p.finally(() => { lastRefreshSettled = Date.now(); });
+  }
+}
+setInterval(() => {
+  if (Date.now() - lastRefreshSettled > 12000) {
+    location.reload();
+  }
+}, 4000);
 
 // loadUpdateBadge 经 Rust 代理命令拉更新快照（壳与网关跨源，JS 不直 fetch）。
 let updateTicker = 0;
@@ -1050,9 +1065,12 @@ document.addEventListener("keydown", (e) => {
 
 // 等待 Tauri IPC 就绪：冷启动时最早的 invoke 可能赶在就绪前（command
 // not found 竞态）——轻探一条命令直到通（或确认不是该错误）再进初始化。
+// 每次探测的结算同时喂看门狗（探测活着=通路活着，避免慢启动误重载）。
 async function waitIpcReady() {
   for (let i = 0; i < 30; i++) {
-    try { await invoke("app_info"); return; } catch (e) { if (!String(e).includes("command not found")) return; }
+    try { await invoke("app_info"); return; }
+    catch (e) { if (!String(e).includes("command not found")) return; }
+    finally { lastRefreshSettled = Date.now(); }
     await new Promise((r) => setTimeout(r, 300));
   }
 }
@@ -1081,7 +1099,7 @@ async function waitIpcReady() {
   window.addEventListener("resize", () => scheduleLayout());
   try { await invoke("set_language", { lang: effLang() }); } catch {}
   await refresh();
-  setInterval(refresh, 3000);
+  setInterval(tickRefresh, 3000);
 })();
 </script>
 <script src="assets/gsap.min.js"></script>
