@@ -27,6 +27,10 @@ type Attempt struct {
 	// Degraded 是该次出站翻译丢弃的请求字段；server 并入
 	// X-OmniFusion-Degraded 头。仅成功尝试的清单有效。
 	Degraded []string
+	// SkipReason 非 nil 表示该候选未发出请求即被隔离态/配额窗口
+	// 跳过（skipIfBlocked 产物）；此时 Err 是跳过语义而非上游错误，
+	// Kind 恒为空。结构化字段供 RouteDecision 回放（决策证据面）。
+	SkipReason string
 }
 
 // DispatchError 表示全部候选耗尽后的聚合失败。

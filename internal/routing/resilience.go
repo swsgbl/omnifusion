@@ -202,7 +202,7 @@ func breakerEligible(kind ErrorKind) bool {
 
 // skipIfBlocked 检查 provider 级阻断：配额窗口将爆与三层隔离
 // （冷却/熔断）；命中时产出 skip 记录（Kind 留空：不是上游错误，
-// 不参与分类惩罚）。
+// 不参与分类惩罚；reason 结构化进 SkipReason 供决策回放）。
 func (r *Router) skipIfBlocked(p provider.Provider) (Attempt, bool) {
 	if r.Quota != nil {
 		if blocked, reason := r.Quota.Blocked(p.Name()); blocked {
@@ -210,8 +210,9 @@ func (r *Router) skipIfBlocked(p provider.Provider) (Attempt, bool) {
 				r.Log.Warn("provider quota exhausted, skip", "provider", p.Name(), "reason", reason)
 			}
 			return Attempt{
-				Provider: p.Name(),
-				Err:      fmt.Errorf("routing: skipped (%s)", reason),
+				Provider:   p.Name(),
+				Err:        fmt.Errorf("routing: skipped (%s)", reason),
+				SkipReason: reason,
 			}, true
 		}
 	}
@@ -226,8 +227,9 @@ func (r *Router) skipIfBlocked(p provider.Provider) (Attempt, bool) {
 		r.Log.Warn("provider isolated, skip", "provider", p.Name(), "reason", reason)
 	}
 	return Attempt{
-		Provider: p.Name(),
-		Err:      fmt.Errorf("routing: skipped (%s)", reason),
+		Provider:   p.Name(),
+		Err:        fmt.Errorf("routing: skipped (%s)", reason),
+		SkipReason: reason,
 	}, true
 }
 
