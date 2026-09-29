@@ -82,6 +82,29 @@ var migrations = []string{
 		created_unix UNINDEXED,
 		tokenize = 'unicode61'
 	)`,
+	// v9: 权益账本（蓝图 Phase 3 持久化切片）——
+	// (provider, model) 主键的 Entitlement 快照。observed_at/valid_until
+	// 存 RFC3339（账本对象原生 time.Time 往返）。remaining 存
+	// [0,1] 比例，-1 表未知（SQL NULL→Go 侧回填 -1）。
+	`CREATE TABLE entitlements (
+		provider       TEXT NOT NULL,
+		model          TEXT NOT NULL DEFAULT '',
+		state          TEXT NOT NULL CHECK (state IN ('UNKNOWN','VERIFIED_FREE','VERIFIED_PAID','EXPIRED','DISABLED')),
+		source         TEXT NOT NULL,
+		evidence_id    TEXT NOT NULL DEFAULT '',
+		terms_url      TEXT NOT NULL DEFAULT '',
+		rpm            INTEGER NOT NULL DEFAULT 0,
+		tpm            INTEGER NOT NULL DEFAULT 0,
+		rpd            INTEGER NOT NULL DEFAULT 0,
+		tpd            INTEGER NOT NULL DEFAULT 0,
+		remaining      REAL,
+		observed_at    TEXT NOT NULL DEFAULT '',
+		valid_until    TEXT NOT NULL DEFAULT '',
+		confidence     REAL NOT NULL DEFAULT 0,
+		catalog_version TEXT NOT NULL DEFAULT '',
+		updated_at     TEXT NOT NULL DEFAULT (datetime('now')),
+		PRIMARY KEY (provider, model)
+	)`,
 }
 
 // migrate 幂等执行未应用的迁移（每条在事务中执行并记账）。

@@ -102,11 +102,37 @@ type Entitlement struct {
 }
 
 // Ledger 是权益账本：并发安全的 (provider, model) → Entitlement 存储，
-// 支持多源记录合并与时效降级。零值可用（内存形态；持久化切片后接
-// store）。
+// 支持多源记录合并与时效降级。零值可用（纯内存形态）。装配
+// SetPersister 后 Record 自动落 SQLite（重启恢复经 LoadFrom）。
 type Ledger struct {
 	mu   sync.RWMutex
 	ents map[string]Entitlement
+	// persist 是可选持久化钩子（store.SaveEntitlement；nil=纯内存）。
+	persist func(Entitlement) error
+}
+
+// Persister 是账本的持久化接口（internal/store 实现；quota 包不依赖
+// store 以保持依赖叶子——蓝图分层纪律）。
+type Persister interface {
+	SaveEntitlement(e Entitlement) error
+}
+
+// SetPersister 装配持久化钩子（cmd/ofd 启动期调用）。已装配后每次
+// Record 合并生效都自动落库；落库失败不阻断内存路径（账本语义优先，
+// 持久化是尽力而为——下次合并会重写该键）。
+func (l *Ledger) SetPersister(p Persister) {
+	if p == nil {
+		return
+	}
+	l.persist = func(e Entitlement) error { return p.SaveEntitlement(e) }
+}
+
+// LoadFrom 从持久化层恢复快照（启动期调用；按合并规则逐条 Record，
+// 与静态种子共存——运行时证据优先级更高自然覆盖）。
+func (l *Ledger) LoadFrom(rows []Entitlement) {
+	for _, e := range rows {
+		l.Record(e)
+	}
 }
 
 // NewLedger 构造空账本。
@@ -120,6 +146,8 @@ func key(provider, model string) string { return provider + "/" + model }
 //  1. 新证据 Source 优先级 > 存量 → 覆盖；
 //  2. 同级 → ObservedAt 更新者胜（新鲜度）；
 //  3. State=DISABLED 只能被 Manual 覆盖（策略性停用不被观测噪声翻案）。
+//
+// 装配了持久化钩子时，合并生效的写入同步落库（尽力而为）。
 func (l *Ledger) Record(e Entitlement) {
 	if e.Provider == "" {
 		return
@@ -129,10 +157,17 @@ func (l *Ledger) Record(e Entitlement) {
 	}
 	k := key(e.Provider, e.Model)
 	l.mu.Lock()
-	defer l.mu.Unlock()
 	old, exists := l.ents[k]
 	if !exists || shouldReplace(old, e) {
 		l.ents[k] = e
+	} else {
+		l.mu.Unlock()
+		return // 未合并生效：不落库（避免用低优先级证据覆写持久层）
+	}
+	persist := l.persist
+	l.mu.Unlock()
+	if persist != nil {
+		_ = persist(e) // 尽力而为：失败不阻断请求路径
 	}
 }
 

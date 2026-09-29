@@ -107,10 +107,19 @@ func buildRouter(cfg *config.Config, log *slog.Logger, st *store.Store, kr *secu
 		log.Error("init isolation state machine; degrade to no isolation", "err", err)
 		iso = nil
 	}
-	// 权益账本（蓝图 Phase 3）：运行时 429/402 观测自动汇入，
-	// providers 页免费层列消费；同时把注册表声明的静态配额作为
-	// 初始证据喂入（Source=static_catalog，被后续运行时证据覆盖）。
+	// 权益账本（蓝图 Phase 3）：SQLite 持久化 + 运行时 429/402 观测
+	// 自动汇入 + 注册表静态配额种子。恢复顺序：先从库里 Restore（持久
+	// 化的运行时证据优先级高于静态声明），静态种子按合并规则只填空位。
+	// 装配 Persister 后，后续每次合并生效的 Record 自动落库——重启
+	// 不丢权益事实（蓝图："过期数据自动降级"与"事实可持续"同一闭环）。
 	ledger := quota.NewLedger()
+	ledger.SetPersister(st)
+	if rows, err := st.RestoreEntitlements(); err != nil {
+		log.Warn("restore entitlements; starting with static seed only", "err", err)
+	} else if len(rows) > 0 {
+		ledger.LoadFrom(rows)
+		log.Info("entitlement ledger restored", "entries", len(rows))
+	}
 	now := time.Now()
 	for _, e := range entries {
 		if l := e.RateLimits; l.RPM > 0 || l.RPD > 0 || l.TPM > 0 || l.TPD > 0 {
@@ -132,7 +141,7 @@ func buildRouter(cfg *config.Config, log *slog.Logger, st *store.Store, kr *secu
 
 // buildCatalog 装配模型目录：live 拉取用 router 里已实例化的
 // provider；静态回落、free_meta 与登记定价取自注册表声明
-//（ErrNotSupported 的原生协议家在 此前靠静态清单）。
+// （ErrNotSupported 的原生协议家在 此前靠静态清单）。
 func buildCatalog(cfg *config.Config, log *slog.Logger, st *store.Store, r *routing.Router) *routing.Catalog {
 	static := map[string][]provider.ModelInfo{}
 	freeMeta := map[string]string{}
