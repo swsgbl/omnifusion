@@ -105,6 +105,23 @@ var migrations = []string{
 		updated_at     TEXT NOT NULL DEFAULT (datetime('now')),
 		PRIMARY KEY (provider, model)
 	)`,
+	// v10: 任务存储（蓝图 Phase 6 Tasks 扩展持久化切片）——
+	// id 主键的 Task 快照（MCP tasks/get/update/cancel + 后续 A2A
+	// 任务面的状态正本）。created_at/updated_at/deadline 存 RFC3339
+	//（Task 对象原生 time.Time 往返；空串=零值/无截止）。每次状态
+	// 迁移整行 upsert；重启 LoadFrom 恢复（僵尸 running→failed、
+	// 过期→timed_out 的改写同样落库）。
+	`CREATE TABLE tasks (
+		id              TEXT PRIMARY KEY,
+		kind            TEXT NOT NULL,
+		status          TEXT NOT NULL CHECK (status IN ('created','running','completed','failed','canceled','timed_out')),
+		created_at      TEXT NOT NULL DEFAULT '',
+		updated_at      TEXT NOT NULL DEFAULT '',
+		deadline        TEXT NOT NULL DEFAULT '',
+		result          TEXT NOT NULL DEFAULT '',
+		error           TEXT NOT NULL DEFAULT '',
+		idempotency_key TEXT NOT NULL DEFAULT ''
+	)`,
 }
 
 // migrate 幂等执行未应用的迁移（每条在事务中执行并记账）。

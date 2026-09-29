@@ -121,6 +121,9 @@ func run() error {
 	router, keySources := buildRouter(cfg, logger, st, kr)
 	srv.SetRouter(router)
 	srv.SetKeySources(keySources) // Dashboard keys 页的来源描述
+	// 任务存储持久化（蓝图 Phase 6）：恢复 + 后续迁移自动落库——
+	// MCP tasks 工具面与后续 A2A 任务面的重启存活闭环。
+	wireTasks(agent.DefaultTasks(), st, logger)
 	// 一键申请密钥：注册表 signup_url 声明 → keys 页"获取"列 + 桌面端按钮。
 	signups := map[string]string{}
 	for _, e := range registryEntries(cfg, logger) {
