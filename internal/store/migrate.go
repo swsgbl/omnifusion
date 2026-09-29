@@ -122,6 +122,9 @@ var migrations = []string{
 		error           TEXT NOT NULL DEFAULT '',
 		idempotency_key TEXT NOT NULL DEFAULT ''
 	)`,
+	// v11: 任务上下文关联（A2A contextId——Phase 7 任务面复用
+	// TaskStore 后需要的会话维度列）。
+	`ALTER TABLE tasks ADD COLUMN context_id TEXT NOT NULL DEFAULT ''`,
 }
 
 // migrate 幂等执行未应用的迁移（每条在事务中执行并记账）。

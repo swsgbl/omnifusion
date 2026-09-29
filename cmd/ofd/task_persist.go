@@ -28,6 +28,7 @@ func wireTasks(ts *agent.TaskStore, st *store.Store, log *slog.Logger) {
 				UpdatedAt: store.ParseRFC3339(r.UpdatedAt),
 				Deadline:  store.ParseRFC3339(r.Deadline),
 				Result:    r.Result, Err: r.Error, IdempotencyKey: r.IdempotencyKey,
+				ContextID: r.ContextID,
 			})
 		}
 		rewritten := ts.LoadFrom(tasks)
@@ -42,6 +43,7 @@ func wireTasks(ts *agent.TaskStore, st *store.Store, log *slog.Logger) {
 			UpdatedAt: store.FormatRFC3339(t.UpdatedAt),
 			Deadline:  store.FormatRFC3339(t.Deadline),
 			Result:    t.Result, Error: t.Err, IdempotencyKey: t.IdempotencyKey,
+			ContextID: t.ContextID,
 		}
 		if err := st.UpsertTask(row); err != nil {
 			if log != nil {

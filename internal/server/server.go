@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/swsgbl/omnifusion/internal/a2a"
+	"github.com/swsgbl/omnifusion/internal/agent"
 	"github.com/swsgbl/omnifusion/internal/compression"
 	"github.com/swsgbl/omnifusion/internal/config"
 	"github.com/swsgbl/omnifusion/internal/intelligence"
@@ -40,8 +41,11 @@ type Server struct {
 	metrics      *obs.Metrics                     // Prometheus 指标（；nil = 未启用，全 no-op）
 	gatewayToken string
 
-	a2aCard  *a2a.AgentCard // A2A 发现清单（；nil = 不挂 agent-card 与 /rpc）
-	a2aModel string         // A2A 缺省目标模型（可含 @指令）
+	a2aCard  *a2a.AgentCard                // A2A 发现清单（；nil = 不挂 agent-card 与 /rpc）
+	a2aModel string                        // A2A 缺省目标模型（可含 @指令）
+	a2aTasks *agent.TaskStore              // A2A 持久任务面（；nil = transient 兼容语义）
+	a2aActMu sync.Mutex                    // 活跃 A2A 流任务注册表锁
+	a2aAct   map[string]context.CancelFunc // taskID → 流取消（CancelTask 杀活流）
 
 	pinMu    sync.Mutex             // 全局路由钉选
 	pinName  string                 // 钉选 provider；空 = 未钉
@@ -116,9 +120,9 @@ func (s *Server) SetGatewayToken(token string) { s.gatewayToken = token }
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
-	mux.HandleFunc("GET /{$}", s.handleRoot) // 根路径双语落地页（无敏感信息，与 /healthz 同级开放）
+	mux.HandleFunc("GET /{$}", s.handleRoot)                                                                  // 根路径双语落地页（无敏感信息，与 /healthz 同级开放）
 	mux.Handle("GET /dashboard/assets/", http.StripPrefix("/dashboard/assets/", http.FileServer(s.assets()))) // 前端静态资产（GSAP/共享动效）：公开第三方库，无敏感信息（mux 最长前缀优先于鉴权的 /dashboard/）
-	mux.Handle("GET /v1/models", // 模型目录（catalog 快照）
+	mux.Handle("GET /v1/models",                                                                              // 模型目录（catalog 快照）
 		s.requireGatewayKey(http.HandlerFunc(s.handleModels)))
 	mux.Handle("POST /v1/chat/completions",
 		s.requireGatewayKey(http.HandlerFunc(s.handleChatCompletions)))

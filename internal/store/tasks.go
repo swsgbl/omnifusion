@@ -21,6 +21,7 @@ type TaskRow struct {
 	Result         string
 	Error          string
 	IdempotencyKey string
+	ContextID      string
 }
 
 // UpsertTask 单条 upsert（主键 id 冲突即整行替换：状态机的迁移合法性
@@ -32,8 +33,8 @@ func (s *Store) UpsertTask(r TaskRow) error {
 	_, err := s.db.Exec(`
 		INSERT INTO tasks (
 			id, kind, status, created_at, updated_at, deadline,
-			result, error, idempotency_key
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			result, error, idempotency_key, context_id
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
 			kind = excluded.kind,
 			status = excluded.status,
@@ -42,9 +43,10 @@ func (s *Store) UpsertTask(r TaskRow) error {
 			deadline = excluded.deadline,
 			result = excluded.result,
 			error = excluded.error,
-			idempotency_key = excluded.idempotency_key`,
+			idempotency_key = excluded.idempotency_key,
+			context_id = excluded.context_id`,
 		r.ID, r.Kind, r.Status, r.CreatedAt, r.UpdatedAt, r.Deadline,
-		r.Result, r.Error, r.IdempotencyKey)
+		r.Result, r.Error, r.IdempotencyKey, r.ContextID)
 	if err != nil {
 		return fmt.Errorf("upsert task %q: %w", r.ID, err)
 	}
@@ -55,7 +57,7 @@ func (s *Store) UpsertTask(r TaskRow) error {
 func (s *Store) LoadTasks() ([]TaskRow, error) {
 	rows, err := s.db.Query(`
 		SELECT id, kind, status, created_at, updated_at, deadline,
-		       result, error, idempotency_key
+		       result, error, idempotency_key, context_id
 		FROM tasks ORDER BY id`)
 	if err != nil {
 		return nil, fmt.Errorf("load tasks: %w", err)
@@ -67,7 +69,7 @@ func (s *Store) LoadTasks() ([]TaskRow, error) {
 		var r TaskRow
 		if err := rows.Scan(
 			&r.ID, &r.Kind, &r.Status, &r.CreatedAt, &r.UpdatedAt, &r.Deadline,
-			&r.Result, &r.Error, &r.IdempotencyKey,
+			&r.Result, &r.Error, &r.IdempotencyKey, &r.ContextID,
 		); err != nil {
 			return nil, fmt.Errorf("scan task row: %w", err)
 		}

@@ -1,10 +1,13 @@
 // a2a.go 是 A2A v1.0 协议的 HTTP 边界：AgentCard 发现端点
-// （公开）+ JSON-RPC 2.0 /rpc（网关 key 鉴权）。网关以「无状态代理
-// agent」形态接入：SendMessage 走 Message-only，流式走任务生命周期流
-// （transient task，事后不可查询）。
+// （公开）+ JSON-RPC 2.0 /rpc（网关 key 鉴权）。SendMessage 走
+// Message-only；SendStreamingMessage 走任务生命周期流。装配
+// TaskStore（SetA2ATasks）后任务持久化——GetTask/CancelTask/
+// ListTasks 可查可取消（蓝图 Phase 7 任务面，复用 Phase 6 TaskStore）；
+// 未装配保持 transient 兼容语义（任务只在流生命周期内存在）。
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +17,7 @@ import (
 	"time"
 
 	"github.com/swsgbl/omnifusion/internal/a2a"
+	"github.com/swsgbl/omnifusion/internal/agent"
 	"github.com/swsgbl/omnifusion/internal/core/schema"
 	"github.com/swsgbl/omnifusion/internal/routing"
 )
@@ -23,6 +27,14 @@ import (
 func (s *Server) SetA2A(card *a2a.AgentCard, defaultModel string) {
 	s.a2aCard = card
 	s.a2aModel = defaultModel
+}
+
+// SetA2ATasks 注入任务存储：装配后流式任务持久化（重启存活），
+// GetTask/CancelTask/ListTasks/SubscribeToTask 生效。nil = transient
+// 兼容（旧语义）。
+func (s *Server) SetA2ATasks(ts *agent.TaskStore) {
+	s.a2aTasks = ts
+	s.a2aAct = map[string]context.CancelFunc{}
 }
 
 // handleA2ACard 输出发现清单（无敏感信息：公开端点，业界惯例）。
@@ -57,15 +69,188 @@ func (s *Server) handleA2ARPC(w http.ResponseWriter, r *http.Request) {
 		s.a2aSend(w, r, &req, start)
 	case "SendStreamingMessage":
 		s.a2aStream(w, r, &req, start)
-	case "GetTask", "CancelTask", "SubscribeToTask":
-		s.writeA2AError(w, req.ID, a2a.CodeTaskNotFound,
-			"gateway agent is stateless; tasks are transient (stream-only)")
+	case "GetTask":
+		s.a2aGetTask(w, &req)
+	case "CancelTask":
+		s.a2aCancelTask(w, &req)
 	case "ListTasks":
-		s.writeA2AError(w, req.ID, a2a.CodeUnsupportedOperation,
-			"task listing is not supported (stateless gateway agent)")
+		s.a2aListTasks(w, &req)
+	case "SubscribeToTask":
+		s.a2aSubscribe(w, r, &req)
 	default:
 		s.writeA2AError(w, req.ID, a2a.CodeMethodNotFound, "unknown method "+req.Method)
 	}
+}
+
+// a2aTaskParams 是 GetTask/CancelTask/SubscribeToTask 的公共参数。
+type a2aTaskParams struct {
+	ID string `json:"id"`
+}
+
+// a2aGetTask 返回持久任务快照（状态 + 完成态产物）。
+func (s *Server) a2aGetTask(w http.ResponseWriter, req *a2a.Request) {
+	if s.a2aTasks == nil {
+		s.writeA2AError(w, req.ID, a2a.CodeTaskNotFound,
+			"gateway agent is stateless; tasks are transient (stream-only)")
+		return
+	}
+	var p a2aTaskParams
+	if len(req.Params) > 0 {
+		if err := json.Unmarshal(req.Params, &p); err != nil || p.ID == "" {
+			s.writeA2AError(w, req.ID, a2a.CodeInvalidParams, "params.id is required")
+			return
+		}
+	}
+	t, ok := s.a2aTasks.Get(p.ID)
+	if !ok {
+		s.writeA2AError(w, req.ID, a2a.CodeTaskNotFound, "task "+p.ID+" not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, a2a.Response{JSONRPC: "2.0", ID: req.ID, Result: a2aTaskOf(t)})
+}
+
+// a2aCancelTask 取消任务：先杀活流（注册表里的取消函数），再落
+// 持久终态。终态不可取消（canceled 幂等重放回显）。
+func (s *Server) a2aCancelTask(w http.ResponseWriter, req *a2a.Request) {
+	if s.a2aTasks == nil {
+		s.writeA2AError(w, req.ID, a2a.CodeTaskNotFound,
+			"gateway agent is stateless; tasks are transient (stream-only)")
+		return
+	}
+	var p a2aTaskParams
+	if len(req.Params) > 0 {
+		if err := json.Unmarshal(req.Params, &p); err != nil || p.ID == "" {
+			s.writeA2AError(w, req.ID, a2a.CodeInvalidParams, "params.id is required")
+			return
+		}
+	}
+	if cancel := s.a2aActiveCancel(p.ID); cancel != nil {
+		cancel() // 活流自杀；流循环会 Cancel 落库（幂等重放安全）
+	}
+	t, err := s.a2aTasks.Cancel(p.ID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			s.writeA2AError(w, req.ID, a2a.CodeTaskNotFound, "task "+p.ID+" not found")
+		} else {
+			s.writeA2AError(w, req.ID, a2a.CodeNotCancelable, err.Error())
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, a2a.Response{JSONRPC: "2.0", ID: req.ID, Result: a2aTaskOf(t)})
+}
+
+// a2aListTasks 列出本网关的 A2A 任务（UpdatedAt 新者在前，上限 50）。
+func (s *Server) a2aListTasks(w http.ResponseWriter, req *a2a.Request) {
+	if s.a2aTasks == nil {
+		s.writeA2AError(w, req.ID, a2a.CodeUnsupportedOperation,
+			"task listing is not supported (stateless gateway agent)")
+		return
+	}
+	tasks := s.a2aTasks.List("a2a", 50)
+	out := make([]a2a.Task, 0, len(tasks))
+	for i := range tasks {
+		out = append(out, a2aTaskOf(&tasks[i]))
+	}
+	writeJSON(w, http.StatusOK, a2a.Response{JSONRPC: "2.0", ID: req.ID,
+		Result: map[string]any{"tasks": out}})
+}
+
+// a2aSubscribe 以 SSE 回放任务当前状态（快照语义：一次事件即关闭。
+// 活任务的后续迁移不跟随——重连客户端对终态任务可拿到确定结论，
+// 对活跃任务拿到 working 快照后轮询 GetTask）。
+func (s *Server) a2aSubscribe(w http.ResponseWriter, _ *http.Request, req *a2a.Request) {
+	if s.a2aTasks == nil {
+		s.writeA2AError(w, req.ID, a2a.CodeTaskNotFound,
+			"gateway agent is stateless; tasks are transient (stream-only)")
+		return
+	}
+	var p a2aTaskParams
+	if len(req.Params) > 0 {
+		if err := json.Unmarshal(req.Params, &p); err != nil || p.ID == "" {
+			s.writeA2AError(w, req.ID, a2a.CodeInvalidParams, "params.id is required")
+			return
+		}
+	}
+	t, ok := s.a2aTasks.Get(p.ID)
+	if !ok {
+		s.writeA2AError(w, req.ID, a2a.CodeTaskNotFound, "task "+p.ID+" not found")
+		return
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		s.writeA2AError(w, req.ID, a2a.CodeInternal, "streaming unsupported by transport")
+		return
+	}
+	h := w.Header()
+	h.Set("Content-Type", "text/event-stream")
+	h.Set("Cache-Control", "no-cache")
+	h.Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+	ev := a2a.TaskStatusUpdateEvent{
+		TaskID:    t.ID,
+		ContextID: t.ContextID,
+		Status:    a2aTaskOf(t).Status,
+	}
+	b, err := json.Marshal(a2a.Response{JSONRPC: "2.0", ID: req.ID, Result: ev})
+	if err != nil {
+		return
+	}
+	_, _ = io.WriteString(w, "data: "+string(b)+"\n\n")
+	flusher.Flush()
+}
+
+// a2aTaskOf 把存储任务投影为 A2A 线上任务对象（状态映射 + 完成
+// 产物 + 失败原因消息）。
+func a2aTaskOf(t *agent.Task) a2a.Task {
+	state := a2a.StateWorking
+	var msg *a2a.Message
+	switch t.Status {
+	case agent.TaskStatusCompleted:
+		state = a2a.StateCompleted
+	case agent.TaskStatusCanceled:
+		state = a2a.StateCanceled
+	case agent.TaskStatusFailed, agent.TaskStatusTimedOut:
+		state = a2a.StateFailed
+		msg = &a2a.Message{
+			MessageID: "err-" + t.ID, Role: a2a.RoleAgent,
+			Parts: []a2a.Part{a2a.TextPart(t.Err)},
+		}
+	case agent.TaskStatusCreated, agent.TaskStatusRunning:
+		state = a2a.StateWorking
+	}
+	task := a2a.Task{
+		ID: t.ID, ContextID: t.ContextID,
+		Status: a2a.TaskStatus{State: state, Message: msg, Timestamp: t.UpdatedAt.UTC().Format(time.RFC3339)},
+	}
+	if t.Status == agent.TaskStatusCompleted && t.Result != "" {
+		task.Artifacts = []a2a.Artifact{{
+			ArtifactID: "text", Name: "response",
+			Parts: []a2a.Part{a2a.TextPart(t.Result)},
+		}}
+	}
+	return task
+}
+
+// a2aRegisterActive 登记活流取消函数；返回注销器（defer 调用）。
+func (s *Server) a2aRegisterActive(taskID string, cancel context.CancelFunc) func() {
+	s.a2aActMu.Lock()
+	defer s.a2aActMu.Unlock()
+	if s.a2aAct == nil {
+		s.a2aAct = map[string]context.CancelFunc{}
+	}
+	s.a2aAct[taskID] = cancel
+	return func() {
+		s.a2aActMu.Lock()
+		defer s.a2aActMu.Unlock()
+		delete(s.a2aAct, taskID)
+	}
+}
+
+// a2aActiveCancel 取活流取消函数（无则 nil）。
+func (s *Server) a2aActiveCancel(taskID string) context.CancelFunc {
+	s.a2aActMu.Lock()
+	defer s.a2aActMu.Unlock()
+	return s.a2aAct[taskID]
 }
 
 // a2aPrepare 完成 SendMessage/流式共用的前置：参数解码 → IR 翻译 →
@@ -168,11 +353,38 @@ func (s *Server) a2aStream(w http.ResponseWriter, r *http.Request, req *a2a.Requ
 		return
 	}
 	ureq.Stream = true // A2A 流式入口：上游必须以 SSE 回流（IR 由端点定性）
-	stream, attempts, err := s.router.DispatchStream(r.Context(), ureq, opts...)
+	// 持久任务（蓝图 Phase 7）：TaskStore 落生命周期，流事件用同一
+	// taskID——GetTask/CancelTask/ListTasks 事后可查可取消（重启存活）。
+	// 未装配（nil）退回 transient 语义（随机 ID，仅流内存在）。
+	taskID := "task-" + randomID()
+	if s.a2aTasks != nil {
+		if t, _, err := s.a2aTasks.Create("a2a", "", a2aStreamTaskTTL); err == nil {
+			taskID = t.ID
+			_, _ = s.a2aTasks.Start(taskID)
+			if ctxID != "" {
+				_ = s.a2aTasks.AttachContext(taskID, ctxID)
+			}
+		}
+	}
+	if ctxID == "" {
+		ctxID = "ctx-" + randomID()
+	}
+	// 活流注册：CancelTask 可中途打断。streamCtx 是上游请求的父级
+	//（DispatchStream 由此派生）——取消它同时打断上游读取，否则
+	// 取消只对本地循环生效、上游挂死（E2E 实测教训）。
+	streamCtx, cancelStream := context.WithCancel(r.Context())
+	defer cancelStream()
+	if s.a2aTasks != nil {
+		defer s.a2aRegisterActive(taskID, cancelStream)()
+	}
+	stream, attempts, err := s.router.DispatchStream(streamCtx, ureq, opts...)
 	if err != nil { // 首事件前失败：仍可回 JSON-RPC 错误（HTTP 200 信封）
 		s.logDispatchFailure(ureq, attempts, err)
 		s.writeA2AError(w, req.ID, a2a.CodeInternal, upstreamErrorMessage(err))
 		s.auditFailed("a2a", ureq.Model, comboName, start, err)
+		if s.a2aTasks != nil {
+			_, _ = s.a2aTasks.Fail(taskID, upstreamErrorMessage(err))
+		}
 		return
 	}
 	defer func() { _ = stream.Close() }()
@@ -183,10 +395,6 @@ func (s *Server) a2aStream(w http.ResponseWriter, r *http.Request, req *a2a.Requ
 		return
 	}
 	audit := s.beginStreamAudit("a2a", ureq.Model, comboName)
-	taskID, random := "task-"+randomID(), randomID()
-	if ctxID == "" {
-		ctxID = "ctx-" + random
-	}
 	h := w.Header()
 	h.Set("Content-Type", "text/event-stream")
 	h.Set("Cache-Control", "no-cache")
@@ -214,16 +422,22 @@ func (s *Server) a2aStream(w http.ResponseWriter, r *http.Request, req *a2a.Requ
 	winner := attemptWinner(attempts)
 	var full strings.Builder
 	for {
-		chunk, err := stream.Next(r.Context())
+		chunk, err := stream.Next(streamCtx)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			if r.Context().Err() != nil {
+			if streamCtx.Err() != nil {
+				if s.a2aTasks != nil {
+					_, _ = s.a2aTasks.Cancel(taskID) // 客户端断开/CancelTask：落终态
+				}
 				audit.finish(http.StatusOK, winner, "cancelled")
 				return
 			}
 			s.log.Warn("a2a stream broken; closing with failed status", "err", err)
+			if s.a2aTasks != nil {
+				_, _ = s.a2aTasks.Fail(taskID, err.Error())
+			}
 			send(a2a.StreamResponse{StatusUpdate: &a2a.TaskStatusUpdateEvent{
 				TaskID: taskID, ContextID: ctxID,
 				Status: a2a.TaskStatus{State: a2a.StateFailed, Timestamp: time.Now().UTC().Format(time.RFC3339)},
@@ -250,8 +464,15 @@ func (s *Server) a2aStream(w http.ResponseWriter, r *http.Request, req *a2a.Requ
 			Timestamp: time.Now().UTC().Format(time.RFC3339),
 		},
 	}})
+	if s.a2aTasks != nil {
+		_, _ = s.a2aTasks.Complete(taskID, full.String()) // 全文=最终证据
+	}
 	audit.finish(http.StatusOK, winner, "")
 }
+
+// a2aStreamTaskTTL 是持久流任务的默认截止（防御性：流挂死时任务
+// 不会永久 running——超时后读时判 timed_out）。
+const a2aStreamTaskTTL = 30 * time.Minute
 
 // writeA2AError 以 JSON-RPC 信封写出错误（HTTP 200，错误在信封内）。
 func (s *Server) writeA2AError(w http.ResponseWriter, id json.RawMessage, code int, msg string) {

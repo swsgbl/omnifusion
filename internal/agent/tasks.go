@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 )
@@ -38,7 +39,8 @@ func TaskTerminal(s TaskStatus) bool {
 }
 
 // Task 是一个异步操作单元。Result/Err 是生产者写入的最终证据
-// （string；结构化载荷由生产者自行 JSON 编码）。
+// （string；结构化载荷由生产者自行 JSON 编码）。ContextID 是协议侧
+// 上下文关联（A2A contextId——会话维度，与状态机无关）。
 type Task struct {
 	ID             string     `json:"id"`
 	Kind           string     `json:"kind"`
@@ -49,6 +51,7 @@ type Task struct {
 	Result         string     `json:"result,omitempty"`
 	Err            string     `json:"error,omitempty"`
 	IdempotencyKey string     `json:"idempotency_key,omitempty"`
+	ContextID      string     `json:"context_id,omitempty"`
 }
 
 // deadlinePassed 报告活跃任务是否已过截止（零值截止=无超时）。
@@ -222,6 +225,53 @@ func (s *TaskStore) expireLocked(t *Task) {
 		t.Err = "deadline exceeded"
 		s.persistLocked(*t)
 	}
+}
+
+// AttachContext 记录任务的上下文关联（A2A contextId；不改状态机，
+// 终态任务拒绝——上下文属于活跃生命周期）。
+func (s *TaskStore) AttachContext(id, contextID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	t, ok := s.tasks[id]
+	if !ok {
+		return fmt.Errorf("task %s not found", id)
+	}
+	s.expireLocked(t)
+	if TaskTerminal(t.Status) {
+		return fmt.Errorf("task %s is terminal (%s); context attach refused", id, t.Status)
+	}
+	t.ContextID = contextID
+	t.UpdatedAt = s.now()
+	s.persistLocked(*t)
+	return nil
+}
+
+// List 按 kind 过滤返回任务快照（UpdatedAt 新者在前；limit<=0 用
+// 默认 50）。快照离手即弃——后续迁移不影响已返回切片。
+func (s *TaskStore) List(kind string, limit int) []Task {
+	if limit <= 0 {
+		limit = 50
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]Task, 0, limit)
+	for _, t := range s.tasks {
+		if kind != "" && t.Kind != kind {
+			continue
+		}
+		s.expireLocked(t)
+		out = append(out, *t)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if !out[i].UpdatedAt.Equal(out[j].UpdatedAt) {
+			return out[i].UpdatedAt.After(out[j].UpdatedAt)
+		}
+		return out[i].ID < out[j].ID
+	})
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out
 }
 
 // LoadFrom 恢复任务快照（重启恢复）：活跃任务先判超时；未超时的

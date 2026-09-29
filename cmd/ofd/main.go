@@ -337,6 +337,9 @@ func run() error {
 			DefaultModel: cfg.A2A.DefaultModel,
 			Streaming:    true,
 		}), cfg.A2A.DefaultModel)
+		// 持久任务面（蓝图 Phase 7）：流任务落 TaskStore（与 MCP tasks
+		// 工具面同一存储）——GetTask/CancelTask/ListTasks 生效，重启存活。
+		srv.SetA2ATasks(agent.DefaultTasks())
 		logger.Info("A2A agent endpoints enabled",
 			"card", "/.well-known/agent-card.json", "rpc", "/rpc",
 			"default_model", cfg.A2A.DefaultModel)
