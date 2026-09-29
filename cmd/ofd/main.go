@@ -314,10 +314,11 @@ func run() error {
 
 	// MCP Streamable HTTP 挂 /mcp（Claude Code 等 MCP 客户端）。
 	// 工具数据经 GatewayView 环回访问自身 dashboard API——与 stdio 模式
-	// （ofd mcp）共用同一实现与数据口径。
+	// （ofd mcp）共用同一实现与数据口径。可路由标头观测 + 工具目录
+	// 指纹响应头（蓝图 Phase 6：Mcp-Method/Mcp-Name/目录 version/hash）。
 	mcpView := agent.NewGatewayView(
 		fmt.Sprintf("http://%s:%d", cfg.Server.Host, cfg.Server.Port), token, nil)
-	srv.SetMCPHandler(agent.ScopedHTTPHandler(mcpView, version, srv.ResolveRequestScopes))
+	srv.SetMCPHandler(agent.MCPRoutingHandler(mcpView, version, srv.ResolveRequestScopes, logger))
 	logger.Info("MCP endpoint enabled", "path", "/mcp", "transport", "streamable-http")
 
 	// A2A v1.0 协议面——AgentCard 发现 + JSON-RPC /rpc。网关以
