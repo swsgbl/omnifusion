@@ -73,6 +73,9 @@ type Catalog struct {
 	// lastSync 是最近一次 Sync 完成时刻（unix 秒；0 = 尚未同步过）。
 	// Dashboard providers 页据此展示"上次模型同步"，手动刷新端点共用。
 	lastSync atomic.Int64
+	// generation 是目录代际计数器（sync 实际变更时递增；缓存键消费——
+	// 目录变了，语义缓存旧条目自然失效，无需逐条清理）。
+	generation atomic.Uint64
 }
 
 // NewCatalog 装配目录并从 SQLite 恢复快照（有 store 时）。
@@ -275,10 +278,19 @@ func (c *Catalog) coldRetryInterval() time.Duration {
 }
 
 func (c *Catalog) logSync(changed int) {
+	if changed > 0 {
+		c.generation.Add(1) // 目录代际递增：缓存键消费方据此失效旧条目
+	}
 	if c.log != nil && changed > 0 {
-		c.log.Info("catalog sync refreshed", "providers_changed", changed)
+		c.log.Info("catalog sync refreshed", "providers_changed", changed,
+			"generation", c.generation.Load())
 	}
 }
+
+// Generation 返回目录代际计数器：每次 sync 实际变更 provider 清单时
+// 递增（Cache 2.0：语义缓存键纳入代际——目录变了，旧缓存条目自然失效，
+// 无需逐条清理）。从未变更时恒 0。
+func (c *Catalog) Generation() uint64 { return c.generation.Load() }
 
 // ContextWindow 返回 (provider, model) 的上下文窗口；优先 live 清单
 // 的非零值，live 未收录或窗口为零时回落 签名 feed（社区维护的

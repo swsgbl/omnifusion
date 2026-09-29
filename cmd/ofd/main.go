@@ -157,8 +157,11 @@ func run() error {
 
 	// 语义缓存精确层——非流式请求命中直接返回（TTFT<10ms），
 	// 未命中上游成功后异步回写；TTL 24h、容量 4096 条（每 64 次回写
-	// 触发一次淘汰）。
-	srv.SetCache(intelligence.NewSemCache(st, 24*time.Hour, 4096))
+	// 触发一次淘汰）。Cache 2.0：缓存键纳入目录代际——目录 sync 实际
+	// 变更后代际递增，同请求旧条目自然失效（resolved-model 维度）。
+	cache := intelligence.NewSemCache(st, 24*time.Hour, 4096)
+	cache.SetGenerationFunc(catalog.Generation)
+	srv.SetCache(cache)
 
 	// 组合层——路由组合（命名模型组，"@combo:NAME" 选择）+
 	// 绑定的压缩组合（per-path 压缩策略）。配置语义错误（未知名阶段
