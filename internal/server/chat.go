@@ -92,6 +92,12 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, attempts, err := s.router.Dispatch(r.Context(), &req, opts...)
+	// 决策证据（蓝图 §五）：candidate_source 暂取保守直连码——精确的
+	// 指令来源（@smart/@quality/@cheap）在下一切片由 dispatchOptions
+	// 一并返回后接入。
+	dec := routing.FoldDecision(attempts, err, req.Model, r.Header.Get("X-Request-Id"),
+		routing.ReasonDirectModel, time.Since(start).Milliseconds(), r.Context().Err() != nil)
+	s.logRouteDecision(dec)
 	if err != nil {
 		s.logDispatchFailure(&req, attempts, err)
 		writeAPIError(w, http.StatusBadGateway, upstreamErrorMessage(err), "upstream_error", "")
@@ -99,6 +105,7 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("X-OmniFusion-Cache", "miss")
+	w.Header().Set("X-OmniFusion-Route", dec.Summary())
 	setDegradedHeader(w, attemptDegraded(attempts))
 	writeJSON(w, http.StatusOK, resp)
 	s.auditDone("chat", req.Model, comboName, start, resp.ProviderName, resp.Usage, false)
@@ -106,6 +113,20 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	go s.cache.WriteBack(context.WithoutCancel(r.Context()), &req, resp)
 	// 会话记忆记录（opt-in 头）：非流式成功后旁路记录回合。
 	go s.memoryRecord(r, &req, resp)
+}
+
+// logRouteDecision 把路由决策证据写成结构化日志行（蓝图 §五：每次
+// 决策可解释——候选路径、原因码、耗时）。debug 级别防噪声；排障时
+// 调 log.level=debug 即可回放。
+func (s *Server) logRouteDecision(dec *routing.RouteDecision) {
+	if s.log == nil || dec == nil {
+		return
+	}
+	s.log.Debug("route decision",
+		"model", dec.Model, "chosen", dec.ChosenProvider,
+		"resolved_model", dec.ResolvedModel,
+		"reasons", dec.ReasonCodes, "tries", dec.AttemptCount,
+		"duration_ms", dec.DurationMS, "summary", dec.Summary())
 }
 
 // logDispatchFailure 把逐家尝试的失败原因写进日志（排障关键面），

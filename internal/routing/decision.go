@@ -13,6 +13,7 @@ package routing
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -81,15 +82,21 @@ type RouteDecision struct {
 func (r *Router) Decide(ctx context.Context, req *schema.UnifiedRequest, candidateSource ReasonCode, opts ...DispatchOption) (*schema.Response, *RouteDecision, error) {
 	start := time.Now()
 	resp, attempts, err := r.Dispatch(ctx, req, opts...)
+	return resp, FoldDecision(attempts, err, req.Model, req.User, candidateSource,
+		time.Since(start).Milliseconds(), ctx.Err() != nil), err
+}
 
+// FoldDecision 把一次 Dispatch 的输出（attempts + err）折叠为
+// RouteDecision。既有四协议端点直接调 Dispatch 并持有 attempts——
+// 用本函数即可获得决策证据，无需改走 Decide（增量接入面）。
+func FoldDecision(attempts []Attempt, err error, model, requestID string, candidateSource ReasonCode, durationMS int64, ctxCanceled bool) *RouteDecision {
 	d := &RouteDecision{
-		RequestID:       req.User, // 暂复用 User 作关联键；server 注入 request_id 后替换
-		Model:           req.Model,
+		RequestID:       requestID,
+		Model:           model,
 		CandidateSource: candidateSource,
 		AttemptCount:    len(attempts),
-		DurationMS:      time.Since(start).Milliseconds(),
+		DurationMS:      durationMS,
 	}
-
 	for i, att := range attempts {
 		dc := DecisionCandidate{
 			Order:    i,
@@ -105,7 +112,6 @@ func (r *Router) Decide(ctx context.Context, req *schema.UnifiedRequest, candida
 		}
 		d.Candidates = append(d.Candidates, dc)
 	}
-
 	switch {
 	case err == nil && len(attempts) > 0:
 		d.Success = true
@@ -117,12 +123,44 @@ func (r *Router) Decide(ctx context.Context, req *schema.UnifiedRequest, candida
 		} else {
 			d.ReasonCodes = append(d.ReasonCodes, ReasonFailoverChosen)
 		}
-	case ctx.Err() != nil:
+	case ctxCanceled:
 		d.ReasonCodes = append(d.ReasonCodes, ReasonContextCanceled)
 	default:
 		d.ReasonCodes = append(d.ReasonCodes, ReasonAllExhausted)
 	}
-	return resp, d, err
+	return d
+}
+
+// Summary 输出单行可读摘要（响应头 X-OmniFusion-Route 与结构化日志共用）：
+// "chosen=beta reason=FAILOVER_CHOSEN tries=2 path=alpha(rate_limit)→beta"。
+func (d *RouteDecision) Summary() string {
+	if d == nil {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("chosen=")
+	b.WriteString(d.ChosenProvider)
+	if len(d.ReasonCodes) > 0 {
+		b.WriteString(" reason=")
+		b.WriteString(string(d.ReasonCodes[0]))
+	}
+	b.WriteString(" tries=")
+	fmt.Fprintf(&b, "%d", d.AttemptCount)
+	if len(d.Candidates) > 0 {
+		b.WriteString(" path=")
+		for i, c := range d.Candidates {
+			if i > 0 {
+				b.WriteString("→")
+			}
+			b.WriteString(c.Provider)
+			if c.Skipped {
+				b.WriteString("(" + string(c.SkipReason) + ")")
+			} else if c.Kind != "" {
+				b.WriteString("(" + c.Kind + ")")
+			}
+		}
+	}
+	return b.String()
 }
 
 // classifySkipReason 把 skipIfBlocked 的 reason 文本归类为跳过码。
