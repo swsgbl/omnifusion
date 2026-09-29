@@ -57,7 +57,7 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 	// 会话记忆召回（opt-in 头）：命中注入 system 消息，永不阻断。
 	s.memoryRecall(w, r, &req)
-	opts, comboName, fusionReq, err := s.dispatchOptions(r, &req)
+	opts, comboName, fusionReq, routeSrc, err := s.dispatchOptions(r, &req)
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, err.Error(), "invalid_request_error", "")
 		return
@@ -92,11 +92,8 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, attempts, err := s.router.Dispatch(r.Context(), &req, opts...)
-	// 决策证据（蓝图 §五）：candidate_source 暂取保守直连码——精确的
-	// 指令来源（@smart/@quality/@cheap）在下一切片由 dispatchOptions
-	// 一并返回后接入。
 	dec := routing.FoldDecision(attempts, err, req.Model, r.Header.Get("X-Request-Id"),
-		routing.ReasonDirectModel, time.Since(start).Milliseconds(), r.Context().Err() != nil)
+		routeSrc, time.Since(start).Milliseconds(), r.Context().Err() != nil)
 	s.logRouteDecision(dec)
 	if err != nil {
 		s.logDispatchFailure(&req, attempts, err)

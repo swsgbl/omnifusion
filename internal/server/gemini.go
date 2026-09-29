@@ -92,7 +92,7 @@ func (s *Server) handleGeminiGenerateContent(w http.ResponseWriter, r *http.Requ
 	}
 	// 会话记忆召回（opt-in 头）：命中注入 system 消息，永不阻断。
 	s.memoryRecall(w, r, req)
-	opts, comboName, fusionReq, err := s.dispatchOptions(r, req) // @fast:model 指令与策略头同样可用
+	opts, comboName, fusionReq, routeSrc, err := s.dispatchOptions(r, req) // @fast:model 指令与策略头同样可用
 	if err != nil {
 		writeGeminiError(w, http.StatusBadRequest, "INVALID_ARGUMENT", err.Error())
 		return
@@ -134,6 +134,9 @@ func (s *Server) handleGeminiGenerateContent(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	resp, attempts, err := s.router.Dispatch(r.Context(), req, opts...)
+	dec := routing.FoldDecision(attempts, err, model, r.Header.Get("X-Request-Id"),
+		routeSrc, time.Since(start).Milliseconds(), r.Context().Err() != nil)
+	s.logRouteDecision(dec)
 	if err != nil {
 		s.logDispatchFailure(req, attempts, err)
 		writeGeminiError(w, http.StatusBadGateway, "UNAVAILABLE", upstreamErrorMessage(err))
@@ -141,6 +144,7 @@ func (s *Server) handleGeminiGenerateContent(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	w.Header().Set("X-OmniFusion-Cache", "miss")
+	w.Header().Set("X-OmniFusion-Route", dec.Summary())
 	setDegradedHeader(w, mergeDegraded(degraded, attemptDegraded(attempts)))
 	writeJSON(w, http.StatusOK, translate.ToGeminiGenerateContent(resp))
 	s.auditDone("gemini", model, comboName, start, resp.ProviderName, resp.Usage, false)

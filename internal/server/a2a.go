@@ -72,12 +72,12 @@ func (s *Server) handleA2ARPC(w http.ResponseWriter, r *http.Request) {
 // 护栏 → 路由选项（策略/组合/会话亲和/钉选）→ 组合压缩绑定。
 // fusion 请求返回 fusionReq=true（调用方分流到 handleFusion）。
 func (s *Server) a2aPrepare(w http.ResponseWriter, r *http.Request, req *a2a.Request) (
-	ureq *schema.UnifiedRequest, opts []routing.DispatchOption, comboName string, fusionReq bool, ctxID string, ok bool) {
+	ureq *schema.UnifiedRequest, opts []routing.DispatchOption, comboName string, fusionReq bool, ctxID string, routeSrc routing.ReasonCode, ok bool) {
 	var params a2a.SendMessageParams
 	if len(req.Params) > 0 {
 		if err := json.Unmarshal(req.Params, &params); err != nil {
 			s.writeA2AError(w, req.ID, a2a.CodeInvalidParams, "params: "+err.Error())
-			return nil, nil, "", false, "", false
+			return nil, nil, "", false, "", "", false
 		}
 	}
 	ureq, err := a2a.ToUnified(&params.Message, s.a2aModel)
@@ -87,25 +87,25 @@ func (s *Server) a2aPrepare(w http.ResponseWriter, r *http.Request, req *a2a.Req
 			code = a2a.CodeContentTypeNotSupport
 		}
 		s.writeA2AError(w, req.ID, code, err.Error())
-		return nil, nil, "", false, "", false
+		return nil, nil, "", false, "", "", false
 	}
 	if ureq.Model == "" {
 		s.writeA2AError(w, req.ID, a2a.CodeInvalidParams,
 			"no target model: set message.metadata.model or a2a.default_model in the gateway config")
-		return nil, nil, "", false, "", false
+		return nil, nil, "", false, "", "", false
 	}
 	if !s.applyGuardrails("/rpc", ureq, func(code int, msg string) {
 		s.writeA2AError(w, req.ID, a2a.CodeInvalidParams, "guardrails: "+msg)
 	}) {
-		return nil, nil, "", false, "", false
+		return nil, nil, "", false, "", "", false
 	}
-	opts, comboName, fusionReq, err = s.dispatchOptions(r, ureq)
+	opts, comboName, fusionReq, routeSrc, err = s.dispatchOptions(r, ureq)
 	if err != nil {
 		s.writeA2AError(w, req.ID, a2a.CodeInvalidParams, err.Error())
-		return nil, nil, "", false, "", false
+		return nil, nil, "", false, "", "", false
 	}
 	if fusionReq {
-		return ureq, nil, comboName, true, params.Message.ContextID, true
+		return ureq, nil, comboName, true, params.Message.ContextID, routeSrc, true
 	}
 	if params.Message.ContextID != "" { // A2A contextId → 会话亲和（sticky）
 		opts = append(opts, routing.WithSession(params.Message.ContextID))
@@ -114,12 +114,12 @@ func (s *Server) a2aPrepare(w http.ResponseWriter, r *http.Request, req *a2a.Req
 	if comboName != "" {
 		opts = append(opts, s.comboCompress(r, ureq, comboName)...)
 	}
-	return ureq, opts, comboName, false, params.Message.ContextID, true
+	return ureq, opts, comboName, false, params.Message.ContextID, routeSrc, true
 }
 
 // a2aSend 处理非流式 SendMessage：Message-only 响应（简单交互不建任务）。
 func (s *Server) a2aSend(w http.ResponseWriter, r *http.Request, req *a2a.Request, start time.Time) {
-	ureq, opts, comboName, fusionReq, _, ok := s.a2aPrepare(w, r, req)
+	ureq, opts, comboName, fusionReq, _, _, ok := s.a2aPrepare(w, r, req)
 	if !ok {
 		return
 	}
@@ -154,7 +154,7 @@ func (s *Server) a2aSend(w http.ResponseWriter, r *http.Request, req *a2a.Reques
 // (working) → 逐增量 artifactUpdate(append) → 终态 statusUpdate
 // (completed/failed)。任务对象 transient：GetTask 不可查。
 func (s *Server) a2aStream(w http.ResponseWriter, r *http.Request, req *a2a.Request, start time.Time) {
-	ureq, opts, comboName, fusionReq, ctxID, ok := s.a2aPrepare(w, r, req)
+	ureq, opts, comboName, fusionReq, ctxID, _, ok := s.a2aPrepare(w, r, req)
 	if !ok {
 		return
 	}

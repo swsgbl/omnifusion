@@ -55,7 +55,7 @@ func (s *Server) handleResponses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.memoryRecall(w, r, req)
-	opts, comboName, fusionReq, err := s.dispatchOptions(r, req)
+	opts, comboName, fusionReq, routeSrc, err := s.dispatchOptions(r, req)
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, err.Error(), "invalid_request_error", "")
 		return
@@ -95,6 +95,9 @@ func (s *Server) handleResponses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, attempts, err := s.router.Dispatch(r.Context(), req, opts...)
+	dec := routing.FoldDecision(attempts, err, req.Model, r.Header.Get("X-Request-Id"),
+		routeSrc, time.Since(start).Milliseconds(), r.Context().Err() != nil)
+	s.logRouteDecision(dec)
 	if err != nil {
 		s.logDispatchFailure(req, attempts, err)
 		writeAPIError(w, http.StatusBadGateway, upstreamErrorMessage(err), "api_error", "")
@@ -102,6 +105,7 @@ func (s *Server) handleResponses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("X-OmniFusion-Cache", "miss")
+	w.Header().Set("X-OmniFusion-Route", dec.Summary())
 	setDegradedHeader(w, mergeDegraded(degraded, attemptDegraded(attempts)))
 	writeJSON(w, http.StatusOK, translate.ToResponses(resp))
 	s.auditDone("responses", req.Model, comboName, start, resp.ProviderName, resp.Usage, false)

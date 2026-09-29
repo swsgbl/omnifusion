@@ -60,7 +60,7 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 	}
 	// 会话记忆召回（opt-in 头）：命中注入 system 消息，永不阻断。
 	s.memoryRecall(w, r, req)
-	opts, comboName, fusionReq, err := s.dispatchOptions(r, req) // @fast:model 指令与策略头同样可用
+	opts, comboName, fusionReq, routeSrc, err := s.dispatchOptions(r, req) // @fast:model 指令与策略头同样可用
 	if err != nil {
 		writeAnthropicError(w, http.StatusBadRequest, "invalid_request_error", err.Error())
 		return
@@ -102,6 +102,9 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, attempts, err := s.router.Dispatch(r.Context(), req, opts...)
+	dec := routing.FoldDecision(attempts, err, req.Model, r.Header.Get("X-Request-Id"),
+		routeSrc, time.Since(start).Milliseconds(), r.Context().Err() != nil)
+	s.logRouteDecision(dec)
 	if err != nil {
 		s.logDispatchFailure(req, attempts, err)
 		writeAnthropicError(w, http.StatusBadGateway, "api_error", upstreamErrorMessage(err))
@@ -109,6 +112,7 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("X-OmniFusion-Cache", "miss")
+	w.Header().Set("X-OmniFusion-Route", dec.Summary())
 	setDegradedHeader(w, mergeDegraded(degraded, attemptDegraded(attempts)))
 	writeJSON(w, http.StatusOK, translate.ToAnthropicMessages(resp))
 	s.auditDone("messages", req.Model, comboName, start, resp.ProviderName, resp.Usage, false)

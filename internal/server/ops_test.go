@@ -98,7 +98,7 @@ func TestCompressionDefault(t *testing.T) {
 		Model:    "m",
 		Messages: []schema.Message{{Role: "user", Content: schema.NewTextContent("hi")}},
 	}
-	_, combo, _, err := s.dispatchOptions(httptest.NewRequest(http.MethodPost, gw.URL, nil), dreq)
+	_, combo, _, _, err := s.dispatchOptions(httptest.NewRequest(http.MethodPost, gw.URL, nil), dreq)
 	if err != nil {
 		t.Fatalf("dispatchOptions: %v", err)
 	}
