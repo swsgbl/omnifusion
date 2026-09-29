@@ -113,10 +113,8 @@ func buildRouter(cfg *config.Config, log *slog.Logger, st *store.Store, kr *secu
 	// 装配 Persister 后，后续每次合并生效的 Record 自动落库——重启
 	// 不丢权益事实（蓝图："过期数据自动降级"与"事实可持续"同一闭环）。
 	ledger := quota.NewLedger()
-	ledger.SetPersister(st)
-	if rows, err := st.RestoreEntitlements(); err != nil {
-		log.Warn("restore entitlements; starting with static seed only", "err", err)
-	} else if len(rows) > 0 {
+	ledger.SetPersister(&storePersister{st: st, log: log})
+	if rows := loadEntitlements(st, log); len(rows) > 0 {
 		ledger.LoadFrom(rows)
 		log.Info("entitlement ledger restored", "entries", len(rows))
 	}

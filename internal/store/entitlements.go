@@ -1,29 +1,28 @@
 // entitlements.go 是权益账本的 SQLite 持久化（蓝图 Phase 3 持久化切片）：
-// (provider, model) 主键的 Entitlement 快照，upsert 单条 + 全表恢复。
-// 账本对象（internal/quota.Entitlement）与行对象经本文件往返——
-// 时间字段 RFC3339、remaining NULL↔-1（SQL 表未知，Go 表哨兵）。
+// (provider, model) 主键的行级 upsert + 全表读取。本文件只处理行对象
+// （EntitlementRow）——quota.Entitlement ↔ Row 的类型转换在装配层
+// （cmd/ofd，quotaPersister 适配器）完成，存储层不 import quota
+// （infra-store 是依赖叶子，depguard 门禁）。
 package store
 
 import (
 	"fmt"
 	"time"
-
-	"github.com/swsgbl/omnifusion/internal/quota"
 )
 
 // EntitlementRow 是 entitlements 表的一行（与 quota.Entitlement 同构，
 // 时间字段以 RFC3339 往返）。
 type EntitlementRow struct {
-	Provider   string
-	Model      string
-	State      string
-	Source     string
+	Provider string
+	Model    string
+	State    string
+	Source   string
 	EvidenceID string
-	TermsURL   string
-	RPM        int64
-	TPM        int64
-	RPD        int64
-	TPD        int64
+	TermsURL  string
+	RPM      int64
+	TPM      int64
+	RPD      int64
+	TPD      int64
 	// Remaining 是余量比例 [0,1]；nil = SQL NULL = 未知（Go 侧 -1 哨兵）。
 	Remaining      *float64
 	ObservedAt     string
@@ -96,65 +95,16 @@ func (s *Store) LoadEntitlements() ([]EntitlementRow, error) {
 	return out, nil
 }
 
-// SaveEntitlement 把账本对象转为行并 upsert（便捷入口）。
-func (s *Store) SaveEntitlement(e quota.Entitlement) error {
-	row := EntitlementRow{
-		Provider: e.Provider, Model: e.Model,
-		State: string(e.State), Source: string(e.Source),
-		EvidenceID: e.EvidenceID, TermsURL: e.TermsURL,
-		RPM: int64(e.Window.RPM), TPM: e.Window.TPM,
-		RPD: int64(e.Window.RPD), TPD: e.Window.TPD,
-		ObservedAt: formatRFC3339(e.ObservedAt),
-		ValidUntil: formatRFC3339(e.ValidUntil),
-		Confidence: e.Confidence, CatalogVersion: e.CatalogVersion,
-	}
-	// -1 哨兵（未知）→ SQL NULL；[0,1] 照存。
-	if e.Window.Remaining >= 0 {
-		rem := e.Window.Remaining
-		row.Remaining = &rem
-	}
-	return s.UpsertEntitlement(row)
-}
-
-// RestoreEntitlements 把全表行转回账本对象（启动恢复入口）。
-// 过期降级不在恢复时做——Get 时自动降级并写回（quota.Ledger 语义）。
-func (s *Store) RestoreEntitlements() ([]quota.Entitlement, error) {
-	rows, err := s.LoadEntitlements()
-	if err != nil {
-		return nil, err
-	}
-	out := make([]quota.Entitlement, 0, len(rows))
-	for _, r := range rows {
-		e := quota.Entitlement{
-			Provider: r.Provider, Model: r.Model,
-			State:      quota.EntitlementState(r.State),
-			Source:     quota.Source(r.Source),
-			EvidenceID: r.EvidenceID, TermsURL: r.TermsURL,
-			Window: quota.QuotaWindow{
-				RPM: int(r.RPM), TPM: r.TPM, RPD: int(r.RPD), TPD: r.TPD,
-			},
-			Confidence: r.Confidence, CatalogVersion: r.CatalogVersion,
-			ObservedAt: parseRFC3339(r.ObservedAt),
-			ValidUntil: parseRFC3339(r.ValidUntil),
-		}
-		if r.Remaining != nil {
-			e.Window.Remaining = *r.Remaining
-		} else {
-			e.Window.Remaining = -1
-		}
-		out = append(out, e)
-	}
-	return out, nil
-}
-
-func formatRFC3339(t time.Time) string {
+// FormatRFC3339 / ParseRFC3339 是时间列的公共往返器（装配层适配器复用）。
+func FormatRFC3339(t time.Time) string {
 	if t.IsZero() {
 		return ""
 	}
 	return t.UTC().Format(time.RFC3339)
 }
 
-func parseRFC3339(s string) time.Time {
+// ParseRFC3339 解析 RFC3339 时间列（空串/坏串回零值）。
+func ParseRFC3339(s string) time.Time {
 	if s == "" {
 		return time.Time{}
 	}

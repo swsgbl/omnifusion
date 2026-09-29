@@ -182,7 +182,7 @@ func shouldReplace(old, neu Entitlement) bool {
 	oldStale := !old.ValidUntil.IsZero() && now.After(old.ValidUntil)
 	neuStale := !neu.ValidUntil.IsZero() && now.After(neu.ValidUntil)
 	if oldStale != neuStale {
-		return neuStale == false // 新鲜者胜（旧过期/新未过期）
+		return !neuStale // 新鲜者胜（旧过期/新未过期）
 	}
 	if oldStale && neuStale {
 		return !neu.ObservedAt.Before(old.ObservedAt) // 双过期：仍取更新的观测时刻

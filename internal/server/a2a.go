@@ -119,7 +119,7 @@ func (s *Server) a2aPrepare(w http.ResponseWriter, r *http.Request, req *a2a.Req
 
 // a2aSend 处理非流式 SendMessage：Message-only 响应（简单交互不建任务）。
 func (s *Server) a2aSend(w http.ResponseWriter, r *http.Request, req *a2a.Request, start time.Time) {
-	ureq, opts, comboName, fusionReq, _, _, ok := s.a2aPrepare(w, r, req)
+	ureq, opts, comboName, fusionReq, _, routeSrc, ok := s.a2aPrepare(w, r, req)
 	if !ok {
 		return
 	}
@@ -137,12 +137,16 @@ func (s *Server) a2aSend(w http.ResponseWriter, r *http.Request, req *a2a.Reques
 		return
 	}
 	resp, attempts, err := s.router.Dispatch(r.Context(), ureq, opts...)
+	dec := routing.FoldDecision(attempts, err, ureq.Model, r.Header.Get("X-Request-Id"),
+		routeSrc, time.Since(start).Milliseconds(), r.Context().Err() != nil)
+	s.logRouteDecision(dec)
 	if err != nil {
 		s.logDispatchFailure(ureq, attempts, err)
 		s.writeA2AError(w, req.ID, a2a.CodeInternal, upstreamErrorMessage(err))
 		s.auditFailed("a2a", ureq.Model, comboName, start, err)
 		return
 	}
+	w.Header().Set("X-OmniFusion-Route", dec.Summary())
 	s.auditDone("a2a", ureq.Model, comboName, start, resp.ProviderName, resp.Usage, false)
 	writeJSON(w, http.StatusOK, a2a.Response{
 		JSONRPC: "2.0", ID: req.ID,
