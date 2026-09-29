@@ -102,7 +102,8 @@ func awaitCacheHit(t *testing.T, url, body string) (*http.Response, time.Duratio
 
 func TestSemanticCacheHit(t *testing.T) {
 	url, hits, s := newCacheFixture(t, false)
-	body := `{"model":"model-a","messages":[{"role":"user","content":"ping"}]}`
+	// temperature=0：确定性采样（Cache 2.0 策略门放行的前提）
+	body := `{"model":"model-a","messages":[{"role":"user","content":"ping"}],"temperature":0}`
 
 	first := postAuthed(t, url+"/v1/chat/completions", body)
 	if first.Header.Get("X-OmniFusion-Cache") != "miss" {
@@ -159,14 +160,14 @@ func TestSemanticCacheCrossProtocol(t *testing.T) {
 	url, hits, s := newCacheFixture(t, false)
 
 	// 首问走 Anthropic /v1/messages（x-api-key 鉴权）
-	anthropic := `{"model":"model-a","max_tokens":100,"messages":[{"role":"user","content":"ping"}]}`
+	anthropic := `{"model":"model-a","max_tokens":100,"temperature":0,"messages":[{"role":"user","content":"ping"}]}`
 	first := postMessages(t, url+"/v1/messages", anthropic, testGatewayToken)
 	io.Copy(io.Discard, first.Body)
 	first.Body.Close()
 	waitCacheEntries(t, s, 1) // 等回写落库：此前重放竞态会在 macOS 快 runner 上多打一次上游
 
 	// 同逻辑请求走 OpenAI /v1/chat/completions：IR 相同 → 键相同 → 命中
-	openaiBody := `{"model":"model-a","max_tokens":100,"messages":[{"role":"user","content":"ping"}]}`
+	openaiBody := `{"model":"model-a","max_tokens":100,"temperature":0,"messages":[{"role":"user","content":"ping"}]}`
 	second := postAuthed(t, url+"/v1/chat/completions", openaiBody)
 	if second.Header.Get("X-OmniFusion-Cache") != "hit" {
 		second.Body.Close()
