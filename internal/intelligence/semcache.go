@@ -96,6 +96,20 @@ func (c *SemCache) keyFor(req *schema.UnifiedRequest) string {
 	return cacheKeyWithGeneration(req, gen)
 }
 
+// KeyPrefix 返回缓存键前 12 位 hex（日志/响应头取证用：同前缀=同代际
+// 同请求形状；前缀不同=键维度任一变化——蓝图证据面：缓存命中必须
+// 输出 evidence/trace）。nil 安全（cache 未装配返回空串）。
+func (c *SemCache) KeyPrefix(req *schema.UnifiedRequest) string {
+	if c == nil {
+		return ""
+	}
+	key := c.keyFor(req)
+	if len(key) > 12 {
+		key = key[:12]
+	}
+	return key
+}
+
 // Lookup 查缓存：命中且未过期返回响应。未装配（nil）、流式请求、
 // 策略判定 BYPASS（工具调用/非确定性——Cache 2.0 策略门）、上下文已
 // 取消、任何存储/解码失败一律视为未命中——缓存永不阻塞主路径、永不

@@ -85,8 +85,10 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// L5 语义缓存查询：命中直接返回，不经压缩/路由/上游。
+	// 证据面：cache-key 前缀随头返回（同前缀=同代际同请求形状）。
 	if resp, ok := s.cache.Lookup(r.Context(), &req); ok {
 		w.Header().Set("X-OmniFusion-Cache", "hit")
+		w.Header().Set("X-OmniFusion-Cache-Key", s.cache.KeyPrefix(&req))
 		writeJSON(w, http.StatusOK, resp)
 		s.auditDone("chat", req.Model, comboName, start, "cache", resp.Usage, true)
 		return
@@ -102,6 +104,7 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("X-OmniFusion-Cache", "miss")
+	w.Header().Set("X-OmniFusion-Cache-Key", s.cache.KeyPrefix(&req))
 	w.Header().Set("X-OmniFusion-Route", dec.Summary())
 	setDegradedHeader(w, attemptDegraded(attempts))
 	writeJSON(w, http.StatusOK, resp)
