@@ -13,6 +13,7 @@ import (
 
 	"github.com/swsgbl/omnifusion/internal/core/schema"
 	"github.com/swsgbl/omnifusion/internal/provider"
+	"github.com/swsgbl/omnifusion/internal/quota"
 )
 
 // Attempt 记录一次 provider 尝试的结果，供观测与错误分类（+）。
@@ -85,6 +86,12 @@ type Router struct {
 	// nil/无数据 = cheap 退化为 v1 配额余量语义。生产装配同
 	// Capability（Catalog 实现：feed 优先、注册表静态兜底）。
 	Price PriceResolver
+	// Ledger 是权益账本（Entitlement Ledger，蓝图 Phase 3）：nil 表示
+	// 未装配（零行为变更）。装配后 Dispatch/DispatchStream 的失败尝试
+	// 自动喂入账本——429 配额类 → 窗口耗尽观测（free 层可用但余量 0），
+	// 402/配额关键词 → 付费观测（free 层已不可用）。成功尝试不喂：
+	// 成功不区分免费/付费（那是定价面的事实），账本只记直接证据。
+	Ledger *quota.Ledger
 }
 
 // Dispatch 执行分发，成功时返回聚合响应与全部尝试记录；
@@ -122,6 +129,7 @@ func (r *Router) Dispatch(ctx context.Context, req *schema.UnifiedRequest, opts 
 			return resp, attempts, nil
 		}
 		r.applyIsolation(c.p.Name(), att)
+		r.observeLedger(att)
 		if r.Log != nil {
 			r.Log.Warn("provider attempt failed",
 				"provider", att.Provider, "model", att.Model, "kind", att.Kind, "err", att.Err)

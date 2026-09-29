@@ -69,6 +69,7 @@ func (r *Router) DispatchStream(ctx context.Context, req *schema.UnifiedRequest,
 			return stream, attempts, nil
 		}
 		r.applyIsolation(c.p.Name(), att)
+		r.observeLedger(att)
 		if r.Log != nil {
 			r.Log.Warn("stream provider attempt failed",
 				"provider", att.Provider, "model", att.Model, "kind", att.Kind, "err", att.Err)
