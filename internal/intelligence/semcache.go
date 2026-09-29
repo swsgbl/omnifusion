@@ -71,10 +71,14 @@ func NewSemCache(st *store.Store, ttl time.Duration, maxEntries int) *SemCache {
 }
 
 // Lookup 查缓存：命中且未过期返回响应。未装配（nil）、流式请求、
-// 上下文已取消、任何存储/解码失败一律视为未命中——缓存永不阻塞
-// 主路径、永不把坏数据当命中。
+// 策略判定 BYPASS（工具调用/非确定性——Cache 2.0 策略门）、上下文已
+// 取消、任何存储/解码失败一律视为未命中——缓存永不阻塞主路径、永不
+// 把坏数据当命中。
 func (c *SemCache) Lookup(ctx context.Context, req *schema.UnifiedRequest) (*schema.Response, bool) {
 	if c == nil || c.st == nil || req.Stream {
+		return nil, false
+	}
+	if v := EvaluateCachePolicy(req, nil); !v.Allowed {
 		return nil, false
 	}
 	if ctx.Err() != nil {
@@ -99,10 +103,14 @@ func (c *SemCache) Lookup(ctx context.Context, req *schema.UnifiedRequest) (*sch
 }
 
 // WriteBack 响应成功后的回写路径（调用方以 context.WithoutCancel 防
-// 请求取消中断）：序列化响应并 upsert。任何失败静默放弃——缓存写
-// 失败不得影响已成功返回的响应。
+// 请求取消中断）：序列化响应并 upsert。策略门同时判请求与响应——
+// 含 tool_calls 的响应不可回写（Cache 2.0）。任何失败静默放弃——缓存
+// 写失败不得影响已成功返回的响应。
 func (c *SemCache) WriteBack(ctx context.Context, req *schema.UnifiedRequest, resp *schema.Response) {
 	if c == nil || c.st == nil || req.Stream || resp == nil {
+		return
+	}
+	if v := EvaluateCachePolicy(req, resp); !v.Allowed {
 		return
 	}
 	if ctx.Err() != nil {

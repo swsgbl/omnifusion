@@ -11,13 +11,15 @@ import (
 )
 
 func keyReq() *schema.UnifiedRequest {
-	temp := 0.7
+	temp := 0.0
+	sd := int64(7)
 	return &schema.UnifiedRequest{
 		Model: "m1",
 		Messages: []schema.Message{
 			{Role: "user", Content: schema.NewTextContent("ping")},
 		},
 		Temperature: &temp,
+		Seed:        &sd, // 确定性声明：策略门放行（Cache 2.0）
 	}
 }
 
