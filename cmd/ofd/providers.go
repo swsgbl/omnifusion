@@ -3,12 +3,14 @@ package main
 import (
 	"log/slog"
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
 	"github.com/swsgbl/omnifusion/internal/config"
 	"github.com/swsgbl/omnifusion/internal/provider"
 	"github.com/swsgbl/omnifusion/internal/provider/registry"
+	"github.com/swsgbl/omnifusion/internal/quota"
 	"github.com/swsgbl/omnifusion/internal/routing"
 	"github.com/swsgbl/omnifusion/internal/security"
 	"github.com/swsgbl/omnifusion/internal/store"
@@ -62,7 +64,7 @@ func buildRouter(cfg *config.Config, log *slog.Logger, st *store.Store, kr *secu
 	}
 
 	var providers []provider.Provider
-	quota := routing.NewQuotaTracker()
+	qtracker := routing.NewQuotaTracker()
 	keySources := map[string]string{}
 	for _, e := range entries {
 		creds := registry.Credentials{Vars: map[string]string{}}
@@ -92,7 +94,7 @@ func buildRouter(cfg *config.Config, log *slog.Logger, st *store.Store, kr *secu
 		}
 		providers = append(providers, p)
 		if l := e.RateLimits; l.RPM > 0 || l.RPD > 0 || l.TPM > 0 || l.TPD > 0 {
-			quota.SetLimit(e.ID, routing.QuotaLimits{
+			qtracker.SetLimit(e.ID, routing.QuotaLimits{
 				RPM: l.RPM, RPD: l.RPD, TPM: l.TPM, TPD: l.TPD,
 			})
 		}
@@ -105,7 +107,27 @@ func buildRouter(cfg *config.Config, log *slog.Logger, st *store.Store, kr *secu
 		log.Error("init isolation state machine; degrade to no isolation", "err", err)
 		iso = nil
 	}
-	return &routing.Router{Providers: providers, Log: log, Isolation: iso, Quota: quota, Scoring: routing.NewScorer(), Sessions: routing.NewSessionTracker()}, keySources
+	// 权益账本（蓝图 Phase 3）：运行时 429/402 观测自动汇入，
+	// providers 页免费层列消费；同时把注册表声明的静态配额作为
+	// 初始证据喂入（Source=static_catalog，被后续运行时证据覆盖）。
+	ledger := quota.NewLedger()
+	now := time.Now()
+	for _, e := range entries {
+		if l := e.RateLimits; l.RPM > 0 || l.RPD > 0 || l.TPM > 0 || l.TPD > 0 {
+			ledger.Record(quota.Entitlement{
+				Provider: e.ID, State: quota.StateVerifiedFree,
+				Source: quota.SourceStaticCatalog,
+				Window: quota.QuotaWindow{
+					RPM: l.RPM, RPD: l.RPD, TPM: l.TPM, TPD: l.TPD,
+					Remaining: -1, // 静态声明无余量概念
+				},
+				ObservedAt:     now,
+				CatalogVersion: "registry",
+			})
+		}
+	}
+	return &routing.Router{Providers: providers, Log: log, Isolation: iso, Quota: qtracker,
+		Scoring: routing.NewScorer(), Sessions: routing.NewSessionTracker(), Ledger: ledger}, keySources
 }
 
 // buildCatalog 装配模型目录：live 拉取用 router 里已实例化的
