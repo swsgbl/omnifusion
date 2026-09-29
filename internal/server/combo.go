@@ -28,14 +28,15 @@ func (s *Server) comboCompress(r *http.Request, req *schema.UnifiedRequest, comb
 	}
 	sc := compression.NewStageContext(req.Model, r.Header.Get(routing.HeaderSession), req.Messages)
 	before := compression.EstimateTokens(req.Messages)
-	out, stats := pipe.Run(sc, req.Messages)
+	out, stats, fidelity := pipe.RunWithReport(sc, req.Messages)
 	after := compression.EstimateTokens(out)
 	req.Messages = out
 	s.cstats.record(combo, int64(before), int64(after), stats) // 压缩统计
 	if s.log != nil {
 		s.log.Info("combo compression applied",
 			"combo", combo, "stages", len(stats),
-			"before_tokens", before, "after_tokens", after)
+			"before_tokens", before, "after_tokens", after,
+			"fidelity", fidelity.Summary())
 	}
 	return []routing.DispatchOption{routing.WithPromptTokens(int64(after))}
 }
