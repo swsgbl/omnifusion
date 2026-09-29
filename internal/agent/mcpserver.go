@@ -27,10 +27,11 @@ const (
 	ScopeRoute       = "route"
 	ScopeCompression = "compression"
 	ScopeAudit       = "audit"
+	ScopeTasks       = "tasks"
 )
 
 // AllScopes 是 agent 侧 scope 全集（master token 的工具面）。
-var AllScopes = []string{ScopeHealth, ScopeUsage, ScopeRoute, ScopeCompression, ScopeAudit}
+var AllScopes = []string{ScopeHealth, ScopeUsage, ScopeRoute, ScopeCompression, ScopeAudit, ScopeTasks}
 
 // NewMCPServer 构造注册了 scope 内工具集的 MCP server；version 来自
 // 构建信息（cmd/ofd 注入，与网关 /healthz 同源）。scopes 为空时注册
@@ -59,6 +60,9 @@ func NewMCPServer(view *GatewayView, version string, scopes []string) *mcp.Serve
 	}
 	if has(ScopeAudit) {
 		registerAuditTools(s, view)
+	}
+	if has(ScopeTasks) {
+		registerTasksTools(s, view)
 	}
 	return s
 }

@@ -1,5 +1,5 @@
 // mcpserver_test.go 以 MCP 客户端（InMemory 传输，SDK 同款连接路径）
-// 验证 // 工具集：全量 11 工具、scope 过滤后 tools/list 只见
+// 验证 // 工具集：全量 14 工具、scope 过滤后 tools/list 只见
 // 授权工具、越权 call 被 SDK 以 tool-not-found 拒绝、授权工具回传
 // 网关数据。
 package agent
@@ -46,7 +46,7 @@ func toolNames(t *testing.T, cs *mcp.ClientSession) map[string]bool {
 	return names
 }
 
-// TestMCPServerExposesFullToolset 验证 master（全 scope）的 11 工具。
+// TestMCPServerExposesFullToolset 验证 master（全 scope）的 14 工具。
 func TestMCPServerExposesFullToolset(t *testing.T) {
 	up, _ := newFakeGateway(t, 200)
 	s := NewMCPServer(NewGatewayView(up.URL, "tok", nil), "test", AllScopes)
@@ -58,6 +58,7 @@ func TestMCPServerExposesFullToolset(t *testing.T) {
 		"omnifusion_route_pin", "omnifusion_route_status", "omnifusion_route_cooldowns_clear",
 		"omnifusion_combos", "omnifusion_compression_default",
 		"omnifusion_audit_recent",
+		"omnifusion_task_get", "omnifusion_task_update", "omnifusion_task_cancel",
 	}
 	if len(names) != len(want) {
 		t.Fatalf("tools/list = %d tools, want %d (%v)", len(names), len(want), names)
@@ -228,4 +229,76 @@ func TestAuditScopeToolsetAndCall(t *testing.T) {
 	if len(res.Content) == 0 {
 		t.Fatal("audit_recent returned no content")
 	}
+}
+
+// TestTasksScopeToolsetAndCall：tasks-only scope 只注册三个 task 工具，
+// 经 MCP 客户端走完整生命周期（get→update(start/complete)），并验证
+// 越权面收敛（health 工具不可见）。
+func TestTasksScopeToolsetAndCall(t *testing.T) {
+	up, _ := newFakeGateway(t, 200)
+	s := NewMCPServer(NewGatewayView(up.URL, "tok", nil), "test", []string{ScopeTasks})
+	cs := dialMCP(t, s)
+	defer cs.Close()
+
+	names := toolNames(t, cs)
+	for _, w := range []string{"omnifusion_task_get", "omnifusion_task_update", "omnifusion_task_cancel"} {
+		if !names[w] {
+			t.Errorf("tasks-only scope missing %s", w)
+		}
+	}
+	if len(names) != 3 {
+		t.Fatalf("tasks-only scope exposes %d tools, want 3 (%v)", len(names), names)
+	}
+	if names["omnifusion_health"] {
+		t.Fatal("tasks-only scope must not expose health tools")
+	}
+
+	store := DefaultTasks()
+	task, _, err := store.Create("mcp-e2e", "", 0)
+	if err != nil {
+		t.Fatalf("seed task: %v", err)
+	}
+
+	callTask := func(tool string, args map[string]any) *mcp.CallToolResult {
+		t.Helper()
+		res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: tool, Arguments: args})
+		if err != nil {
+			t.Fatalf("tools/call %s: %v", tool, err)
+		}
+		return res
+	}
+
+	if res := callTask("omnifusion_task_update", map[string]any{"id": task.ID, "action": "start"}); res.IsError {
+		t.Fatalf("task_update start errored: %+v", res)
+	}
+	res := callTask("omnifusion_task_get", map[string]any{"id": task.ID})
+	if res.IsError {
+		t.Fatalf("task_get errored: %+v", res)
+	}
+	var got Task
+	if err := json.Unmarshal([]byte(textOf(t, res)), &got); err != nil {
+		t.Fatalf("decode task_get payload: %v", err)
+	}
+	if got.ID != task.ID || got.Status != TaskStatusRunning {
+		t.Fatalf("task_get = %+v, want running %s", got, task.ID)
+	}
+	if res := callTask("omnifusion_task_cancel", map[string]any{"id": task.ID}); res.IsError {
+		t.Fatalf("task_cancel errored: %+v", res)
+	}
+	if final, _ := store.Get(task.ID); final.Status != TaskStatusCanceled {
+		t.Fatalf("task not canceled: %+v", final)
+	}
+}
+
+// textOf 提取 TextContent 结果的首段文本。
+func textOf(t *testing.T, res *mcp.CallToolResult) string {
+	t.Helper()
+	if len(res.Content) == 0 {
+		t.Fatal("tool returned no content")
+	}
+	tc, ok := res.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("tool content is not text: %T", res.Content[0])
+	}
+	return tc.Text
 }

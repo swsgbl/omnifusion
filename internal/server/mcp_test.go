@@ -55,8 +55,8 @@ func TestMCPEndpointStreamableHTTPE2E(t *testing.T) {
 	if err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(tools.Tools) != 11 { // 4 health + 1 usage + 3 route + 2 compression + 1 audit
-		t.Errorf("tools/list = %d tools, want 11", len(tools.Tools))
+	if len(tools.Tools) != 14 { // 4 health + 1 usage + 3 route + 2 compression + 1 audit + 3 tasks
+		t.Errorf("tools/list = %d tools, want 14", len(tools.Tools))
 	}
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{Name: "omnifusion_providers"})

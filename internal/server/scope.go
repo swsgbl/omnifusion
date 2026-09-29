@@ -1,6 +1,6 @@
-// scope.go 是作用域权限核心（四个 + audit）：五个 scope（对齐
-// 工具——健康查询/用量统计/路由切换/压缩配置）+ scoped token 的
-// 无存储派生（HMAC）与解析 + scope 化鉴权中间件。
+// scope.go 是作用域权限核心：六个 scope（对齐 MCP 工具——健康查询/
+// 用量统计/路由切换/压缩配置/请求审计/任务生命周期）+ scoped token
+// 的无存储派生（HMAC）与解析 + scope 化鉴权中间件。
 //
 // Token 两级：master gateway key（ofg-…，keyring 派生）拥有全部
 // scope（向后兼容 Dashboard 与 ）；scoped token（ofm-…，
@@ -25,10 +25,11 @@ const (
 	ScopeRoute       = "route"       // 路由切换：pin/unpin/隔离清除
 	ScopeCompression = "compression" // 压缩配置：combos/默认组合
 	ScopeAudit       = "audit"       // 请求审计：audit 查询
+	ScopeTasks       = "tasks"       // 任务生命周期：task_get/update/cancel
 )
 
 // AllScopes 是 scope 全集（master token 的权限面）。
-var AllScopes = []string{ScopeHealth, ScopeUsage, ScopeRoute, ScopeCompression, ScopeAudit}
+var AllScopes = []string{ScopeHealth, ScopeUsage, ScopeRoute, ScopeCompression, ScopeAudit, ScopeTasks}
 
 // scopedTokenPrefix 区分派生 token（master 网关 key 是 ofg- 前缀）。
 const scopedTokenPrefix = "ofm-"

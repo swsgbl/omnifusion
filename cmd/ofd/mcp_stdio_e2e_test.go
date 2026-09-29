@@ -101,8 +101,8 @@ func TestMCPPStdioE2E(t *testing.T) {
 	if err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(tools.Tools) != 11 {
-		t.Errorf("tools/list = %d, want 11 (master = all scopes)", len(tools.Tools))
+	if len(tools.Tools) != 14 {
+		t.Errorf("tools/list = %d, want 14 (master = all scopes)", len(tools.Tools))
 	}
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{Name: "omnifusion_usage"})
