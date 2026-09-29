@@ -28,6 +28,20 @@ type dashProvider struct {
 	SuccessRate   float64        `json:"success_rate"`
 	LastSuccessAt *string        `json:"last_success_at"`
 	Cooldowns     []dashCooldown `json:"cooldowns"`
+	// Entitlement 是权益账本现状（蓝图 Phase 3：五态+证据来源+余量；
+	// Ledger 未装配时省略——不确定不吓人）。
+	Entitlement *dashEntitlement `json:"entitlement,omitempty"`
+}
+
+// dashEntitlement 是 providers 页的权益视图（账本现状的可读投影）。
+type dashEntitlement struct {
+	State     string  `json:"state"`               // UNKNOWN/VERIFIED_FREE/VERIFIED_PAID/EXPIRED/DISABLED
+	Source    string  `json:"source,omitempty"`    // 证据来源
+	Remaining float64 `json:"remaining,omitempty"` // 余量比例 [0,1]；-1=未知
+	ObservedAt string `json:"observed_at,omitempty"`
+	ValidUntil string `json:"valid_until,omitempty"`
+	EvidenceID string `json:"evidence_id,omitempty"`
+	TermsURL   string `json:"terms_url,omitempty"`
 }
 
 // handleDashboardProviders 返回已装配 provider 的健康视图。
@@ -66,6 +80,7 @@ func (s *Server) handleDashboardProviders(w http.ResponseWriter, _ *http.Request
 					dp.LastSuccessAt = &str
 				}
 			}
+			dp.Entitlement = s.dashEntitlementOf(p.Name())
 			out.Providers = append(out.Providers, dp)
 		}
 	}
@@ -91,6 +106,29 @@ func (s *Server) activeCooldowns() map[string][]dashCooldown {
 			Scope: c.ScopeType, Model: c.Model,
 			Until: c.Until.UTC().Format(time.RFC3339), Reason: c.Reason,
 		})
+	}
+	return out
+}
+
+// dashEntitlementOf 把账本现状投影为 providers 页可读视图；Ledger 未装配
+// 返回 nil（JSON 省略该字段——不确定不吓人，蓝图纪律）。
+func (s *Server) dashEntitlementOf(providerName string) *dashEntitlement {
+	if s.router == nil || s.router.Ledger == nil {
+		return nil
+	}
+	e := s.router.EntitlementOf(providerName, "")
+	out := &dashEntitlement{
+		State:     string(e.State),
+		Remaining: e.Window.Remaining,
+		Source:    string(e.Source),
+		EvidenceID: e.EvidenceID,
+		TermsURL:  e.TermsURL,
+	}
+	if !e.ObservedAt.IsZero() {
+		out.ObservedAt = e.ObservedAt.UTC().Format(time.RFC3339)
+	}
+	if !e.ValidUntil.IsZero() {
+		out.ValidUntil = e.ValidUntil.UTC().Format(time.RFC3339)
 	}
 	return out
 }

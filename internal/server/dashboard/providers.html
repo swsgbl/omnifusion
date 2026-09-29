@@ -21,6 +21,11 @@
   th { color: #8b949e; font-weight: 600; white-space: nowrap; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .cd { color: #f85149; font-size: 12px; }
+  .ent-badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11.5px; font-weight: 600; }
+  .ent-free { background: rgba(63,185,80,.16); color: #3fb950; }
+  .ent-paid { background: rgba(218,54,52,.14); color: #f85149; }
+  .ent-unknown { background: rgba(139,148,158,.12); color: #8b949e; }
+  .ent-meta { color: #8b949e; font-size: 11px; margin-top: 2px; }
   .empty { color: #8b949e; padding: 24px 0; }
   #err { color: #f85149; white-space: pre-wrap; }
 </style>
@@ -38,7 +43,7 @@
 <table>
   <thead><tr>
     <th data-i18n="th_provider">provider</th><th class="num" data-i18n="th_models">models</th><th class="num" data-i18n="th_latency">latency ms</th>
-    <th class="num" data-i18n="th_success">success</th><th data-i18n="th_last_success">last success</th><th data-i18n="th_cooldowns">cooldowns</th>
+    <th class="num" data-i18n="th_success">success</th><th data-i18n="th_entitlement">free tier</th><th data-i18n="th_last_success">last success</th><th data-i18n="th_cooldowns">cooldowns</th>
   </tr></thead>
   <tbody id="rows"></tbody>
 </table>
@@ -59,7 +64,10 @@ const I18N = {
     nav_providers: 'Providers', nav_keys: 'Keys', nav_usage: 'Usage',
     nav_compression: 'Compression', nav_resilience: 'Resilience', nav_chat: 'Chat',
     th_provider: 'provider', th_models: 'models', th_latency: 'latency ms',
-    th_success: 'success', th_last_success: 'last success', th_cooldowns: 'cooldowns',
+    th_success: 'success', th_entitlement: 'free tier', th_last_success: 'last success', th_cooldowns: 'cooldowns',
+    ent_unknown: 'unknown', ent_free: 'free ✓', ent_paid: 'paid', ent_expired: 'stale evidence', ent_disabled: 'disabled',
+    ent_remaining: '{r}% left', ent_observed: 'observed {time} · {source}', ent_source_runtime_429: 'runtime 429', ent_source_runtime_usage: 'runtime usage',
+    ent_source_active_probe: 'probe', ent_source_official_doc: 'official doc', ent_source_static_catalog: 'catalog', ent_source_manual: 'manual',
     empty: 'no providers configured',
     meta: '{p} providers · {m} models · refreshed {time}',
     sync_auto: 'model catalog auto-refreshes hourly; last sync {time}',
@@ -74,7 +82,10 @@ const I18N = {
     nav_providers: '提供商', nav_keys: '密钥', nav_usage: '用量',
     nav_compression: '压缩', nav_resilience: '弹性', nav_chat: '对话',
     th_provider: '提供商', th_models: '模型数', th_latency: '延迟 ms',
-    th_success: '成功率', th_last_success: '最近成功', th_cooldowns: '冷却',
+    th_success: '成功率', th_entitlement: '免费层', th_last_success: '最近成功', th_cooldowns: '冷却',
+    ent_unknown: '未知', ent_free: '免费 ✓', ent_paid: '已付费', ent_expired: '证据过期', ent_disabled: '已停用',
+    ent_remaining: '余量 {r}%', ent_observed: '观测于 {time} · {source}', ent_source_runtime_429: '运行时 429', ent_source_runtime_usage: '运行时用量',
+    ent_source_active_probe: '主动探测', ent_source_official_doc: '官方文档', ent_source_static_catalog: '目录声明', ent_source_manual: '人工',
     empty: '未配置任何提供商',
     meta: '{p} 个提供商 · {m} 个模型 · 刷新于 {time}',
     sync_auto: '模型目录每小时自动刷新；上次同步 {time}',
@@ -104,6 +115,22 @@ if (!EMBED) document.getElementById('nav').innerHTML = PAGES.map(([id, nk]) => {
 function cell(cls, text) { return `<td${cls ? ` class="${cls}"` : ''}>${text}</td>`; }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function vname(id) { if (!(window.OFD && window.OFD.motion)) return esc(id); return esc(OFD.motion.vendorName(id, LANG)) + ' <span class="meta">(' + esc(id) + ')</span>'; }
+// entCell 把账本五态渲染为徽标+证据说明（蓝图 Phase 3 可视面）。
+function entCell(e) {
+  if (!e) return cell('', '–'); // Ledger 未装配：不确定不吓人
+  const labels = { UNKNOWN: 'ent_unknown', VERIFIED_FREE: 'ent_free', VERIFIED_PAID: 'ent_paid', EXPIRED: 'ent_expired', DISABLED: 'ent_disabled' };
+  const cls = e.state === 'VERIFIED_FREE' ? 'free' : (e.state === 'VERIFIED_PAID' || e.state === 'DISABLED') ? 'paid' : 'unknown';
+  let main = `<span class="ent-badge ent-${cls}">${t(labels[e.state] || 'ent_unknown')}</span>`;
+  if (e.state === 'VERIFIED_FREE' && e.remaining >= 0) {
+    main += ` <span class="ent-meta">${t('ent_remaining').replace('{r}', Math.round(e.remaining * 100))}</span>`;
+  }
+  if (e.observed_at) {
+    const srcKey = 'ent_source_' + (e.source || '').replace(/-/g, '_');
+    const src = I18N[LANG] && I18N[LANG][srcKey] ? I18N[LANG][srcKey] : (e.source || '');
+    main += `<div class="ent-meta">${t('ent_observed').replace('{time}', new Date(e.observed_at).toLocaleString()).replace('{source}', src)}</div>`;
+  }
+  return cell('', main);
+}
 
 async function load() {
   const err = document.getElementById('err');
@@ -114,13 +141,14 @@ async function load() {
     if (!resp.ok) return;
     const rows = document.getElementById('rows');
     if (!body.providers.length) {
-      rows.innerHTML = `<tr><td colspan="6" class="empty">${t('empty')}</td></tr>`;
+      rows.innerHTML = `<tr><td colspan="7" class="empty">${t('empty')}</td></tr>`;
     } else {
       rows.innerHTML = body.providers.map(p => '<tr>' + [
         cell('', vname(p.name)),
         cell('num', p.models),
         cell('num', p.latency_ms ? p.latency_ms.toFixed(0) : '–'),
         cell('num', p.success_rate > 0 ? (p.success_rate * 100).toFixed(0) + '%' : '–'),
+        entCell(p.entitlement),
         cell('', p.last_success_at ? new Date(p.last_success_at).toLocaleString() : '–'),
         cell('', (p.cooldowns || []).map(c => esc((c.scope === 'model' ? t('cd_model').replace('{m}', c.model) : t('cd_plain'))
           .replace('{time}', new Date(c.until).toLocaleTimeString())
