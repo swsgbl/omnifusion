@@ -1,16 +1,14 @@
+// 权益账本持久化契约测试：行 → 库 → 行 全链路往返不丢失。
+// quota.Entitlement ↔ Row 的转换在装配层（cmd/ofd）——这里测纯行语义，
+// 状态/来源用裸字符串字面量（infra-store 的 depguard 管所有文件，
+// 测试也不能 import quota）。
 package store
 
 import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/swsgbl/omnifusion/internal/quota"
 )
-
-// 权益账本持久化契约测试：行 → 库 → 行 全链路往返不丢失。
-// quota.Entitlement ↔ Row 的转换在装配层（cmd/ofd）——这里测纯行语义，
-// 对象语义用 quota 类型字面量驱动（仅测试文件 import，不违反 depguard）。
 
 func newEntStore(t *testing.T) *Store {
 	t.Helper()
@@ -28,8 +26,8 @@ func rem(v float64) *float64 { return &v }
 func TestEntitlementRoundTrip(t *testing.T) {
 	st := newEntStore(t)
 	r := EntitlementRow{
-		Provider: "groq", State: string(quota.StateVerifiedFree),
-		Source: string(quota.SourceRuntime429),
+		Provider: "groq", State: "VERIFIED_FREE",
+		Source: "runtime_429",
 		RPM:    30, RPD: 14400, Remaining: rem(0.73),
 		EvidenceID: "429:2026-09-25T14:30:00Z",
 		TermsURL:   "https://groq.com/terms",
@@ -44,8 +42,8 @@ func TestEntitlementRoundTrip(t *testing.T) {
 		t.Fatalf("load: %v len=%d", err, len(got))
 	}
 	g := got[0]
-	if g.Provider != "groq" || g.State != string(quota.StateVerifiedFree) ||
-		g.Source != string(quota.SourceRuntime429) || g.RPM != 30 || g.RPD != 14400 {
+	if g.Provider != "groq" || g.State != "VERIFIED_FREE" ||
+		g.Source != "runtime_429" || g.RPM != 30 || g.RPD != 14400 {
 		t.Errorf("scalars = %+v", g)
 	}
 	if g.Remaining == nil || *g.Remaining != 0.73 {
@@ -63,8 +61,8 @@ func TestEntitlementRoundTrip(t *testing.T) {
 func TestEntitlementRemainingNullRoundTrip(t *testing.T) {
 	st := newEntStore(t)
 	if err := st.UpsertEntitlement(EntitlementRow{
-		Provider: "p", State: string(quota.StateVerifiedFree),
-		Source: string(quota.SourceStaticCatalog), RPM: 5,
+		Provider: "p", State: "VERIFIED_FREE",
+		Source: "static_catalog", RPM: 5,
 		Remaining: nil, // 未知 → SQL NULL
 	}); err != nil {
 		t.Fatalf("UpsertEntitlement: %v", err)
@@ -84,13 +82,13 @@ func TestEntitlementUpsertOverwrites(t *testing.T) {
 			t.Fatalf("UpsertEntitlement(%s): %v", state, err)
 		}
 	}
-	up(string(quota.StateVerifiedFree), string(quota.SourceStaticCatalog))
-	up(string(quota.StateVerifiedPaid), string(quota.SourceRuntime429))
+	up("VERIFIED_FREE", "static_catalog")
+	up("VERIFIED_PAID", "runtime_429")
 	got, _ := st.LoadEntitlements()
 	if len(got) != 1 {
 		t.Fatalf("rows = %d, want 1 (upsert replaces)", len(got))
 	}
-	if got[0].State != string(quota.StateVerifiedPaid) {
+	if got[0].State != "VERIFIED_PAID" {
 		t.Errorf("upsert did not replace: %+v", got[0])
 	}
 }
