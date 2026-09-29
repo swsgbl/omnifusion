@@ -11,6 +11,7 @@ import (
 var stageBuilders = map[string]func() CompressionStage{
 	"dedup":            func() CompressionStage { return NewDedupStage(DedupConfig{}) },
 	"toolfilter":       func() CompressionStage { return NewToolFilterStage(ToolFilterConfig{}) },
+	"folding":          func() CompressionStage { return NewFoldingStage(FoldingConfig{}) },
 	"caveman":          func() CompressionStage { return NewCavemanStage(CavemanConfig{}) },
 	"semantic":         func() CompressionStage { return NewSemanticStage(SemanticConfig{}) },
 	"semantic_sidecar": func() CompressionStage { return NewSidecarStage() },

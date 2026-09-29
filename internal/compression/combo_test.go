@@ -31,7 +31,7 @@ func TestBuildComboErrors(t *testing.T) {
 
 func TestStageNamesStable(t *testing.T) {
 	names := StageNames()
-	want := []string{"caveman", "dedup", "semantic", "semantic_sidecar", "toolfilter"}
+	want := []string{"caveman", "dedup", "folding", "semantic", "semantic_sidecar", "toolfilter"}
 	if len(names) != len(want) {
 		t.Fatalf("StageNames() = %v, want %v", names, want)
 	}

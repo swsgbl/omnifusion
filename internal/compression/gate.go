@@ -5,9 +5,11 @@ package compression
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/swsgbl/omnifusion/internal/core/schema"
 )
@@ -35,13 +37,15 @@ func NewFidelityGate(rules ...Rule) *FidelityGate {
 	return &FidelityGate{rules: rules}
 }
 
-// DefaultFidelityGate 返回默认规则集（确定性第一版）。
+// DefaultFidelityGate 返回默认规则集（确定性第一版 + Phase 5 结构
+// 骨架保全）。
 func DefaultFidelityGate() *FidelityGate {
 	return NewFidelityGate(
 		Rule{Name: "messages_non_empty", Check: messagesNonEmpty},
 		Rule{Name: "system_preserved", Check: systemPreserved},
 		Rule{Name: "tool_calls_preserved", Check: toolCallsPreserved},
 		Rule{Name: "tool_results_preserved", Check: toolResultsPreserved},
+		Rule{Name: "structured_integrity", Check: structuredIntegrity},
 		Rule{Name: "recency_preserved", Check: RecencyRule(defaultRecencyWindow)},
 	)
 }
@@ -141,6 +145,85 @@ func toolResultsPreserved(before, after []schema.Message) error {
 		}
 	}
 	return nil
+}
+
+// structuredIntegrity 要求结构化内容骨架存活（蓝图 Phase 5 硬规则：
+// 结构化内容优先结构感知压缩，盲文本压缩不得破坏结构骨架）。before
+// 中每个「唯一」结构化值——整 part 有效 JSON（按语义规范化：键序/
+// 空白/数值写法不敏感）与围栏代码块（按折叠规范化 + 语言标签）——在
+// after 中必须至少存活一份。重复折叠（dedup 2→1）合法；截断、改写或
+// 丢弃唯一结构化内容一律拒绝（fail-closed：宁可少压不可吐坏 JSON/
+// 残码给模型）。
+func structuredIntegrity(before, after []schema.Message) error {
+	jsonBefore, codeBefore := collectStructured(before)
+	if len(jsonBefore) == 0 && len(codeBefore) == 0 {
+		return nil
+	}
+	jsonAfter, codeAfter := collectStructured(after)
+	for k := range jsonBefore {
+		if jsonAfter[k] == 0 {
+			return errString("structured JSON value lost: " + truncate(k))
+		}
+	}
+	for k := range codeBefore {
+		if codeAfter[k] == 0 {
+			return errString("code block lost: " + truncate(k))
+		}
+	}
+	return nil
+}
+
+// collectStructured 收集一轮消息中的结构化值指纹（规范化文本 → 计数）。
+func collectStructured(msgs []schema.Message) (jsonSet, codeSet map[string]int) {
+	jsonSet, codeSet = map[string]int{}, map[string]int{}
+	for _, m := range msgs {
+		for _, p := range m.Content.Parts {
+			text := strings.TrimSpace(p.Text)
+			if text == "" {
+				continue
+			}
+			if strings.HasPrefix(text, "{") || strings.HasPrefix(text, "[") {
+				if c, ok := canonicalJSON(text); ok {
+					jsonSet[c]++
+					continue
+				}
+			}
+			for _, block := range fencedFingerprints(text) {
+				codeSet[block]++
+			}
+		}
+	}
+	return jsonSet, codeSet
+}
+
+// canonicalJSON 返回 JSON 的语义规范形：解码（UseNumber 保精度）再
+// 编码——map 键序排序、空白消除、数值写法归一；非法 JSON ok=false。
+func canonicalJSON(text string) (string, bool) {
+	if !json.Valid([]byte(text)) {
+		return "", false
+	}
+	dec := json.NewDecoder(strings.NewReader(text))
+	dec.UseNumber()
+	var v interface{}
+	if err := dec.Decode(&v); err != nil {
+		return "", false
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", false
+	}
+	return string(b), true
+}
+
+// fencedFingerprints 提取文本中全部围栏代码块的指纹：语言标签 +
+// 折叠体（与 FoldingStage 同一 FoldCodeLines——折叠阶段自身天然通过，
+// 白空格外的任何改动都会改变指纹）。
+func fencedFingerprints(text string) []string {
+	var out []string
+	for _, m := range fenceRe.FindAllStringSubmatch(text, -1) {
+		out = append(out, strings.TrimSpace(m[1])+"\n"+FoldCodeLines(m[2]))
+	}
+	return out
 }
 
 // RecencyRule 构造保护最后 window 条消息原样不动的规则（window<=0
