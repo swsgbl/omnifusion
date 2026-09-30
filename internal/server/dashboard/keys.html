@@ -199,13 +199,15 @@ setInterval(load, 5000);
 
 // 行内密钥保存（事件委托——5s 轮询整表重渲染，挂 tbody 才不丢）。
 // 仅 master 网关 key 可写（服务端精确比对；scoped token 403）。
-document.getElementById('rows').addEventListener('click', async (ev) => {
+const rowsEl = document.getElementById('rows');
+const findIn = (sel, attr, p) => rowsEl.querySelector(attr + '[data-p="' + CSS.escape(p) + '"] ' + sel + ', ' + attr + '[data-p="' + CSS.escape(p) + '"]');
+rowsEl.addEventListener('click', async (ev) => {
   const btn = ev.target.closest('button.act');
   if (!btn || btn.dataset.act !== 'save') return;
   const p = btn.dataset.p;
-  const input = rows.querySelector('input.kin[data-p="' + CSS.escape(p) + '"]');
-  const msg = rows.querySelector('.kmsg[data-m="' + CSS.escape(p) + '"]');
-  if (!input || !input.value.trim()) { if (msg) msg.textContent = ''; input && input.focus(); return; }
+  const input = rowsEl.querySelector('input.kin[data-p="' + CSS.escape(p) + '"]');
+  const msg = rowsEl.querySelector('.kmsg[data-m="' + CSS.escape(p) + '"]');
+  if (!input || !input.value.trim()) { if (msg) msg.textContent = ''; if (input) input.focus(); return; }
   btn.disabled = true; btn.textContent = t('act_saving');
   try {
     const resp = await fetch('api/keys/set' + (key ? '?key=' + encodeURIComponent(key) : ''), {
