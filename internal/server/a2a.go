@@ -19,6 +19,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/a2a"
 	"github.com/swsgbl/omnifusion/internal/agent"
 	"github.com/swsgbl/omnifusion/internal/core/schema"
+	"github.com/swsgbl/omnifusion/internal/obs"
 	"github.com/swsgbl/omnifusion/internal/routing"
 )
 
@@ -304,7 +305,7 @@ func (s *Server) a2aPrepare(w http.ResponseWriter, r *http.Request, req *a2a.Req
 
 // a2aSend 处理非流式 SendMessage：Message-only 响应（简单交互不建任务）。
 func (s *Server) a2aSend(w http.ResponseWriter, r *http.Request, req *a2a.Request, start time.Time) {
-	ureq, opts, comboName, fusionReq, _, routeSrc, ok := s.a2aPrepare(w, r, req)
+	ureq, opts, comboName, fusionReq, ctxID, routeSrc, ok := s.a2aPrepare(w, r, req)
 	if !ok {
 		return
 	}
@@ -325,6 +326,14 @@ func (s *Server) a2aSend(w http.ResponseWriter, r *http.Request, req *a2a.Reques
 	dec := routing.FoldDecision(attempts, err, ureq.Model, r.Header.Get("X-Request-Id"),
 		routeSrc, time.Since(start).Milliseconds(), r.Context().Err() != nil)
 	s.logRouteDecision(dec)
+	s.logGenAI(&obs.GenAICorrelation{
+		Operation:      obs.OpA2ASend,
+		System:         dec.ChosenProvider,
+		RequestModel:   ureq.Model,
+		ResponseModel:  dec.ResolvedModel,
+		RequestID:      r.Header.Get("X-Request-Id"),
+		ConversationID: ctxID,
+	}, time.Since(start), err == nil)
 	if err != nil {
 		s.logDispatchFailure(ureq, attempts, err)
 		s.writeA2AError(w, req.ID, a2a.CodeInternal, upstreamErrorMessage(err))
@@ -420,6 +429,14 @@ func (s *Server) a2aStream(w http.ResponseWriter, r *http.Request, req *a2a.Requ
 	}})
 
 	winner := attemptWinner(attempts)
+	streamDone := false // 终态一次性关联行（Phase 9）
+	defer func() {
+		s.logGenAI(&obs.GenAICorrelation{
+			Operation: obs.OpA2AStream, System: winner,
+			RequestModel: ureq.Model, RequestID: string(req.ID),
+			ConversationID: ctxID, TaskID: taskID,
+		}, time.Since(start), streamDone)
+	}()
 	var full strings.Builder
 	for {
 		chunk, err := stream.Next(streamCtx)
@@ -467,6 +484,7 @@ func (s *Server) a2aStream(w http.ResponseWriter, r *http.Request, req *a2a.Requ
 	if s.a2aTasks != nil {
 		_, _ = s.a2aTasks.Complete(taskID, full.String()) // 全文=最终证据
 	}
+	streamDone = true
 	audit.finish(http.StatusOK, winner, "")
 }
 

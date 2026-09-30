@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/swsgbl/omnifusion/internal/core/schema"
+	"github.com/swsgbl/omnifusion/internal/obs"
 	"github.com/swsgbl/omnifusion/internal/provider"
 	"github.com/swsgbl/omnifusion/internal/routing"
 	"github.com/swsgbl/omnifusion/internal/security"
@@ -98,6 +99,14 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	dec := routing.FoldDecision(attempts, err, req.Model, r.Header.Get("X-Request-Id"),
 		routeSrc, time.Since(start).Milliseconds(), r.Context().Err() != nil)
 	s.logRouteDecision(dec)
+	s.logGenAI(&obs.GenAICorrelation{
+		Operation:      obs.OpChatCompletions,
+		System:         dec.ChosenProvider,
+		RequestModel:   req.Model,
+		ResponseModel:  dec.ResolvedModel,
+		RequestID:      r.Header.Get("X-Request-Id"),
+		ConversationID: r.Header.Get(routing.HeaderSession),
+	}, time.Since(start), err == nil)
 	if err != nil {
 		s.logDispatchFailure(&req, attempts, err)
 		writeAPIError(w, http.StatusBadGateway, upstreamErrorMessage(err), "upstream_error", "")
@@ -130,6 +139,17 @@ func (s *Server) logRouteDecision(dec *routing.RouteDecision) {
 		"duration_ms", dec.DurationMS, "summary", dec.Summary())
 }
 
+// logGenAI 写 GenAI 语义约定关联行（蓝图 Phase 9）：OTel GenAI
+// 命名的关联字段 + 耗时与结果——零遥测承诺下的本地结构化观测面。
+// 字段集只含 ID/名称/枚举（载荷与 secret 永不进入）。
+func (s *Server) logGenAI(c *obs.GenAICorrelation, d time.Duration, ok bool) {
+	if s.log == nil {
+		return
+	}
+	fields := append(c.Fields(), "duration_ms", d.Milliseconds(), "ok", ok)
+	s.log.Info("genai operation", fields...)
+}
+
 // logDispatchFailure 把逐家尝试的失败原因写进日志（排障关键面），
 // 值前缀 归一化错误类别（kind: err）。上游错误体可能回显密钥
 // （恶意/故障上游）——出日志前一律过密钥形态脱敏（蓝图 Phase 8：
@@ -148,7 +168,7 @@ func (s *Server) logDispatchFailure(req *schema.UnifiedRequest, attempts []routi
 
 // upstreamErrorMessage 是客户端可见的上游失败摘要。UpstreamError 走
 // 结构化摘要（不含体）；其余回退路径可能携带上游原文——脱敏后再出
-//（纵深防御：即使未来新增回退路径，密钥形态也出不去）。
+// （纵深防御：即使未来新增回退路径，密钥形态也出不去）。
 func upstreamErrorMessage(err error) string {
 	var de *routing.DispatchError
 	if errors.As(err, &de) && len(de.Attempts) > 0 {
