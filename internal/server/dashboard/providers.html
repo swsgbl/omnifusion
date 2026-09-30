@@ -188,6 +188,7 @@ function renderDetailRow(state, models, errMsg) {
   if (!mainRow) return; // provider 行消失（网关重启等）
   const tr = document.createElement('tr');
   tr.className = 'pdetail';
+  tr.dataset.p = expandedProvider;
   const td = document.createElement('td');
   td.colSpan = 7;
   if (state === 'loading') {
@@ -246,6 +247,11 @@ async function load() {
     err.textContent = resp.ok ? '' : (body.error && body.error.message) || `HTTP ${resp.status}`;
     if (!resp.ok) return;
     const rows = document.getElementById('rows');
+    // 轮询重建主行会销毁展开的详情行——先摘下来（含保存反馈），
+    // 主行重建后原样插回（现场保留：勾选/消息不丢）。
+    const det = rows.querySelector('tr.pdetail');
+    const detProvider = det ? det.dataset.p : null;
+    if (det) det.remove();
     if (!body.providers.length) {
       rows.innerHTML = `<tr><td colspan="7" class="empty">${t('empty')}</td></tr>`;
     } else {
@@ -261,8 +267,14 @@ async function load() {
           .replace('{reason}', c.reason))).join('<br>') || '–'),
       ].join('') + '</tr>').join('');
     }
-    // 恢复展开详情行（轮询重建主行后 detail 被清——重插到主行后）。
-    if (expandedProvider && !dirtyProviders.has(expandedProvider)) {
+    // 详情行插回：原样（保存反馈/勾选现场保留——用户 2026-10-01 反馈
+    // "刷新冲掉输入" 同款纪律）；provider 集变化（行消失）时丢弃。
+    if (detProvider && expandedProvider === detProvider &&
+        rows.querySelector('tr[data-p="' + CSS.escape(detProvider) + '"]')) {
+      const mainRow = rows.querySelector('tr[data-p="' + CSS.escape(detProvider) + '"]');
+      mainRow.after(det);
+    } else if (expandedProvider && !dirtyProviders.has(expandedProvider)) {
+      // 展开目标没了或首次轮询：重拉一份（静默刷新态）。
       renderDetailRow('refresh');
     }
     if (window.OFD) OFD.motion.rows(document.getElementById('rows'));
