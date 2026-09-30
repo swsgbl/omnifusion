@@ -1,0 +1,17 @@
+providers:
+  - id: glhf
+    kind: openai_compat
+    display_name: glhf.chat
+    base_url: https://glhf.chat/api/openai/v1
+    auth_style: bearer
+    key_env: GLHF_API_KEY
+    signup_url: https://glhf.chat
+    capabilities:
+      input: [text]
+      output: [text]
+      features: []
+    free_tier: :free 后缀模型不限量免费（需注册）
+    models:
+      - id: pygmalion-8b:free
+        price_in: 0
+        price_out: 0

@@ -1,0 +1,17 @@
+providers:
+  - id: nscale
+    kind: openai_compat
+    display_name: Nscale
+    base_url: https://inference.api.nscale.com/v1
+    auth_style: bearer
+    key_env: NSCALE_API_KEY
+    signup_url: https://www.nscale.com
+    capabilities:
+      input: [text]
+      output: [text]
+      features: []
+    free_tier: fair-use 免费层（2 个模型）
+    models:
+      - id: deepseek-v3.2
+        price_in: 0
+        price_out: 0

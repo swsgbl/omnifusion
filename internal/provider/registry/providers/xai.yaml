@@ -1,0 +1,17 @@
+providers:
+  - id: xai
+    kind: openai_compat
+    display_name: xAI Grok
+    base_url: https://api.x.ai/v1
+    auth_style: bearer
+    key_env: XAI_API_KEY
+    signup_url: https://console.x.ai
+    capabilities:
+      input: [text, image]
+      output: [text]
+      features: [tools]
+    free_tier: 3 个模型免费/每月赠金额度（需绑卡）
+    models:
+      - id: grok-4-fast
+        price_in: 0
+        price_out: 0

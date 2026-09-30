@@ -1,0 +1,20 @@
+providers:
+  - id: agnes
+    kind: openai_compat
+    display_name: Agnes AI
+    base_url: https://apihub.agnes-ai.com/v1
+    auth_style: bearer
+    key_env: AGNES_API_KEY
+    signup_url: https://agnes-ai.com
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 多个 Flash 模型免费（agnes-2.0-flash 免费、256K 上下文、30 RPM）
+    models:
+      - id: agnes-2.0-flash
+        price_in: 0
+        price_out: 0
+      - id: agnes-1.5-flash
+        price_in: 0
+        price_out: 0

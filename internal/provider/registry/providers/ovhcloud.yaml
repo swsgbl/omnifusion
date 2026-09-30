@@ -1,0 +1,20 @@
+providers:
+  - id: ovhcloud
+    kind: openai_compat
+    display_name: OVHcloud AI Endpoints
+    base_url: https://oai.endpoints.kepler.ai.cloud.ovh.net/v1
+    auth_style: bearer
+    key_env: OVHCLOUD_AI_ENDPOINTS_TOKEN
+    signup_url: https://endpoints.ai.cloud.ovh.net
+    capabilities:
+      input: [text]
+      output: [text]
+      features: []
+    free_tier: beta 期 14 个模型免费（1 RPM），欧洲节点
+    models:
+      - id: qwen3.5-397b-a17b
+        price_in: 0
+        price_out: 0
+      - id: llama-3.3-70b-instruct
+        price_in: 0
+        price_out: 0

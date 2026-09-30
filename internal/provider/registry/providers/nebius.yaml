@@ -1,0 +1,17 @@
+providers:
+  - id: nebius
+    kind: openai_compat
+    display_name: Nebius AI Studio
+    base_url: https://api.studio.nebius.com/v1
+    auth_style: bearer
+    key_env: NEBIUS_API_KEY
+    signup_url: https://studio.nebius.com
+    capabilities:
+      input: [text]
+      output: [text]
+      features: []
+    free_tier: 1 个模型免费（qwen3-235b）；其余按量（新人有赠金）
+    models:
+      - id: qwen/qwen3-235b-a22b-fp8
+        price_in: 0
+        price_out: 0

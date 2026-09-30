@@ -1,0 +1,17 @@
+providers:
+  - id: ai21
+    kind: openai_compat
+    display_name: AI21 Labs
+    base_url: https://api.ai21.com/studio/v1
+    auth_style: bearer
+    key_env: AI21_API_KEY
+    signup_url: https://platform.ai21.com
+    capabilities:
+      input: [text]
+      output: [text]
+      features: []
+    free_tier: 2 个模型免费（jamba-large-1.7 等，需注册）
+    models:
+      - id: jamba-large-1.7
+        price_in: 0
+        price_out: 0

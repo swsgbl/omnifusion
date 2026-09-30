@@ -1,0 +1,23 @@
+providers:
+  - id: opencode-zen
+    kind: openai_compat
+    display_name: OpenCode Zen
+    base_url: https://opencode.ai/zen/v1
+    auth_style: bearer
+    key_env: OPENCODE_ZEN_API_KEY
+    signup_url: https://opencode.ai/zen
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 30+ 免费模型（-free 后缀），含 1M 上下文（免费、无卡）
+    models:
+      - id: deepseek-v4-flash-free
+        price_in: 0
+        price_out: 0
+      - id: mimo-v2.5-free
+        price_in: 0
+        price_out: 0
+      - id: big-pickle
+        price_in: 0
+        price_out: 0

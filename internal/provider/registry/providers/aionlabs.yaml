@@ -1,0 +1,17 @@
+providers:
+  - id: aionlabs
+    kind: openai_compat
+    display_name: AionLabs
+    base_url: https://api.aionlabs.ai/v1
+    auth_style: bearer
+    key_env: AIONLABS_API_KEY
+    signup_url: https://www.aionlabs.ai
+    capabilities:
+      input: [text]
+      output: [text]
+      features: []
+    free_tier: 11 个模型免费（15 RPM、20K tokens/天）
+    models:
+      - id: aionlab-1.0-pro
+        price_in: 0
+        price_out: 0

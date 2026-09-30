@@ -1,0 +1,21 @@
+providers:
+  - id: ollama-cloud
+    kind: openai_compat
+    display_name: Ollama Cloud (托管)
+    # 与本地 ollama 分开登记：托管端点、免费会话额度。
+    base_url: https://ollama.com/api
+    auth_style: bearer
+    key_env: OLLAMA_CLOUD_API_KEY
+    signup_url: https://ollama.com
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 17 个模型免费（会话/每周限额）
+    models:
+      - id: deepseek-v4-pro:free
+        price_in: 0
+        price_out: 0
+      - id: gpt-oss:free
+        price_in: 0
+        price_out: 0

@@ -1,0 +1,20 @@
+providers:
+  - id: kilo
+    kind: openai_compat
+    display_name: Kilo Code
+    base_url: https://api.kilo.ai/api/gateway
+    auth_style: bearer
+    key_env: KILO_API_KEY
+    signup_url: https://kilocode.org
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 15 个 :free 后缀模型免费（200 请求/小时，无卡）
+    models:
+      - id: nemotron-3-ultra:free
+        price_in: 0
+        price_out: 0
+      - id: step-3.7-flash:free
+        price_in: 0
+        price_out: 0

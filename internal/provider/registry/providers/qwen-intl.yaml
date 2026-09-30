@@ -1,0 +1,21 @@
+providers:
+  - id: qwen-intl
+    kind: openai_compat
+    display_name: Alibaba Model Studio (国际)
+    # 与国内 bailian（qwen）分开：国际版端点，海外网络直连友好。
+    base_url: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+    auth_style: bearer
+    key_env: DASHSCOPE_INTL_API_KEY
+    signup_url: https://www.alibabacloud.com/en/product/modelstudio
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 5 个模型免费（qwen-flash 含 1M 上下文；新用户赠金）
+    models:
+      - id: qwen3-plus
+        price_in: 0
+        price_out: 0
+      - id: qwen3-flash
+        price_in: 0
+        price_out: 0

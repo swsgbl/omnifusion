@@ -1,0 +1,18 @@
+providers:
+  - id: llm7
+    kind: openai_compat
+    display_name: LLM7.io
+    base_url: https://api.llm7.io/v1
+    auth_style: bearer
+    key_env: LLM7_API_KEY
+    optional_key: true # 匿名可用（10 RPM）；免费 key 解锁更高限额
+    signup_url: https://llm7.io
+    capabilities:
+      input: [text]
+      output: [text]
+      features: []
+    free_tier: 20+ 免费模型；匿名 10 RPM，免费 key 更高限额
+    models:
+      - id: sao10k/l3-euryale-70b
+        price_in: 0
+        price_out: 0

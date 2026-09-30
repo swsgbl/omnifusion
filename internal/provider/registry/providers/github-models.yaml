@@ -1,0 +1,22 @@
+providers:
+  - id: github-models
+    kind: openai_compat
+    display_name: GitHub Models
+    # 2026-07-30 旧端点退役后重启的新家（models.github.ai）；免费层
+    # 随 PAT/GitHub 账号发放。
+    base_url: https://models.github.ai/inference
+    auth_style: bearer
+    key_env: GITHUB_TOKEN
+    signup_url: https://github.com/marketplace/models
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    free_tier: 16 个模型免费（GitHub 账号 + PAT；低 RPM）
+    models:
+      - id: openai/gpt-5.2-mini
+        price_in: 0
+        price_out: 0
+      - id: deepseek/deepseek-v4
+        price_in: 0
+        price_out: 0
