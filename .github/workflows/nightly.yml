@@ -1,0 +1,43 @@
+name: Nightly quality
+
+# 蓝图 Phase 10 的长效质量门禁：每夜全量测试 + 混沌套件 + 吞吐基准，
+# 量化报告以 workflow artifact 归档（版本=commit、数据版本随套件）。
+# 抓的是"日间单跑看不见"的东西：跨平台 flaky、混沌不变量漂移、
+# 性能回归。手动触发：workflow_dispatch。
+on:
+  schedule:
+    - cron: "30 19 * * *" # UTC 19:30 = 北京 03:30（低峰）
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.5"
+          cache: true
+      - name: Full test suite
+        run: go test ./... -timeout 15m
+      - name: Chaos gate with versioned report
+        run: |
+          go test ./internal/server/ -run 'TestChaos' -v -timeout 10m
+        env:
+          CHAOS_REPORT: ${{ github.workspace }}/chaos-report.json
+          CHAOS_COMMIT: ${{ github.sha }}
+          CHAOS_VERSION: nightly
+      - name: Throughput benchmark
+        run: |
+          go test ./internal/server/ -bench BenchmarkGateway -benchmem -benchtime 2s -run XXX -timeout 10m | tee bench.txt
+      - name: Upload quality reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-${{ github.sha }}
+          retention-days: 30
+          path: |
+            chaos-report.json
+            bench.txt

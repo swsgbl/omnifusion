@@ -79,6 +79,21 @@ OmniFusion 是**独立原创实现**（非任何现有项目的 fork）。架构
 
 上述引用均为思想与教训层面的借鉴；依赖的第三方**代码**仅限 [NOTICE](NOTICE) 所列组件。
 
+## 校验发布产物
+
+每个 Release 产物附带 SPDX 物料清单（`.spdx.sbom`）与 Sigstore 无密钥签名（`.sig` + `.cert`，签名身份是本仓库的 CI——任何地方都不存放密钥）。用 [cosign](https://github.com/sigstore/cosign) 校验校验和文件：
+
+```sh
+cosign verify-blob \
+  --certificate checksums.txt.cert \
+  --signature checksums.txt.sig \
+  --certificate-identity-regexp "https://github.com/swsgbl/omnifusion/" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  checksums.txt
+```
+
+再对照 `checksums.txt` 核对下载的资产（如 `sha256sum -c --ignore-missing checksums.txt`）。网络受限环境下，仅凭 checksums 文件也已能防一般性篡改。
+
 ## 支持项目
 
 OmniFusion 采用 Apache-2.0 开源协议。如果它帮你减少了密钥和 Base URL 切换成本，可以在 [爱发电](https://ifdian.net/a/hongfu) 支持文档、厂商核对、基准测试和持续维护。网关核心功能保持免费开源。

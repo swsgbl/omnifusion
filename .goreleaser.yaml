@@ -27,12 +27,26 @@ checksum:
   name_template: "checksums.txt"
 
 # SBOM（审计 R4 / 蓝图发布工程）：每个归档产 SPDX 格式物料清单，
-# 需要 syft 在 PATH（release workflow 已装）。签名（cosign）待密钥
-# 管理决策——SBOM 先闭"无出处"缺口。
+# 需要 syft 在 PATH（release workflow 已装）。
 sboms:
   - artifacts: archive
     documents:
       - "${artifact}.spdx.sbom"
+
+# 无密钥签名（审计 R4 收官）：cosign keyless——签名身份来自 GitHub
+# Actions 的 OIDC 令牌（仓库身份），零密钥材料需保管；每个产物附
+# .sig 签名与 .cert 证书，验证方式见 README「Verifying artifacts」。
+signs:
+  - cmd: cosign
+    certificate: "${artifact}.cert"
+    signature: "${artifact}.sig"
+    args:
+      - sign-blob
+      - "--output-signature=${artifact}.sig"
+      - "--output-certificate=${artifact}.cert"
+      - "${artifact}"
+    artifacts: all
+    output: true
 
 changelog:
   sort: asc

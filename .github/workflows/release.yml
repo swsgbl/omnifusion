@@ -1,7 +1,9 @@
 name: Release
 
 # Pushing a v* tag runs the full test suite, then goreleaser builds
-# six-platform archives (win/linux/darwin × amd64/arm64) and publishes a release.
+# six-platform archives (win/linux/darwin × amd64/arm64), generates SPDX
+# SBOMs, keyless-signs every artifact (Sigstore OIDC via the workflow's
+# GitHub identity — no stored keys) and publishes a release.
 on:
   push:
     tags:
@@ -9,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write # cosign keyless signing（审计 R4：零密钥材料，身份=本仓 workflow）
 
 jobs:
   release:
@@ -25,9 +28,12 @@ jobs:
         run: go test ./...
       - name: Install syft (SBOM generator, audit R4)
         uses: anchore/sbom-action/download-syft@v0
+      - name: Install cosign (keyless signer, audit R4)
+        uses: sigstore/cosign-installer@v3
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: v2.18.0
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COSIGN_YES: "true" # 无密钥模式：签名身份来自 OIDC 令牌

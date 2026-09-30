@@ -79,6 +79,21 @@ OmniFusion is an **independent, original implementation** (not a fork of any exi
 
 All of the above are idea- and lesson-level references; third-party **code** dependencies are limited to the components listed in [NOTICE](NOTICE).
 
+## Verifying artifacts
+
+Every release artifact ships with an SPDX SBOM (`.spdx.sbom`) and a keyless Sigstore signature (`.sig` + `.cert` pairs, signed by this repository's CI identity — no keys are stored anywhere). To verify the checksums file with [cosign](https://github.com/sigstore/cosign):
+
+```sh
+cosign verify-blob \
+  --certificate checksums.txt.cert \
+  --signature checksums.txt.sig \
+  --certificate-identity-regexp "https://github.com/swsgbl/omnifusion/" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  checksums.txt
+```
+
+Then confirm each downloaded asset against `checksums.txt` (e.g. `sha256sum -c --ignore-missing checksums.txt`). Behind a restricted network, the checksums file alone already provides integrity against casual tampering.
+
 ## Support the project
 
 OmniFusion is Apache-2.0 open source. If it saves you key-switching time, you can support documentation, provider verification, benchmarks, and maintenance on [Afdian](https://ifdian.net/a/hongfu). Core gateway features remain free and open source.
