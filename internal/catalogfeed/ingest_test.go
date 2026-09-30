@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -125,6 +126,61 @@ func TestIngestRejectsFutureTimestamp(t *testing.T) {
 	}
 	if g.Baseline() != 0 {
 		t.Fatalf("baseline advanced on stale-reject: %d", g.Baseline())
+	}
+}
+
+// TestIngestRejectsSignatureTransplant 是签名移植利用回归（蓝图
+// Phase 8 §九）：把 v3 的合法签名嫁接到 v4 字节上（恶意镜像改版本号
+// 后原样转发旧签名）——验签对字节，移植必拒，基线不推进。
+func TestIngestRejectsSignatureTransplant(t *testing.T) {
+	st := newIngestTestStore(t)
+	seed, pub, _ := GenerateKey()
+	g := NewIngestor(st, mustParsePub(t, pub), nil)
+	now := time.Now()
+
+	v3 := feedBytes(t, 3, now.Add(-time.Minute))
+	if _, err := g.Ingest(v3, signedFeed(t, v3, seed)); err != nil {
+		t.Fatalf("seed v3: %v", err)
+	}
+	v4 := feedBytes(t, 4, now.Add(-time.Minute))
+	if _, err := g.Ingest(v4, signedFeed(t, v3, seed)); !errors.Is(err, ErrBadSignature) {
+		t.Fatalf("transplanted v3 sig on v4 bytes: err = %v, want ErrBadSignature", err)
+	}
+	if g.Baseline() != 3 {
+		t.Fatalf("baseline advanced on transplant: %d", g.Baseline())
+	}
+}
+
+// TestIngestRejectsExpiredFeed 是过期行为回归（蓝图 Phase 8 §九
+// "expiry"）：生成时刻超过 MaxFeedAge 的 feed（恶意镜像重放归档）
+// 拒收且基线不动；30~90 天之间接受但告警（捕获日志断言）。
+func TestIngestRejectsExpiredFeed(t *testing.T) {
+	st := newIngestTestStore(t)
+	seed, pub, _ := GenerateKey()
+	g := NewIngestor(st, mustParsePub(t, pub), nil)
+	now := time.Now()
+
+	old := feedBytes(t, 9, now.Add(-MaxFeedAge-time.Hour))
+	if _, err := g.Ingest(old, signedFeed(t, old, seed)); err == nil ||
+		!strings.Contains(err.Error(), "expired") {
+		t.Fatalf("archived feed accepted: err = %v, want expired error", err)
+	}
+	if g.Baseline() != 0 {
+		t.Fatalf("baseline advanced on expired feed: %d", g.Baseline())
+	}
+
+	// 40 天旧：接受 + 陈旧告警。
+	var buf strings.Builder
+	gw := NewIngestor(st, mustParsePub(t, pub), slog.New(slog.NewTextHandler(&buf, nil)))
+	stale := feedBytes(t, 10, now.Add(-40*24*time.Hour))
+	if _, err := gw.Ingest(stale, signedFeed(t, stale, seed)); err != nil {
+		t.Fatalf("stale-but-not-expired feed must be accepted: %v", err)
+	}
+	if gw.Baseline() != 10 {
+		t.Fatalf("baseline after stale accept = %d, want 10", gw.Baseline())
+	}
+	if !strings.Contains(buf.String(), "catalog feed is stale") {
+		t.Fatalf("stale warning missing: %s", buf.String())
 	}
 }
 

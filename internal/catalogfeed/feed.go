@@ -29,6 +29,15 @@ const (
 // MaxClockSkew 是 generated_at 的未来容差（NTP 偏差容忍）。
 const MaxClockSkew = 5 * time.Minute
 
+// StaleWarnAge / MaxFeedAge 是 feed 的陈旧度策略（蓝图 Phase 8
+// "expiry 行为"）：超过 StaleWarnAge 告警（维护者该发新版了），超过
+// MaxFeedAge 拒收（古董 feed 冒充新鲜目录——镜像劫持/归档重放面）。
+// feed 是增强数据，拒收只回落内置目录，永不阻断网关。
+const (
+	StaleWarnAge = 30 * 24 * time.Hour
+	MaxFeedAge   = 90 * 24 * time.Hour
+)
+
 // 摄取链的哨兵错误。
 var (
 	// ErrBadSignature 验签失败（坏签名/坏公钥/坏签名编码）。

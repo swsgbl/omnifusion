@@ -75,8 +75,10 @@ func (g *Ingestor) LastFeed() []byte {
 	return []byte(v)
 }
 
-// Ingest 摄取一帧：验签 → 解析校验 → 新鲜度 → 防回滚，全过则推进
-// 基线并持久化原文，返回 feed。版本不新于基线返回 *RollbackError。
+// Ingest 摄取一帧：验签 → 解析校验 → 新鲜度 → 过期 → 防回滚，全过
+// 则推进基线并持久化原文，返回 feed。版本不新于基线返回
+// *RollbackError；生成时刻超过 MaxFeedAge 返回过期错误（古董 feed
+// 冒充新鲜目录的镜像劫持面）；StaleWarnAge~MaxFeedAge 之间告警。
 func (g *Ingestor) Ingest(raw []byte, sigHex string) (*Feed, error) {
 	if err := Verify(raw, sigHex, g.pub); err != nil {
 		return nil, err
@@ -87,6 +89,14 @@ func (g *Ingestor) Ingest(raw []byte, sigHex string) (*Feed, error) {
 	}
 	if err := f.CheckFreshness(g.now()); err != nil {
 		return nil, err
+	}
+	if age := g.now().Sub(time.Unix(f.GeneratedAt, 0)); age > MaxFeedAge {
+		return nil, fmt.Errorf(
+			"catalogfeed: feed generated %d days ago exceeds max age %v (expired; refusing archived feed)",
+			int(age.Hours()/24), MaxFeedAge)
+	} else if g.log != nil && age > StaleWarnAge {
+		g.log.Warn("catalog feed is stale", "age_days", int(age.Hours()/24),
+			"hint", "maintainer should publish a newer signed feed")
 	}
 	if base := g.Baseline(); f.Version <= base {
 		return nil, &RollbackError{FeedVersion: f.Version, Baseline: base}
