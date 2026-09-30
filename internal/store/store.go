@@ -59,3 +59,21 @@ func (s *Store) GetMeta(key string) (string, error) {
 	}
 	return v, nil
 }
+
+// ListMetaKeys 返回带给定前缀的元数据键（排序稳定）。
+func (s *Store) ListMetaKeys(prefix string) ([]string, error) {
+	rows, err := s.db.Query(`SELECT key FROM meta WHERE key LIKE ? ORDER BY key`, prefix+"%")
+	if err != nil {
+		return nil, fmt.Errorf("list meta keys %q: %w", prefix, err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			return nil, fmt.Errorf("scan meta key: %w", err)
+		}
+		out = append(out, k)
+	}
+	return out, rows.Err()
+}

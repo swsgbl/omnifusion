@@ -23,8 +23,17 @@ type ModelMembership interface {
 	ServesModel(providerName, model string) bool
 }
 
-// filterByModel 排除目录明确不服务该模型的候选。cands 不会被就地
-// 修改；全排除时原样返回（保守回退：可能是目录未同步或别名场景）。
+// ModelGate 是用户侧的模型启停开关（providers 页可编辑，2026-10-01
+// 用户需求）：返回给定 provider 的禁用模型集（nil/空=全启用）。与
+// ModelMembership 正交——目录说"能服务"、用户说"别用它"，gate 赢；
+// 保守边界同上：gate 未装配或集合为空不过滤，全禁用回退未过滤。
+type ModelGate interface {
+	DisabledModels(providerName string) map[string]bool
+}
+
+// filterByModel 排除目录明确不服务该模型的候选，再排除用户显式停用
+// 的模型。cands 不会被就地修改；全排除时原样返回（保守回退：可能
+// 是目录未同步或别名场景）。
 func (r *Router) filterByModel(cands []provider.Provider, model string) []provider.Provider {
 	if r.Models == nil || model == "" || len(cands) <= 1 {
 		return cands
@@ -32,11 +41,17 @@ func (r *Router) filterByModel(cands []provider.Provider, model string) []provid
 	kept := make([]provider.Provider, 0, len(cands))
 	var dropped []string
 	for _, p := range cands {
-		if r.Models.ServesModel(p.Name(), model) {
-			kept = append(kept, p)
-		} else {
+		if !r.Models.ServesModel(p.Name(), model) {
 			dropped = append(dropped, p.Name())
+			continue
 		}
+		if r.Gate != nil {
+			if dis := r.Gate.DisabledModels(p.Name()); dis[model] {
+				dropped = append(dropped, p.Name()+"(disabled)")
+				continue
+			}
+		}
+		kept = append(kept, p)
 	}
 	if len(kept) == 0 {
 		return cands

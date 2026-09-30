@@ -39,6 +39,11 @@ func (s *Server) handleDashboardAPI(w http.ResponseWriter, r *http.Request) {
 		// 写厂商密钥是高权限操作：scopeGuard 收敛到 master（handle 内
 		// 精确比对，scoped token 403）。
 		s.scopeGuard(w, r, ScopeHealth, http.MethodPost, s.handleDashboardKeysSet)
+	case "provider/models":
+		s.scopeGuard(w, r, ScopeHealth, http.MethodGet, s.handleProviderModels)
+	case "provider/models/set":
+		// 改模型启停是用户偏好写操作：master-only（同 keys/set）。
+		s.scopeGuard(w, r, ScopeHealth, http.MethodPost, s.handleProviderModelsSet)
 	case "health":
 		s.scopeGuard(w, r, ScopeHealth, http.MethodGet, s.handleDashboardHealth)
 	case "update":

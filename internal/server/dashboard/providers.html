@@ -28,6 +28,21 @@
   .ent-meta { color: #8b949e; font-size: 11px; margin-top: 2px; }
   .empty { color: #8b949e; padding: 24px 0; }
   #err { color: #f85149; white-space: pre-wrap; }
+  /* 模型展开面（模型数列可点 → 勾选启停） */
+  tr.pdetail > td { background: rgba(22,27,34,.6); padding: 12px 18px; }
+  a.mlink { color: #58a6ff; text-decoration: none; border-bottom: 1px dotted #58a6ff; }
+  .pmodels { display: flex; flex-wrap: wrap; gap: 6px 14px; max-height: 240px; overflow-y: auto; }
+  .pm { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px; }
+  .pm input { accent-color: #1f6feb; }
+  .pm.off .pmid { color: #8b949e; text-decoration: line-through; }
+  .pmctx { color: #8b949e; font-size: 11px; }
+  .pact { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
+  .pact button { background: #1f6feb; border: 1px solid #1f6feb; color: #fff; border-radius: 6px; padding: 5px 14px; cursor: pointer; font: inherit; font-size: 12.5px; }
+  .pact button:disabled { opacity: .55; cursor: wait; }
+  .pmsg { color: #3fb950; font-size: 12px; }
+  .phint { color: #8b949e; font-size: 11px; }
+  .pload, .perr { color: #8b949e; font-size: 12px; }
+  .perr { color: #f85149; }
 </style>
 <script src="assets/gsap.min.js"></script>
 <script src="assets/motion.js"></script>
@@ -76,6 +91,10 @@ const I18N = {
     refresh_started: 'Refreshing…',
     cd_model: 'model {m} until {time} ({reason})',
     cd_plain: 'until {time} ({reason})',
+    pmodels_empty: 'no models in catalog yet (sync first)',
+    pmodels_save: 'Save switches',
+    pmodels_saved: '✓ saved — takes effect immediately',
+    pmodels_hint: 'unchecked = excluded from routing (instant, survives restart)',
   },
   zh: {
     page_title: 'OmniFusion · 提供商',
@@ -94,6 +113,10 @@ const I18N = {
     refresh_started: '正在刷新…',
     cd_model: '模型 {m} 直至 {time}（{reason}）',
     cd_plain: '直至 {time}（{reason}）',
+    pmodels_empty: '目录中暂无该厂商模型（先刷新目录）',
+    pmodels_save: '保存开关',
+    pmodels_saved: '✓ 已保存 — 立即生效',
+    pmodels_hint: '取消勾选 = 路由不再使用该模型（立即生效，重启保留）',
   },
 };
 const t = (k) => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
@@ -132,6 +155,89 @@ function entCell(e) {
   return cell('', main);
 }
 
+// 模型展开面（用户 2026-10-01 需求）：点击模型数展开该 provider 的
+// 模型清单（勾选=启用/停用 + 保存）。展开状态跨 5s 轮询保持；编辑中
+// （有未保存勾选）的行冻结不重渲染。
+let expandedProvider = null;   // 当前展开的 provider id
+const dirtyProviders = new Set(); // 有未保存修改的 provider（轮询冻结）
+
+async function toggleExpand(name, cellTd) {
+  if (expandedProvider === name) {
+    expandedProvider = null;
+    renderDetailRow();
+    return;
+  }
+  expandedProvider = name;
+  renderDetailRow('loading');
+  try {
+    const resp = await fetch('api/provider/models?provider=' + encodeURIComponent(name) + (key ? '&key=' + encodeURIComponent(key) : ''));
+    const body = await resp.json();
+    if (expandedProvider !== name) return; // 轮询间隙用户已切换
+    renderDetailRow(null, body.models || []);
+  } catch (e) {
+    renderDetailRow(null, [], String(e));
+  }
+}
+
+// renderDetailRow 重绘展开的详情行（在主表行后插入）。
+function renderDetailRow(state, models, errMsg) {
+  document.querySelectorAll('tr.pdetail').forEach((el) => el.remove());
+  if (!expandedProvider) return;
+  const rows = document.getElementById('rows');
+  const mainRow = rows.querySelector('tr[data-p="' + CSS.escape(expandedProvider) + '"]');
+  if (!mainRow) return; // provider 行消失（网关重启等）
+  const tr = document.createElement('tr');
+  tr.className = 'pdetail';
+  const td = document.createElement('td');
+  td.colSpan = 7;
+  if (state === 'loading') {
+    td.innerHTML = '<span class="pload">…</span>';
+  } else if (errMsg) {
+    td.innerHTML = '<span class="perr">' + esc(errMsg) + '</span>';
+  } else {
+    if (!models.length) {
+      td.innerHTML = '<span class="pload">' + t('pmodels_empty') + '</span>';
+    } else {
+      const items = models.map(m =>
+        `<label class="pm ${m.disabled ? 'off' : ''}">` +
+        `<input type="checkbox" data-m="${esc(m.id)}" ${m.disabled ? '' : 'checked'}>` +
+        `<span class="pmid">${esc(m.id)}</span>` +
+        (m.ctx_len ? `<span class="pmctx">${m.ctx_len >= 1000000 ? (m.ctx_len / 1000000).toFixed(1) + 'M' : Math.round(m.ctx_len / 1000) + 'K'}</span>` : '') +
+        `</label>`).join('');
+      td.innerHTML = '<div class="pmodels">' + items + '</div>' +
+        `<div class="pact"><button type="button" id="pmSave">${t('pmodels_save')}</button>` +
+        `<span class="pmsg" id="pmMsg"></span>` +
+        `<span class="phint">${t('pmodels_hint')}</span></div>`;
+    }
+  }
+  tr.appendChild(td);
+  mainRow.after(tr);
+  const save = document.getElementById('pmSave');
+  if (save) {
+    save.onclick = async () => {
+      const disabled = [...td.querySelectorAll('input[type="checkbox"]:not(:checked)')].map(c => c.dataset.m);
+      save.disabled = true;
+      try {
+        const resp = await fetch('api/provider/models/set?provider=' + encodeURIComponent(expandedProvider) + (key ? '&key=' + encodeURIComponent(key) : ''), {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ disabled }),
+        });
+        const body = await resp.json().catch(() => ({}));
+        const msg = document.getElementById('pmMsg');
+        if (msg) msg.textContent = resp.ok && body.ok ? t('pmodels_saved') : (body.error && body.error.message) || ('HTTP ' + resp.status);
+      } catch (e) {
+        const msg = document.getElementById('pmMsg');
+        if (msg) msg.textContent = String(e);
+      } finally {
+        save.disabled = false;
+      }
+    };
+    // 勾选即标脏（轮询冻结该 provider 的重渲染）。
+    td.querySelectorAll('input[type="checkbox"]').forEach(c =>
+      c.addEventListener('change', () => dirtyProviders.add(expandedProvider)));
+  }
+}
+
 async function load() {
   const err = document.getElementById('err');
   try {
@@ -143,9 +249,9 @@ async function load() {
     if (!body.providers.length) {
       rows.innerHTML = `<tr><td colspan="7" class="empty">${t('empty')}</td></tr>`;
     } else {
-      rows.innerHTML = body.providers.map(p => '<tr>' + [
+      rows.innerHTML = body.providers.map(p => '<tr data-p="' + esc(p.name) + '">' + [
         cell('', vname(p.name)),
-        cell('num', p.models),
+        `<td class="num"><a href="#" class="mlink" data-p="${esc(p.name)}">${p.models} ▾</a></td>`,
         cell('num', p.latency_ms ? p.latency_ms.toFixed(0) : '–'),
         cell('num', p.success_rate > 0 ? (p.success_rate * 100).toFixed(0) + '%' : '–'),
         entCell(p.entitlement),
@@ -154,6 +260,10 @@ async function load() {
           .replace('{time}', new Date(c.until).toLocaleTimeString())
           .replace('{reason}', c.reason))).join('<br>') || '–'),
       ].join('') + '</tr>').join('');
+    }
+    // 恢复展开详情行（轮询重建主行后 detail 被清——重插到主行后）。
+    if (expandedProvider && !dirtyProviders.has(expandedProvider)) {
+      renderDetailRow('refresh');
     }
     if (window.OFD) OFD.motion.rows(document.getElementById('rows'));
     document.getElementById('meta').textContent =
@@ -169,6 +279,13 @@ async function load() {
     err.textContent = String(e);
   }
 }
+// 模型数点击展开（事件委托——轮询重建行不丢）。
+document.getElementById('rows').addEventListener('click', (ev) => {
+  const a = ev.target.closest('a.mlink');
+  if (!a) return;
+  ev.preventDefault();
+  toggleExpand(a.dataset.p);
+});
 load();
 setInterval(load, 5000);
 // 「刷新模型」：后台同步立即返回，页面 5s 轮询自然带出新目录。

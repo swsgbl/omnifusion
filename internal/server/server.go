@@ -40,7 +40,8 @@ type Server struct {
 	guard        *security.Guardrails             // 规则型护栏（；nil = 未启用）
 	metrics      *obs.Metrics                     // Prometheus 指标（；nil = 未启用，全 no-op）
 	gatewayToken string
-	keyring      *security.Keyring // 密钥环（dashboard 内联添加密钥用；nil = 端点 503）
+	keyring      *security.Keyring   // 密钥环（dashboard 内联添加密钥用；nil = 端点 503）
+	modelGate    *store.ModelGateStore // 模型启停存储（providers 页可编辑；nil = 写端点 503）
 
 	a2aCard  *a2a.AgentCard                // A2A 发现清单（；nil = 不挂 agent-card 与 /rpc）
 	a2aModel string                        // A2A 缺省目标模型（可含 @指令）

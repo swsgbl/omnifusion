@@ -165,6 +165,16 @@ async function load() {
     if (!shown.length) {
       rows.innerHTML = `<tr><td colspan="5" class="empty">${filterTodo ? t('f_todo') + ' ✓' : t('empty')}</td></tr>`;
     } else {
+      // 保留编辑中行的现场（用户 2026-10-01 反馈：5s 轮询把输入框和
+      // 未读反馈冲掉=失控感）：输入框有内容或行内有未读反馈的行，
+      // 轮询只重绘其他行，该行原样保留（重渲染跳过）。
+      const frozen = new Set();
+      rows.querySelectorAll('tr').forEach(tr => {
+        const inp = tr.querySelector('input.kin');
+        const msg = tr.querySelector('.kmsg');
+        const p = inp ? inp.dataset.p : (msg ? msg.dataset.m : null);
+        if (p && ((inp && inp.value.trim()) || (msg && msg.textContent))) frozen.add(p);
+      });
       rows.innerHTML = shown.map(k => {
         const cls = srcClass(k.source);
         const done = keyConfigured(k);
@@ -182,9 +192,15 @@ async function load() {
           `<input type="password" class="kin" data-p="${esc(k.provider)}" placeholder="${t('act_placeholder')}" autocomplete="off">` +
           `<button type="button" class="act primary" data-act="save" data-p="${esc(k.provider)}">${done ? t('act_update') : t('act_add')}</button>` +
           `<span class="kmsg" data-m="${esc(k.provider)}"></span></span>`;
-        return `<tr><td>${vname(k.provider)}</td><td${cls ? ` class="${cls}"` : ''}>${esc(k.source)}</td>` +
+        const rowHtml = `<tr><td>${vname(k.provider)}</td><td${cls ? ` class="${cls}"` : ''}>${esc(k.source)}</td>` +
           `<td>${k.updated_at ? new Date(k.updated_at.replace(' ', 'T') + 'Z').toLocaleString() : '–'}</td>` +
           `<td>${status}</td><td>${action}</td></tr>`;
+        // 冻结行：用旧 DOM 顶替新行（保留输入框内容与反馈文本）。
+        if (frozen.has(k.provider)) {
+          const old = rows.querySelector('tr input.kin[data-p="' + CSS.escape(k.provider) + '"]');
+          if (old) return old.closest('tr').outerHTML;
+        }
+        return rowHtml;
       }).join('');
     }
     if (window.OFD) OFD.motion.rows(document.getElementById('rows'));
@@ -218,7 +234,7 @@ rowsEl.addEventListener('click', async (ev) => {
     const body = await resp.json().catch(() => ({}));
     if (resp.ok && body.ok) {
       input.value = '';
-      if (msg) msg.textContent = t('act_stored');
+      if (msg) msg.textContent = t('act_stored'); // 冻结行保留反馈，直至用户再次编辑
       load(); // 状态列立即翻转为已添加
     } else {
       if (msg) msg.textContent = (body.error && body.error.message) || ('HTTP ' + resp.status);
@@ -236,6 +252,13 @@ document.getElementById('rows').addEventListener('keydown', (ev) => {
   if (!input) return;
   const btn = input.closest('.kact').querySelector('button[data-act="save"]');
   if (btn) btn.click();
+});
+// 用户再次输入时清除上一轮反馈（解除该行冻结，回到正常轮询）。
+rowsEl.addEventListener('input', (ev) => {
+  const input = ev.target.closest('input.kin');
+  if (!input) return;
+  const msg = rowsEl.querySelector('.kmsg[data-m="' + CSS.escape(input.dataset.p) + '"]');
+  if (msg && msg.textContent) msg.textContent = '';
 });
 </script>
 <script src="assets/gsap.min.js"></script>

@@ -22,6 +22,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/obs"
 	"github.com/swsgbl/omnifusion/internal/security"
 	"github.com/swsgbl/omnifusion/internal/server"
+	"github.com/swsgbl/omnifusion/internal/store"
 )
 
 var version = "dev"
@@ -152,6 +153,15 @@ func run() error {
 	// 目录声明可服务该模型的 provider——候选序中被墙/不可达家不再
 	// 吃满上游超时才回退（bench 实证每新会话首请求 ~25s）。
 	router.Models = catalog
+
+	// 用户侧模型启停（providers 页可编辑）：禁用集实时过滤路由候选，
+	// 保存即生效；meta 表持久化重启不丢。装配失败降级为无开关。
+	if gate, err := store.NewModelGateStore(st); err == nil {
+		router.Gate = gate
+		srv.SetModelGate(gate)
+	} else {
+		logger.Warn("model gate store unavailable; per-model switches disabled", "err", err)
+	}
 
 	// quality 策略能力分查询（签名 feed 的 capability 字段是数据源；
 	// 无 feed 时 @quality 退化为注册序，不阻断）。

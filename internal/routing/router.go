@@ -70,6 +70,10 @@ type Router struct {
 	// 遗留项落地）：裸模型请求排除目录明确不服务的
 	// 候选；nil 表示不过滤。生产装配同 Windows（Catalog 双实现）。
 	Models ModelMembership
+	// Gate 是用户侧模型启停开关（providers 页可编辑）：禁用集内的
+	// 模型被路由跳过（与 Models 正交——目录能服务、用户说别用）。
+	// nil = 不过滤。生产实现是 cmd/ofd 注入的 meta 表读取器。
+	Gate ModelGate
 	// Combos 是命名模型组：model 内嵌 "@combo:NAME" 选择；
 	// nil/未收录名 = 普通分发。装配自 YAML（cmd/ofd）。
 	Combos map[string]Combo

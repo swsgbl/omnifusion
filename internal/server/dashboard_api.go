@@ -136,6 +136,14 @@ func (s *Server) dashEntitlementOf(providerName string) *dashEntitlement {
 	return out
 }
 
+// dashProviderModel 是 providers 页模型展开清单的一行：目录模型 +
+// 上下文窗口 + 用户启停状态。
+type dashProviderModel struct {
+	ID       string `json:"id"`
+	CtxLen   int64  `json:"ctx_len,omitempty"`
+	Disabled bool   `json:"disabled,omitempty"`
+}
+
 // dashKey 是 keys 页的一行；Source 为 stored / env:VAR / none / -。
 // SignupURL 是该厂商"申请密钥"官方页（一键抵达；无则空，如 ollama）。
 type dashKey struct {
@@ -153,6 +161,10 @@ func (s *Server) SetSignupURLs(m map[string]string) { s.signupURLs = m }
 // SetKeyring 注入密钥环（cmd/ofd 装配期调用）：dashboard 内联添加
 // 密钥端点用——与 `ofd key add` 同一加密存储路径。nil = 端点 503。
 func (s *Server) SetKeyring(kr *security.Keyring) { s.keyring = kr }
+
+// SetModelGate 注入模型启停存储（providers 页可编辑的读写后端；
+// nil = 读写端点 503，页面只读展开仍可用）。
+func (s *Server) SetModelGate(g *store.ModelGateStore) { s.modelGate = g }
 
 // handleDashboardKeys 合并注入的 key 来源（cmd/ofd 装配期事实）与
 // connections 表（stored 记录的 label/updated_at；密文永不离开 store）。
@@ -229,6 +241,70 @@ func (s *Server) handleDashboardKeysSet(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok": true, "provider": in.Provider, "source": "stored", "restart_required": true,
 	})
+}
+
+// handleProviderModels 是 providers 页模型展开的数据端点：目录里该
+// provider 的模型清单 + 每个模型的禁用状态 + 上下文窗口。目录未装配
+// 回空表（页面显示"目录同步中"）。
+func (s *Server) handleProviderModels(w http.ResponseWriter, r *http.Request) {
+	p := strings.TrimSpace(r.URL.Query().Get("provider"))
+	if p == "" {
+		writeAPIError(w, http.StatusBadRequest, "provider query required", "invalid_request_error", "")
+		return
+	}
+	out := []dashProviderModel{}
+	if s.catalog != nil {
+		for _, e := range s.catalog.Snapshot() {
+			if e.Provider != p {
+				continue
+			}
+			out = append(out, dashProviderModel{ID: e.ID, CtxLen: e.CtxLen})
+		}
+	}
+	if s.modelGate != nil {
+		dis := s.modelGate.DisabledModels(p)
+		for i := range out {
+			out[i].Disabled = dis[out[i].ID]
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"provider": p, "models": out})
+}
+
+// handleProviderModelsSet 覆盖 provider 的禁用集（master-only，与
+// keys/set 同权限语义）：body {"disabled": ["id", ...]}；空数组=
+// 全启用。保存即刻生效（路由过滤实时读 gate），无需重启。
+func (s *Server) handleProviderModelsSet(w http.ResponseWriter, r *http.Request) {
+	tok := tokenFromRequest(r)
+	if tok == "" || !tokenEqual(tok, s.gatewayToken) {
+		writeAPIError(w, http.StatusForbidden,
+			"editing model switches requires the master gateway key", "permission_error", "insufficient_scope")
+		return
+	}
+	if s.modelGate == nil {
+		writeAPIError(w, http.StatusServiceUnavailable,
+			"model gate store not assembled in this gateway", "server_error", "")
+		return
+	}
+	p := strings.TrimSpace(r.URL.Query().Get("provider"))
+	if p == "" {
+		writeAPIError(w, http.StatusBadRequest, "provider query required", "invalid_request_error", "")
+		return
+	}
+	var in struct {
+		Disabled []string `json:"disabled"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&in); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid JSON body", "invalid_request_error", "")
+		return
+	}
+	if err := s.modelGate.SetDisabled(p, in.Disabled); err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "persist disabled set failed", "server_error", "")
+		return
+	}
+	if s.log != nil {
+		s.log.Info("provider model switches updated", "provider", p, "disabled", len(in.Disabled))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "provider": p, "disabled": len(in.Disabled)})
 }
 
 // mergeStoredKeys 用 connections 表覆盖 stored 记录（保留注入来源之外
