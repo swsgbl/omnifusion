@@ -26,6 +26,14 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+# SBOM（审计 R4 / 蓝图发布工程）：每个归档产 SPDX 格式物料清单，
+# 需要 syft 在 PATH（release workflow 已装）。签名（cosign）待密钥
+# 管理决策——SBOM 先闭"无出处"缺口。
+sboms:
+  - artifacts: archive
+    documents:
+      - "${artifact}.spdx.sbom"
+
 changelog:
   sort: asc
   filters:
