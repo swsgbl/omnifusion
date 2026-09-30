@@ -1081,6 +1081,13 @@ async function waitIpcReady() {
   window.addEventListener("resize", () => scheduleLayout());
   try { await invoke("set_language", { lang: effLang() }); } catch {}
   await refresh();
+  // 网关随应用自启（默认开）：启动软件就是为了用它——首个状态刷新
+  // 确认未运行时自动拉起，用户不必再点「启动网关」。只在启动时尝试
+  // 一次：外部网关在场时 gateway_start 返回 already-running 无副作用；
+  // 之后用户手动停止的意愿不被翻案（引导卡与按钮仍是兜底真相）。
+  if (!gwRunning) {
+    try { await startGw(); } catch { /* 失败留给引导卡与状态栏呈现 */ }
+  }
   setInterval(refresh, 3000);
 })();
 </script>
