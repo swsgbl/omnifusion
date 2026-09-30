@@ -136,7 +136,7 @@ func (s *Server) handleGeminiGenerateContent(w http.ResponseWriter, r *http.Requ
 	resp, attempts, err := s.router.Dispatch(r.Context(), req, opts...)
 	dec := routing.FoldDecision(attempts, err, model, r.Header.Get("X-Request-Id"),
 		routeSrc, time.Since(start).Milliseconds(), r.Context().Err() != nil)
-	s.logRouteDecision(dec)
+	s.logRouteDecision("gemini", dec)
 	if err != nil {
 		s.logDispatchFailure(req, attempts, err)
 		writeGeminiError(w, http.StatusBadGateway, "UNAVAILABLE", upstreamErrorMessage(err))

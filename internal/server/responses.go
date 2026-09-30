@@ -97,7 +97,7 @@ func (s *Server) handleResponses(w http.ResponseWriter, r *http.Request) {
 	resp, attempts, err := s.router.Dispatch(r.Context(), req, opts...)
 	dec := routing.FoldDecision(attempts, err, req.Model, r.Header.Get("X-Request-Id"),
 		routeSrc, time.Since(start).Milliseconds(), r.Context().Err() != nil)
-	s.logRouteDecision(dec)
+	s.logRouteDecision("responses", dec)
 	if err != nil {
 		s.logDispatchFailure(req, attempts, err)
 		writeAPIError(w, http.StatusBadGateway, upstreamErrorMessage(err), "api_error", "")

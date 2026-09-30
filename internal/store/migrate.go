@@ -125,6 +125,21 @@ var migrations = []string{
 	// v11: 任务上下文关联（A2A contextId——Phase 7 任务面复用
 	// TaskStore 后需要的会话维度列）。
 	`ALTER TABLE tasks ADD COLUMN context_id TEXT NOT NULL DEFAULT ''`,
+	// v12: 路由决策回放记录（蓝图 Phase 9 replay record——"能解释
+	// 决策的最小证据集"）。evidence 存 RouteDecision 全量 JSON（候选
+	// 集+原因码+耗时；构造性不含用户载荷），查询面列冗余导出。
+	`CREATE TABLE route_decisions (
+		id              INTEGER PRIMARY KEY AUTOINCREMENT,
+		ts              INTEGER NOT NULL,
+		endpoint        TEXT NOT NULL DEFAULT '',
+		request_id      TEXT NOT NULL DEFAULT '',
+		model           TEXT NOT NULL DEFAULT '',
+		chosen_provider TEXT NOT NULL DEFAULT '',
+		success         INTEGER NOT NULL DEFAULT 0,
+		tries           INTEGER NOT NULL DEFAULT 0,
+		duration_ms     INTEGER NOT NULL DEFAULT 0,
+		evidence        TEXT NOT NULL DEFAULT ''
+	)`,
 }
 
 // migrate 幂等执行未应用的迁移（每条在事务中执行并记账）。

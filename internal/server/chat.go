@@ -14,6 +14,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/provider"
 	"github.com/swsgbl/omnifusion/internal/routing"
 	"github.com/swsgbl/omnifusion/internal/security"
+	"github.com/swsgbl/omnifusion/internal/store"
 )
 
 // maxChatRequestBody 限制入站请求体（多模态 base64 场景留足余量）。
@@ -98,7 +99,7 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	resp, attempts, err := s.router.Dispatch(r.Context(), &req, opts...)
 	dec := routing.FoldDecision(attempts, err, req.Model, r.Header.Get("X-Request-Id"),
 		routeSrc, time.Since(start).Milliseconds(), r.Context().Err() != nil)
-	s.logRouteDecision(dec)
+	s.logRouteDecision("chat", dec)
 	s.logGenAI(&obs.GenAICorrelation{
 		Operation:      obs.OpChatCompletions,
 		System:         dec.ChosenProvider,
@@ -125,18 +126,36 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	go s.memoryRecord(r, &req, resp)
 }
 
-// logRouteDecision 把路由决策证据写成结构化日志行（蓝图 §五：每次
-// 决策可解释——候选路径、原因码、耗时）。debug 级别防噪声；排障时
-// 调 log.level=debug 即可回放。
-func (s *Server) logRouteDecision(dec *routing.RouteDecision) {
-	if s.log == nil || dec == nil {
+// logRouteDecision 把路由决策证据写成结构化日志行 + 回放记录落库
+// （蓝图 Phase 9 replay record："能解释决策的最小证据集"——候选集/
+// 原因码/耗时持久化，构造性不含用户载荷）。debug 级别防噪声；排障
+// 时调 log.level=debug 即可回放。落库失败 warn 不阻断请求路径。
+func (s *Server) logRouteDecision(endpoint string, dec *routing.RouteDecision) {
+	if dec == nil {
 		return
 	}
-	s.log.Debug("route decision",
-		"model", dec.Model, "chosen", dec.ChosenProvider,
-		"resolved_model", dec.ResolvedModel,
-		"reasons", dec.ReasonCodes, "tries", dec.AttemptCount,
-		"duration_ms", dec.DurationMS, "summary", dec.Summary())
+	if s.log != nil {
+		s.log.Debug("route decision",
+			"model", dec.Model, "chosen", dec.ChosenProvider,
+			"resolved_model", dec.ResolvedModel,
+			"reasons", dec.ReasonCodes, "tries", dec.AttemptCount,
+			"duration_ms", dec.DurationMS, "summary", dec.Summary())
+	}
+	if s.st == nil {
+		return
+	}
+	evidence, err := json.Marshal(dec)
+	if err != nil {
+		evidence = []byte("{}")
+	}
+	if err := s.st.InsertRouteDecision(store.RouteDecisionRow{
+		TS: time.Now().Unix(), Endpoint: endpoint, RequestID: dec.RequestID,
+		Model: dec.Model, ChosenProvider: dec.ChosenProvider,
+		Success: dec.Success, Tries: dec.AttemptCount,
+		DurationMS: dec.DurationMS, Evidence: string(evidence),
+	}); err != nil && s.log != nil {
+		s.log.Warn("persist route decision failed", "err", err)
+	}
 }
 
 // logGenAI 写 GenAI 语义约定关联行（蓝图 Phase 9）：OTel GenAI

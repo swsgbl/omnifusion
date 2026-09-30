@@ -325,7 +325,7 @@ func (s *Server) a2aSend(w http.ResponseWriter, r *http.Request, req *a2a.Reques
 	resp, attempts, err := s.router.Dispatch(r.Context(), ureq, opts...)
 	dec := routing.FoldDecision(attempts, err, ureq.Model, r.Header.Get("X-Request-Id"),
 		routeSrc, time.Since(start).Milliseconds(), r.Context().Err() != nil)
-	s.logRouteDecision(dec)
+	s.logRouteDecision("a2a", dec)
 	s.logGenAI(&obs.GenAICorrelation{
 		Operation:      obs.OpA2ASend,
 		System:         dec.ChosenProvider,
