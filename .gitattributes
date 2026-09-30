@@ -1,0 +1,5 @@
+# R1 教训（2026-09-30 审计修复）：catalog feed 的 Ed25519 签名对
+# 字节验签——工作树 CRLF、仓库/raw 分发面 LF 的归一化差会让签名
+# 永远验不过。签名面文件锁死 LF，签名必须对这里的确切字节做。
+catalog/feed.json text eol=lf
+catalog/feed.json.sig text eol=lf
