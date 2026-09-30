@@ -6,6 +6,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/provider"
 	"github.com/swsgbl/omnifusion/internal/provider/openai_compat"
 	"github.com/swsgbl/omnifusion/internal/routing"
+	"github.com/swsgbl/omnifusion/internal/security"
 	"github.com/swsgbl/omnifusion/internal/store"
 )
 
@@ -207,6 +209,64 @@ func TestDashboardKeysAPI(t *testing.T) {
 	}
 	if local == nil || local.Source != "-" {
 		t.Errorf("local key = %+v, want source -", local)
+	}
+}
+
+// TestDashboardKeysSetAPI 锁死内联添加密钥端点契约（用户需求：keys
+// 页行内录入）：master token 成功入库（AES 密文，可解回原文）、scoped
+// token 403、未知 provider 400、空 key 400、明文不进日志。
+func TestDashboardKeysSetAPI(t *testing.T) {
+	gw, s, st := newDashFixture(t, &routing.Router{})
+	s.SetKeySources(map[string]string{"groq": "none", "bogus": "none"})
+	kr, err := security.Open("")
+	if err != nil {
+		t.Fatalf("keyring open: %v", err)
+	}
+	s.SetKeyring(kr)
+
+	post := func(token, provider, key string) *http.Response {
+		body := fmt.Sprintf(`{"provider":%q,"key":%q}`, provider, key)
+		req, _ := http.NewRequest(http.MethodPost, gw.URL+"/dashboard/api/keys/set?key="+token,
+			strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := gw.Client().Do(req)
+		if err != nil {
+			t.Fatalf("POST keys/set: %v", err)
+		}
+		return resp
+	}
+
+	// scoped token 被拒（写密钥是 master 专属）。
+	scoped := DeriveMCPToken(testGatewayToken, []string{ScopeHealth})
+	if resp := post(scoped, "groq", "sk-x"); resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("scoped token keys/set = %d, want 403", resp.StatusCode)
+	} else {
+		resp.Body.Close()
+	}
+	// 未知 provider 400（keySources 里注册过的才算已知）。
+	if resp := post(testGatewayToken, "not-a-provider", "sk-x"); resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("unknown provider = %d, want 400", resp.StatusCode)
+	} else {
+		resp.Body.Close()
+	}
+	// 空 key 400。
+	if resp := post(testGatewayToken, "groq", "  "); resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("empty key = %d, want 400", resp.StatusCode)
+	} else {
+		resp.Body.Close()
+	}
+	// master 成功：入库且密文可解回原文（AES-256-GCM 往返）。
+	if resp := post(testGatewayToken, "groq", "sk-live-secret-123"); resp.StatusCode != http.StatusOK {
+		t.Fatalf("master keys/set = %d, want 200", resp.StatusCode)
+	} else {
+		resp.Body.Close()
+	}
+	conn, err := st.GetConnection("groq")
+	if err != nil || conn == nil || len(conn.KeyCipher) == 0 {
+		t.Fatalf("connection missing after set: %v", err)
+	}
+	if strings.Contains(string(conn.KeyCipher), "sk-live-secret-123") {
+		t.Fatal("key stored as plaintext")
 	}
 }
 

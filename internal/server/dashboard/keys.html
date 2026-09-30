@@ -29,6 +29,15 @@
   .filters { display: inline-flex; gap: 6px; }
   .filters button { background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px; padding: 4px 14px; font: inherit; cursor: pointer; }
   .filters button.active { border-color: #58a6ff; color: #58a6ff; }
+  /* 行内密钥操作（免进设置逐个选） */
+  .kact { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .kact .kin { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px; padding: 4px 8px; width: 210px; font-size: 12px; }
+  .kact .kin:focus { border-color: #58a6ff; outline: none; }
+  .kact .act { background: #21262d; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+  .kact .act.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  .kact .act:disabled { opacity: .55; cursor: wait; }
+  .kact .kmsg { color: #3fb950; font-size: 11px; }
+  .kact a { color: #58a6ff; text-decoration: none; white-space: nowrap; }
 </style>
 <script src="assets/gsap.min.js"></script>
 <script src="assets/motion.js"></script>
@@ -50,7 +59,7 @@
 <div id="err"></div>
 <table>
   <thead><tr>
-    <th data-i18n="th_provider">provider</th><th data-i18n="th_source">source</th><th data-i18n="th_label">label</th><th data-i18n="th_updated">updated</th><th data-i18n="th_status">status</th><th data-i18n="th_get">get key</th>
+    <th data-i18n="th_provider">provider</th><th data-i18n="th_source">source</th><th data-i18n="th_updated">updated</th><th data-i18n="th_status">status</th><th data-i18n="th_action">action</th>
   </tr></thead>
   <tbody id="rows"></tbody>
 </table>
@@ -70,24 +79,32 @@ const I18N = {
     page_title: 'OmniFusion · Keys',
     nav_providers: 'Providers', nav_keys: 'Keys', nav_usage: 'Usage',
     nav_compression: 'Compression', nav_resilience: 'Resilience', nav_chat: 'Chat',
-    th_provider: 'Providers', th_source: 'source', th_label: 'label', th_updated: 'updated', th_status: 'status', th_get: 'get key',
+    th_provider: 'Providers', th_source: 'source', th_updated: 'updated', th_status: 'status', th_action: 'action',
     apply: 'apply ↗',
     status_ok: '✓ configured', status_todo: '— no key yet',
+    act_add: 'Add key', act_update: 'Update', act_saving: 'Saving…',
+    act_stored: '✓ stored — restart the gateway to activate',
+    act_apply_first: 'Get a key from the official page first ↗',
+    act_placeholder: 'Paste API key…',
     sum_ok: '{n} configured', sum_todo: '{n} to apply',
     f_all: 'All', f_todo: 'To apply',
-    empty: 'no keys — run "ofd key add" or export *_API_KEY',
+    empty: 'no keys — add one inline below or export *_API_KEY',
     meta: '{n} keys · refreshed {time}',
   },
   zh: {
     page_title: 'OmniFusion · 密钥',
     nav_providers: '提供商', nav_keys: '密钥', nav_usage: '用量',
     nav_compression: '压缩', nav_resilience: '弹性', nav_chat: '对话',
-    th_provider: '提供商', th_source: '密钥来源', th_label: '标签', th_updated: '更新于', th_status: '状态', th_get: '获取密钥',
+    th_provider: '提供商', th_source: '密钥来源', th_updated: '更新于', th_status: '状态', th_action: '操作',
     apply: '去申请 ↗',
-    status_ok: '✓ 已配置', status_todo: '— 待申请',
-    sum_ok: '已配置 {n} 家', sum_todo: '待申请 {n} 家',
+    status_ok: '✓ 已添加', status_todo: '— 待申请/添加',
+    act_add: '添加密钥', act_update: '更新', act_saving: '保存中…',
+    act_stored: '✓ 已添加 — 重启网关后生效',
+    act_apply_first: '先去官方页申请密钥 ↗',
+    act_placeholder: '粘贴 API 密钥…',
+    sum_ok: '已添加 {n} 家', sum_todo: '待申请 {n} 家',
     f_all: '全部', f_todo: '待申请',
-    empty: '未配置任何密钥 — 运行 "ofd key add" 或导出 *_API_KEY',
+    empty: '未配置任何密钥 — 可在下方行内添加，或导出 *_API_KEY',
     meta: '{n} 个密钥 · 刷新于 {time}',
   },
 };
@@ -146,7 +163,7 @@ async function load() {
       `<span class="sum-todo">${t('sum_todo').replace('{n}', todo.length)}</span>`;
     const shown = filterTodo ? todo : all;
     if (!shown.length) {
-      rows.innerHTML = `<tr><td colspan="6" class="empty">${filterTodo ? t('f_todo') + ' ✓' : t('empty')}</td></tr>`;
+      rows.innerHTML = `<tr><td colspan="5" class="empty">${filterTodo ? t('f_todo') + ' ✓' : t('empty')}</td></tr>`;
     } else {
       rows.innerHTML = shown.map(k => {
         const cls = srcClass(k.source);
@@ -154,11 +171,20 @@ async function load() {
         const status = done
           ? `<span class="st-ok">${t('status_ok')}</span>`
           : `<span class="st-todo">${t('status_todo')}</span>`;
-        const get = !done && k.signup_url
-          ? `<a href="${esc(k.signup_url)}" target="_blank" rel="noopener noreferrer">${t('apply')}</a>` : '–';
+        // 行内操作（用户需求：免进设置逐个选）——待申请行=「去申请↗ +
+        // 粘贴框 + 添加」；已添加行=「更新」按钮（同框，回车提交）。
+        const apply = !done && k.signup_url
+          ? `<a href="${esc(k.signup_url)}" target="_blank" rel="noopener noreferrer">${t('apply')}</a> ` : '';
+        const upd = done
+          ? `<button type="button" class="act" data-act="upd" data-p="${esc(k.provider)}">${t('act_update')}</button> `
+          : '';
+        const action = `<span class="kact">${apply}${upd}` +
+          `<input type="password" class="kin" data-p="${esc(k.provider)}" placeholder="${t('act_placeholder')}" autocomplete="off">` +
+          `<button type="button" class="act primary" data-act="save" data-p="${esc(k.provider)}">${done ? t('act_update') : t('act_add')}</button>` +
+          `<span class="kmsg" data-m="${esc(k.provider)}"></span></span>`;
         return `<tr><td>${vname(k.provider)}</td><td${cls ? ` class="${cls}"` : ''}>${esc(k.source)}</td>` +
-          `<td>${esc(k.label || '–')}</td><td>${k.updated_at ? new Date(k.updated_at.replace(' ', 'T') + 'Z').toLocaleString() : '–'}</td>` +
-          `<td>${status}</td><td>${get}</td></tr>`;
+          `<td>${k.updated_at ? new Date(k.updated_at.replace(' ', 'T') + 'Z').toLocaleString() : '–'}</td>` +
+          `<td>${status}</td><td>${action}</td></tr>`;
       }).join('');
     }
     if (window.OFD) OFD.motion.rows(document.getElementById('rows'));
@@ -170,6 +196,45 @@ async function load() {
 }
 load();
 setInterval(load, 5000);
+
+// 行内密钥保存（事件委托——5s 轮询整表重渲染，挂 tbody 才不丢）。
+// 仅 master 网关 key 可写（服务端精确比对；scoped token 403）。
+document.getElementById('rows').addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('button.act');
+  if (!btn || btn.dataset.act !== 'save') return;
+  const p = btn.dataset.p;
+  const input = rows.querySelector('input.kin[data-p="' + CSS.escape(p) + '"]');
+  const msg = rows.querySelector('.kmsg[data-m="' + CSS.escape(p) + '"]');
+  if (!input || !input.value.trim()) { if (msg) msg.textContent = ''; input && input.focus(); return; }
+  btn.disabled = true; btn.textContent = t('act_saving');
+  try {
+    const resp = await fetch('api/keys/set' + (key ? '?key=' + encodeURIComponent(key) : ''), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: p, key: input.value.trim() }),
+    });
+    const body = await resp.json().catch(() => ({}));
+    if (resp.ok && body.ok) {
+      input.value = '';
+      if (msg) msg.textContent = t('act_stored');
+      load(); // 状态列立即翻转为已添加
+    } else {
+      if (msg) msg.textContent = (body.error && body.error.message) || ('HTTP ' + resp.status);
+    }
+  } catch (e) {
+    if (msg) msg.textContent = String(e);
+  } finally {
+    btn.disabled = false; btn.textContent = t('act_add');
+  }
+});
+// 回车=提交（同委托）。
+document.getElementById('rows').addEventListener('keydown', (ev) => {
+  if (ev.key !== 'Enter') return;
+  const input = ev.target.closest('input.kin');
+  if (!input) return;
+  const btn = input.closest('.kact').querySelector('button[data-act="save"]');
+  if (btn) btn.click();
+});
 </script>
 <script src="assets/gsap.min.js"></script>
 <script src="assets/motion.js"></script>

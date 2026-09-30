@@ -396,6 +396,35 @@ fn key_add(app: AppHandle, bin: String, config: String, provider: String) -> Res
     Ok(())
 }
 
+/// keys_meta 代理网关 /dashboard/api/keys（38 家注册表清单+申请页）：
+/// 壳的设置-密钥下拉据此动态填充（旧版硬编码 24 家已退役——新厂商
+/// 不再漏）。网关 key 由 fetch_gateway_key 同款路径现取；网关未起
+/// 返回空数组，壳侧 fallback 到静态骨架。
+#[tauri::command]
+fn keys_meta(app: AppHandle, bin: String, base: String) -> Value {
+    let bin = resolve_bin(&app, &bin);
+    let mut cmd = Command::new(&bin);
+    cmd.arg("gateway-key")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    let key = match cmd.output() {
+        Ok(o) => String::from_utf8_lossy(&o.stdout).trim().to_string(),
+        Err(_) => String::new(),
+    };
+    if key.is_empty() {
+        return serde_json::json!({ "keys": [] });
+    }
+    let path = format!("/dashboard/api/keys?key={key}");
+    match http_get(&base, &path) {
+        Some(raw) => serde_json::from_str::<Value>(&raw)
+            .unwrap_or_else(|_| serde_json::json!({ "keys": [] })),
+        None => serde_json::json!({ "keys": [] }),
+    }
+}
+
 /// client_connect 在可见控制台窗口运行 `ofd connect <cli>`：把网关
 /// 地址与令牌确定性写入目标 CLI 的标准配置（备份原文件，控制台显示
 /// 写到哪了）。fire-and-forget，同 key_add 的形态。
@@ -609,6 +638,7 @@ pub fn run() {
             save_settings,
             set_language,
             key_add,
+            keys_meta,
             client_connect,
             dash_create,
             dash_recreate,

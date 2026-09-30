@@ -301,30 +301,8 @@
             <div class="row2">
               <label><span id="lblProvider"></span>
                 <select id="selProvider">
-                  <option value="openrouter">OpenRouter（免费模型聚合）</option>
-                  <option value="groq">Groq</option>
-                  <option value="cerebras">Cerebras</option>
-                  <option value="gemini">Google Gemini</option>
-                  <option value="nvidia">NVIDIA NIM</option>
-                  <option value="cloudflare">Cloudflare Workers AI</option>
-                  <option value="huggingface">HuggingFace</option>
-                  <option value="zhipu">智谱 BigModel（GLM-Flash 免费）</option>
-                  <option value="siliconflow">硅基流动 SiliconFlow（L0 免费档）</option>
-                  <option value="modelscope">魔搭 ModelScope（每日 2000 次）</option>
-                  <option value="qwen">通义千问（新人每模型 100 万 tokens）</option>
-                  <option value="sambanova">SambaNova（每日 20M tokens 免费）</option>
-                  <option value="mistral">Mistral（Experiment 免费档，需代理）</option>
-                  <option value="cohere">Cohere（Trial：1000 次/月）</option>
-                  <option value="chutes">Chutes（免费档限速）</option>
-                  <option value="qianfan">百度千帆（ERNIE-Speed/Lite 免费）</option>
-                  <option value="spark">讯飞星火（Lite 永久免费）</option>
-                  <option value="hunyuan">腾讯混元（100 万 tokens/年）</option>
-                  <option value="deepseek">DeepSeek（BYOK 付费）</option>
-                  <option value="mimo">小米 MiMo（BYOK 付费）</option>
-                  <option value="ark">火山方舟·豆包（BYOK 付费）</option>
-                  <option value="together">Together AI（BYOK 付费）</option>
-                  <option value="anthropic">Anthropic（BYOK）</option>
-                  <option value="ollama">Ollama（本地，免密钥）</option>
+                  <!-- 动态填充：init 时拉网关 keys API（注册表 38 家，含
+                       新厂商自动跟上），fallback 保留最小骨架防网关未起。 -->
                 </select>
               </label>
               <button id="btnKeyAdd"></button>
@@ -954,6 +932,7 @@ const SIGNUP = {
   groq: "https://console.groq.com/keys",
   huggingface: "https://huggingface.co/settings/tokens",
   hunyuan: "https://console.cloud.tencent.com/hunyuan/api-key",
+  kilo: "https://kilocode.org",
   mimo: "https://mimo.mi.com",
   mistral: "https://console.mistral.ai/api-keys",
   modelscope: "https://modelscope.cn/my/tokens",
@@ -967,6 +946,23 @@ const SIGNUP = {
   together: "https://api.together.ai/settings/api-keys",
   zhipu: "https://open.bigmodel.cn/usercenter/apikeys",
 };
+// 动态填充设置-密钥下拉（网关 keys API=注册表正本，38 家自动跟上——
+// 每周扫描新增厂商不再漏；网关未起时 fallback 到 SIGNUP 键集）。
+async function refreshProviderSelect() {
+  const sel = $("selProvider");
+  const prev = sel.value;
+  let entries = [];
+  try {
+    const { bin, base } = currentInputs();
+    const body = await invoke("keys_meta", { bin, base });
+    entries = (body.keys || []).map(k => ({ id: k.provider, signup: k.signup_url || SIGNUP[k.provider] || "" }));
+  } catch { /* 网关未起：走静态骨架 */ }
+  if (!entries.length) entries = Object.keys(SIGNUP).map(id => ({ id, signup: SIGNUP[id] }));
+  entries.sort((a, b) => a.id.localeCompare(b.id));
+  sel.innerHTML = entries.map(e =>
+    `<option value="${e.id}">${e.id}${e.signup ? "" : "（本地/免密钥）"}</option>`).join("");
+  if (prev && entries.some(e => e.id === prev)) sel.value = prev;
+}
 $("btnSignup").onclick = async () => {
   const url = SIGNUP[$("selProvider").value];
   if (!url) { setMsg(t.msgSignupFail + $("selProvider").value, "err"); return; }
@@ -1088,6 +1084,8 @@ async function waitIpcReady() {
   if (!gwRunning) {
     try { await startGw(); } catch { /* 失败留给引导卡与状态栏呈现 */ }
   }
+  // 密钥下拉动态化（自启后网关在跑，keys API 可达）。
+  refreshProviderSelect().catch(() => {});
   setInterval(refresh, 3000);
 })();
 </script>

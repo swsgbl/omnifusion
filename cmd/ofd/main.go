@@ -117,6 +117,9 @@ func run() error {
 	}
 
 	srv := server.New(cfg, logger, st)
+	// dashboard 内联添加密钥（keys 页行内录入）：与 `ofd key add`
+	// 同一加密存储路径；nil 时端点 503（不阻断启动）。
+	srv.SetKeyring(kr)
 	srv.DetectEnvironment() // 启动时检测 OS/shell/可用工具（管家系统提示注入用）
 	router, keySources := buildRouter(cfg, logger, st, kr)
 	srv.SetRouter(router)

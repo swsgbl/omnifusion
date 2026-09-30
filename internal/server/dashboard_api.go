@@ -5,10 +5,13 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
+	"github.com/swsgbl/omnifusion/internal/security"
 	"github.com/swsgbl/omnifusion/internal/store"
 )
 
@@ -35,13 +38,13 @@ type dashProvider struct {
 
 // dashEntitlement 是 providers 页的权益视图（账本现状的可读投影）。
 type dashEntitlement struct {
-	State     string  `json:"state"`               // UNKNOWN/VERIFIED_FREE/VERIFIED_PAID/EXPIRED/DISABLED
-	Source    string  `json:"source,omitempty"`    // 证据来源
-	Remaining float64 `json:"remaining,omitempty"` // 余量比例 [0,1]；-1=未知
-	ObservedAt string `json:"observed_at,omitempty"`
-	ValidUntil string `json:"valid_until,omitempty"`
-	EvidenceID string `json:"evidence_id,omitempty"`
-	TermsURL   string `json:"terms_url,omitempty"`
+	State      string  `json:"state"`               // UNKNOWN/VERIFIED_FREE/VERIFIED_PAID/EXPIRED/DISABLED
+	Source     string  `json:"source,omitempty"`    // 证据来源
+	Remaining  float64 `json:"remaining,omitempty"` // 余量比例 [0,1]；-1=未知
+	ObservedAt string  `json:"observed_at,omitempty"`
+	ValidUntil string  `json:"valid_until,omitempty"`
+	EvidenceID string  `json:"evidence_id,omitempty"`
+	TermsURL   string  `json:"terms_url,omitempty"`
 }
 
 // handleDashboardProviders 返回已装配 provider 的健康视图。
@@ -118,11 +121,11 @@ func (s *Server) dashEntitlementOf(providerName string) *dashEntitlement {
 	}
 	e := s.router.EntitlementOf(providerName, "")
 	out := &dashEntitlement{
-		State:     string(e.State),
-		Remaining: e.Window.Remaining,
-		Source:    string(e.Source),
+		State:      string(e.State),
+		Remaining:  e.Window.Remaining,
+		Source:     string(e.Source),
 		EvidenceID: e.EvidenceID,
-		TermsURL:  e.TermsURL,
+		TermsURL:   e.TermsURL,
 	}
 	if !e.ObservedAt.IsZero() {
 		out.ObservedAt = e.ObservedAt.UTC().Format(time.RFC3339)
@@ -147,6 +150,10 @@ type dashKey struct {
 // 注册表声明提取；keys 页"获取密钥"列与桌面端「申请密钥」按钮共用）。
 func (s *Server) SetSignupURLs(m map[string]string) { s.signupURLs = m }
 
+// SetKeyring 注入密钥环（cmd/ofd 装配期调用）：dashboard 内联添加
+// 密钥端点用——与 `ofd key add` 同一加密存储路径。nil = 端点 503。
+func (s *Server) SetKeyring(kr *security.Keyring) { s.keyring = kr }
+
 // handleDashboardKeys 合并注入的 key 来源（cmd/ofd 装配期事实）与
 // connections 表（stored 记录的 label/updated_at；密文永不离开 store）。
 func (s *Server) handleDashboardKeys(w http.ResponseWriter, _ *http.Request) {
@@ -167,6 +174,61 @@ func (s *Server) handleDashboardKeys(w http.ResponseWriter, _ *http.Request) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Provider < out[j].Provider })
 	writeJSON(w, http.StatusOK, map[string]any{"keys": out})
+}
+
+// handleDashboardKeysSet 是密钥页/设置面的内联添加密钥端点（用户
+// 2026-09-30 需求：行内直接录入，免进设置逐个选）。**仅限 master
+// token**（写厂商密钥是高权限操作，scoped token 一律 403）；密钥
+// AES-256-GCM 加密入 connections 表，与 `ofd key add` 同一存储路径。
+// 密钥明文不落日志/不回显。provider 在路由面生效需重启网关
+// （buildRouter 启动期实例化），响应带 restart_required 提示。
+func (s *Server) handleDashboardKeysSet(w http.ResponseWriter, r *http.Request) {
+	// 双形态取 token（Bearer 头 / ?key=）后精确比对 master——dashboard
+	// 页面只能带 ?key=，Bearer-only 会把合法 master 拒成 403。
+	tok := tokenFromRequest(r)
+	if tok == "" || !tokenEqual(tok, s.gatewayToken) {
+		writeAPIError(w, http.StatusForbidden,
+			"storing provider keys requires the master gateway key", "permission_error", "insufficient_scope")
+		return
+	}
+	if s.st == nil || s.keyring == nil {
+		writeAPIError(w, http.StatusServiceUnavailable,
+			"key store not assembled in this gateway", "server_error", "")
+		return
+	}
+	var in struct {
+		Provider string `json:"provider"`
+		Key      string `json:"key"`
+		Label    string `json:"label"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid JSON body", "invalid_request_error", "")
+		return
+	}
+	if _, known := s.keySources[in.Provider]; !known {
+		writeAPIError(w, http.StatusBadRequest,
+			"unknown provider "+in.Provider, "invalid_request_error", "")
+		return
+	}
+	if strings.TrimSpace(in.Key) == "" {
+		writeAPIError(w, http.StatusBadRequest, "empty key; nothing stored", "invalid_request_error", "")
+		return
+	}
+	ct, err := s.keyring.Encrypt([]byte(in.Key))
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "encrypt key failed", "server_error", "")
+		return
+	}
+	if err := s.st.SetConnection(in.Provider, ct, in.Label); err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "store key failed", "server_error", "")
+		return
+	}
+	if s.log != nil { // 只记 provider 与动作，永不记密钥材料
+		s.log.Info("provider key stored via dashboard", "provider", in.Provider)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok": true, "provider": in.Provider, "source": "stored", "restart_required": true,
+	})
 }
 
 // mergeStoredKeys 用 connections 表覆盖 stored 记录（保留注入来源之外
