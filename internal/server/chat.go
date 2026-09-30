@@ -12,6 +12,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/core/schema"
 	"github.com/swsgbl/omnifusion/internal/provider"
 	"github.com/swsgbl/omnifusion/internal/routing"
+	"github.com/swsgbl/omnifusion/internal/security"
 )
 
 // maxChatRequestBody 限制入站请求体（多模态 base64 场景留足余量）。
@@ -130,19 +131,24 @@ func (s *Server) logRouteDecision(dec *routing.RouteDecision) {
 }
 
 // logDispatchFailure 把逐家尝试的失败原因写进日志（排障关键面），
-// 值前缀 归一化错误类别（kind: err）。
+// 值前缀 归一化错误类别（kind: err）。上游错误体可能回显密钥
+// （恶意/故障上游）——出日志前一律过密钥形态脱敏（蓝图 Phase 8：
+// secret 不得进入 logs）。
 func (s *Server) logDispatchFailure(req *schema.UnifiedRequest, attempts []routing.Attempt, err error) {
 	fields := make([]any, 0, len(attempts)*2+2)
 	fields = append(fields, "model", req.Model)
 	for _, a := range attempts {
-		fields = append(fields, a.Provider, a.Kind.Label(errString(a.Err)))
+		fields = append(fields, a.Provider, a.Kind.Label(security.RedactSecrets(errString(a.Err))))
 		if a.Err != nil { // 逐 attempt 上游失败指标（赢家之前的轮空）
 			s.metrics.RecordAttemptFailure(a.Provider, string(a.Kind))
 		}
 	}
-	s.log.Error("chat completion failed", append(fields, "err", err)...)
+	s.log.Error("chat completion failed", append(fields, "err", security.RedactSecrets(errString(err)))...)
 }
 
+// upstreamErrorMessage 是客户端可见的上游失败摘要。UpstreamError 走
+// 结构化摘要（不含体）；其余回退路径可能携带上游原文——脱敏后再出
+//（纵深防御：即使未来新增回退路径，密钥形态也出不去）。
 func upstreamErrorMessage(err error) string {
 	var de *routing.DispatchError
 	if errors.As(err, &de) && len(de.Attempts) > 0 {
@@ -156,9 +162,9 @@ func upstreamErrorMessage(err error) string {
 			}
 			return msg
 		}
-		return fmt.Sprintf("upstream %s failed: %v", last.Provider, last.Err)
+		return security.RedactSecrets(fmt.Sprintf("upstream %s failed: %v", last.Provider, last.Err))
 	}
-	return err.Error()
+	return security.RedactSecrets(err.Error())
 }
 
 func errString(err error) string {
