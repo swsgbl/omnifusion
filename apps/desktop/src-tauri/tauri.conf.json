@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "OmniFusion Desktop",
   "version": "0.1.29",
