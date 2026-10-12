@@ -79,7 +79,11 @@ type Entry struct {
 	VarsEnv map[string]string `yaml:"vars_env,omitempty"`
 	// OptionalKey marks providers that work without credentials
 	// (local Ollama).
-	OptionalKey  bool              `yaml:"optional_key,omitempty"`
+	OptionalKey bool `yaml:"optional_key,omitempty"`
+	// ModelsFilter "free" 只保留 /models 清单里 isFree:true 的条目：
+	// 免密网关（Kilo 公共网关）把免费池与付费 id 混在同一份清单里，
+	// keyless 只服务免费池，其余必然 401。
+	ModelsFilter string            `yaml:"models_filter,omitempty"`
 	ExtraHeaders map[string]string `yaml:"extra_headers,omitempty"`
 	ModelAliases map[string]string `yaml:"model_aliases,omitempty"`
 	RateLimits   RateLimitsDecl    `yaml:"rate_limits,omitempty"`
@@ -199,6 +203,7 @@ func Build(e Entry, creds Credentials) (provider.Provider, error) {
 			APIKey:       creds.Key,
 			ExtraHeaders: e.ExtraHeaders,
 			ModelAliases: e.ModelAliases,
+			FreeOnly:     e.ModelsFilter == "free",
 			Cap:          cap,
 		})
 	case KindAnthropic:

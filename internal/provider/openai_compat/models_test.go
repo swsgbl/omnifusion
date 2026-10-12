@@ -78,3 +78,39 @@ func TestListModelsEmptyData(t *testing.T) {
 		t.Fatal("empty catalog must be an error, not a silent wipe")
 	}
 }
+
+// TestListModelsFreeOnlyFilter 免密网关把免费池与付费 id 混在同一份
+// 清单：FreeOnly 只保留 isFree:true；未标记（nil）与 true 都保留，
+// 显式 false 排除——不误伤没有该字段的常规清单（filter 关闭时全收）。
+func TestListModelsFreeOnlyFilter(t *testing.T) {
+	listing := `{"data":[{"id":"kilo-auto/free","isFree":true},` +
+		`{"id":"paid/claude","isFree":false},{"id":"unmarked"}]}`
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, listing)
+	}))
+	defer up.Close()
+
+	freeOnly, err := New(Spec{ProviderName: "kilo", BaseURL: up.URL, FreeOnly: true})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	models, err := freeOnly.ListModels(context.Background())
+	if err != nil {
+		t.Fatalf("ListModels: %v", err)
+	}
+	if len(models) != 2 || models[0].ID != "kilo-auto/free" || models[1].ID != "unmarked" {
+		t.Fatalf("free-only models = %+v, want [kilo-auto/free unmarked]", models)
+	}
+
+	all, err := New(Spec{ProviderName: "x", BaseURL: up.URL, FreeOnly: false})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	models, err = all.ListModels(context.Background())
+	if err != nil {
+		t.Fatalf("ListModels: %v", err)
+	}
+	if len(models) != 3 {
+		t.Fatalf("unfiltered models = %+v, want all 3", models)
+	}
+}

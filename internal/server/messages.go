@@ -154,8 +154,20 @@ func (s *Server) handleMessagesStream(w http.ResponseWriter, r *http.Request,
 
 	winner := attemptWinner(attempts)
 	enc := translate.NewAnthropicStreamEncoder()
+	feeder := feedChunks(r.Context(), stream)
+	keepalive := time.NewTicker(sseKeepaliveInterval)
+	defer keepalive.Stop()
 	for {
-		chunk, err := stream.Next(r.Context())
+		var chunk *schema.Chunk
+		var err error
+		select {
+		case res := <-feeder.ch:
+			chunk, err = res.chunk, res.err
+		case <-keepalive.C:
+			// 官方 ping 事件：思考静默期保活，Anthropic 客户端按规范忽略。
+			writeAnthropicFrames(w, flusher, [][]byte{[]byte(anthropicPingFrame)})
+			continue
+		}
 		if err == io.EOF {
 			writeAnthropicFrames(w, flusher, enc.Finish())
 			audit.finish(http.StatusOK, winner, "")

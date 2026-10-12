@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/swsgbl/omnifusion/internal/core/schema"
 	"github.com/swsgbl/omnifusion/internal/provider"
@@ -106,12 +107,26 @@ func (t *streamTail) unfinished() []int {
 // （TTFT 验收面，见 ）。上游正常收尾补 [DONE]；中途断流
 // 则为未完成的 choice 合成 finish_reason=stop 收尾帧再补 [DONE]——
 // 客户端拿到优雅收尾而非悬挂连接（与 anthropic end_turn /
-// gemini STOP 的断流收尾口径一致）。
+// gemini STOP 的断流收尾口径一致）。等帧间隙周期性下发 SSE 注释
+// 心跳，防思考静默期的客户端空闲超时。
 func (s *Server) forwardSSE(w io.Writer, flusher http.Flusher, stream provider.ChunkStream,
 	r *http.Request, audit *streamAudit, winner string) {
 	tail := newStreamTail()
+	feeder := feedChunks(r.Context(), stream)
+	keepalive := time.NewTicker(sseKeepaliveInterval)
+	defer keepalive.Stop()
 	for {
-		chunk, err := stream.Next(r.Context())
+		var chunk *schema.Chunk
+		var err error
+		select {
+		case res := <-feeder.ch:
+			chunk, err = res.chunk, res.err
+		case <-keepalive.C:
+			if _, werr := io.WriteString(w, openaiKeepaliveFrame); werr == nil {
+				flusher.Flush()
+			}
+			continue
+		}
 		if err == io.EOF {
 			_, _ = w.Write([]byte("data: [DONE]\n\n"))
 			flusher.Flush()

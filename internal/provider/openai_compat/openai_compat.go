@@ -83,6 +83,11 @@ type Spec struct {
 	MaxTokens      MaxTokensPolicy
 	DefaultMaxToks int
 	Cap            provider.Capability
+	// FreeOnly drops listing entries that are not marked free
+	// (isFree:false) — 免密网关把免费池与付费 id 混在同一份 /models
+	// 清单里发布，keyless 只服务前者；不过滤会把 374 个必然 401 的
+	// 付费 id 灌进目录。
+	FreeOnly bool
 	// Timeout tunes this provider's dedicated HTTP client.
 	Timeout time.Duration
 }

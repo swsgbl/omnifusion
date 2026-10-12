@@ -50,6 +50,82 @@ func skipSpace(b []byte) []byte {
 	return b
 }
 
+// reasoningSpellings 是思考内容在野外的四种拼写，捕获优先级即序
+// （OpenRouter reasoning → DeepSeek reasoning_content → 其余）。
+var reasoningSpellings = []string{"reasoning", "reasoning_content", "reasoning_text", "thinking"}
+
+// messageWire 是 Message 的线上形态别名：不带自定义方法，避免
+// (Un)marshalJSON 无限递归；Reasoning 由外层手工拼入。
+type messageWire struct {
+	Role       string     `json:"role"`
+	Content    Content    `json:"content"`
+	Name       string     `json:"name,omitempty"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string     `json:"tool_call_id,omitempty"`
+	Refusal    string     `json:"refusal,omitempty"`
+}
+
+// MarshalJSON 按默认形态编码，并在有思考内容时以捕获到的拼写补写
+// 一个字段（拼接而非 map 重排，保持字段顺序稳定，流式热路径零重排）。
+func (m Message) MarshalJSON() ([]byte, error) {
+	base, err := json.Marshal(messageWire{
+		Role: m.Role, Content: m.Content, Name: m.Name,
+		ToolCalls: m.ToolCalls, ToolCallID: m.ToolCallID, Refusal: m.Refusal,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if m.Reasoning == "" {
+		return base, nil
+	}
+	key := m.ReasoningKey
+	if key == "" {
+		key = reasoningSpellings[0]
+	}
+	val, err := json.Marshal(m.Reasoning)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]byte, 0, len(base)+len(key)+len(val)+4)
+	out = append(out, base[:len(base)-1]...) // 去掉收尾 '}'
+	out = append(out, ',')
+	out = append(out, '"')
+	out = append(out, key...)
+	out = append(out, '"', ':')
+	out = append(out, val...)
+	out = append(out, '}')
+	return out, nil
+}
+
+// UnmarshalJSON 解码默认形态并捕获思考内容：四种拼写取第一个非空
+// （部分网关同帧双报同一文本，全读会双倍计数）。请求方向（assistant
+// 历史携带思考）与响应方向对称生效。
+func (m *Message) UnmarshalJSON(data []byte) error {
+	var w messageWire
+	if err := json.Unmarshal(data, &w); err != nil {
+		return err
+	}
+	m.Role, m.Content = w.Role, w.Content
+	m.Name, m.ToolCalls, m.ToolCallID, m.Refusal = w.Name, w.ToolCalls, w.ToolCallID, w.Refusal
+	var probe map[string]json.RawMessage
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return nil // 非对象形态（理论上不可达）：默认字段已就位
+	}
+	for _, key := range reasoningSpellings {
+		raw, ok := probe[key]
+		if !ok {
+			continue
+		}
+		var s string
+		if err := json.Unmarshal(raw, &s); err != nil || s == "" {
+			continue
+		}
+		m.Reasoning, m.ReasoningKey = s, key
+		break
+	}
+	return nil
+}
+
 // MarshalJSON 按类型展开 Part。
 func (p Part) MarshalJSON() ([]byte, error) {
 	if len(p.Raw) > 0 {

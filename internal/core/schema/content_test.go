@@ -76,6 +76,97 @@ func TestInputAudioAndFileParts(t *testing.T) {
 	}
 }
 
+// TestMessageReasoningSpellings 验证思考内容的四拼写捕获、同帧双报
+// 去重（第一个非空拼写胜出）与按上游拼写回写。
+func TestMessageReasoningSpellings(t *testing.T) {
+	cases := []struct {
+		name, raw, wantKey, wantText string
+	}{
+		{"openrouter", `{"role":"assistant","reasoning":"think"}`, "reasoning", "think"},
+		{"deepseek", `{"role":"assistant","reasoning_content":"深思"}`, "reasoning_content", "深思"},
+		{"relay-text", `{"role":"assistant","reasoning_text":"t3"}`, "reasoning_text", "t3"},
+		{"claude-chat", `{"role":"assistant","thinking":"t4"}`, "thinking", "t4"},
+		{"dup-first-wins", `{"reasoning_content":"dup","reasoning":"dup"}`, "reasoning", "dup"},
+		{"empty-skipped", `{"reasoning":"","reasoning_content":"real"}`, "reasoning_content", "real"},
+		{"none", `{"role":"user","content":"hi"}`, "", ""},
+	}
+	for _, tc := range cases {
+		var m Message
+		if err := json.Unmarshal([]byte(tc.raw), &m); err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if m.Reasoning != tc.wantText || m.ReasoningKey != tc.wantKey {
+			t.Errorf("%s: got (%q,%q), want (%q,%q)", tc.name,
+				m.Reasoning, m.ReasoningKey, tc.wantText, tc.wantKey)
+			continue
+		}
+		if tc.wantKey == "" {
+			continue
+		}
+		out, err := json.Marshal(m)
+		if err != nil {
+			t.Fatalf("%s marshal: %v", tc.name, err)
+		}
+		var probe map[string]json.RawMessage
+		if err := json.Unmarshal(out, &probe); err != nil {
+			t.Fatalf("%s reparse: %v", tc.name, err)
+		}
+		raw, ok := probe[tc.wantKey]
+		if !ok {
+			t.Errorf("%s: marshal dropped spelling %q: %s", tc.name, tc.wantKey, out)
+			continue
+		}
+		var s string
+		_ = json.Unmarshal(raw, &s)
+		if s != tc.wantText {
+			t.Errorf("%s: round trip text = %q, want %q", tc.name, s, tc.wantText)
+		}
+		for _, other := range reasoningSpellings {
+			if other != tc.wantKey {
+				if _, dup := probe[other]; dup {
+					t.Errorf("%s: marshal emitted both %q and %q", tc.name, tc.wantKey, other)
+				}
+			}
+		}
+	}
+	// 无思考内容时编码与默认形态逐字节一致（回归守卫）。
+	plain, err := json.Marshal(Message{Role: "assistant", Content: NewTextContent("ok")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(plain) != `{"role":"assistant","content":"ok"}` {
+		t.Errorf("plain marshal = %s", plain)
+	}
+}
+
+// TestChunkDeltaReasoningRoundTrip 流式 delta 是 Message：经网关解析再
+// 回写后，思考增量以原拼写继续可见。
+func TestChunkDeltaReasoningRoundTrip(t *testing.T) {
+	raw := `{"id":"c1","choices":[{"index":0,"delta":{"reasoning_content":"正在思考"},"finish_reason":null}]}`
+	var c Chunk
+	if err := json.Unmarshal([]byte(raw), &c); err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Choices) != 1 || c.Choices[0].Delta.Reasoning != "正在思考" {
+		t.Fatalf("delta reasoning not captured: %+v", c.Choices)
+	}
+	out, err := json.Marshal(&c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var probe struct {
+		Choices []struct {
+			Delta map[string]json.RawMessage `json:"delta"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal(out, &probe); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := probe.Choices[0].Delta["reasoning_content"]; !ok {
+		t.Errorf("delta reasoning_content not re-emitted: %s", out)
+	}
+}
+
 const sampleResponse = `{
   "id": "chatcmpl-123",
   "object": "chat.completion",

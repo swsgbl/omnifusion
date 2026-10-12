@@ -17,9 +17,10 @@ type ProviderConfig struct {
 	AuthStyle   string   `yaml:"auth_style,omitempty"`
 	KeyEnv      string   `yaml:"key_env,omitempty"`
 	SignupURL   string   `yaml:"signup_url,omitempty"`
-	URLVars     []string `yaml:"url_vars,omitempty"`
+	URLVars     []string          `yaml:"url_vars,omitempty"`
 	VarsEnv     map[string]string `yaml:"vars_env,omitempty"`
-	OptionalKey bool     `yaml:"optional_key,omitempty"`
+	OptionalKey bool              `yaml:"optional_key,omitempty"`
+	ModelsFilter string           `yaml:"models_filter,omitempty"`
 	ExtraHeaders map[string]string `yaml:"extra_headers,omitempty"`
 	ModelAliases map[string]string `yaml:"model_aliases,omitempty"`
 	RateLimits   RateLimitsConfig   `yaml:"rate_limits,omitempty"`

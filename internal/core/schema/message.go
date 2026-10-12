@@ -21,6 +21,13 @@ type Message struct {
 	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string     `json:"tool_call_id,omitempty"`
 	Refusal    string     `json:"refusal,omitempty"`
+
+	// Reasoning 是思考内容（流式 delta 与非流式 message 同构）。
+	// 各家拼写不同（reasoning / reasoning_content / reasoning_text /
+	// thinking），捕获时取第一个非空拼写（同帧双报去重），回写时沿用
+	// 上游拼写——网关两侧的客户端各自说着自己的方言。
+	Reasoning    string `json:"-"`
+	ReasoningKey string `json:"-"`
 }
 
 // Content 是消息正文：0 个或多个部分。空 Content 序列化为 JSON null

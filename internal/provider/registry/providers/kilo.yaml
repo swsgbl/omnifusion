@@ -5,16 +5,66 @@ providers:
     base_url: https://api.kilo.ai/api/gateway
     auth_style: bearer
     key_env: KILO_API_KEY
-    signup_url: https://kilocode.org
+    # 免密免费池：公共网关对 isFree:true 模型完全无鉴权（2026-10-13 实测
+    # 直连生成 cost=0）；付费 id 混在同一清单里，keyless 调用必然 401
+    # （PAID_MODEL_AUTH_REQUIRED），故 models_filter 只收免费池。
+    optional_key: true
+    models_filter: free
+    extra_headers:
+      user-agent: omnifusion-gateway
+    signup_url: https://kilo.ai
     capabilities:
       input: [text]
       output: [text]
       features: [tools]
-    free_tier: 15 个 :free 后缀模型免费（200 请求/小时，无卡）
+    # 隐私注意（上游模型卡声明）：免费池 prompt 可能被记录用于服务改进，
+    # 勿在此车道发送敏感内容；付费模型请申请 key 后另行配置。
+    free_tier: 免密免费池（isFree 模型实时拉取，无 key 可用；勿发敏感内容）
     models:
-      - id: nemotron-3-ultra:free
+      # 2026-10-13 GET /models 实测的 isFree 切片（kilo-auto/free 自动
+      # 路由免费池；清单实时同步为准，静态列表是同步失败的回落）。
+      - id: kilo-auto/free
         price_in: 0
         price_out: 0
-      - id: step-3.7-flash:free
+      - id: openrouter/free
+        price_in: 0
+        price_out: 0
+      - id: stepfun/step-5-preview-free
+        price_in: 0
+        price_out: 0
+      - id: inclusionai/ling-3.1-flash
+        price_in: 0
+        price_out: 0
+      - id: liquid/lfm-2.5-2.6b:free
+        price_in: 0
+        price_out: 0
+      - id: nvidia/nemotron-3.5-lightning:free
+        price_in: 0
+        price_out: 0
+      - id: nvidia/nemotron-3-super-120b-a12b:free
+        price_in: 0
+        price_out: 0
+      - id: nvidia/nemotron-3-ultra-550b-a55b:free
+        price_in: 0
+        price_out: 0
+      - id: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+        price_in: 0
+        price_out: 0
+      - id: cohere/north-mini-code:free
+        price_in: 0
+        price_out: 0
+      - id: poolside/laguna-s-2.1:free
+        price_in: 0
+        price_out: 0
+      - id: poolside/laguna-xs-2.1:free
+        price_in: 0
+        price_out: 0
+      - id: thinkingmachines/inkling-small:free
+        price_in: 0
+        price_out: 0
+      - id: dots-studio/dots-3-note-preview:free
+        price_in: 0
+        price_out: 0
+      - id: stealth/glyph-cluster
         price_in: 0
         price_out: 0

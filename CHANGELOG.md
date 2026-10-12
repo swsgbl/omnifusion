@@ -2,6 +2,146 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [v0.1.29] - 2026-10-13
+
+借鉴移植轮（研读 GitHub Trending #1 项目 dsh-our-free-model 后的四项移植）：开箱即用免密免费池、思考内容透传、流响应体形嗅探、下游流心跳。
+> EN: Borrowed-merits round (four ports after studying dsh-our-free-model, GitHub Trending #1): keyless free pool out of the box, reasoning passthrough, stream body-shape sniffing, downstream stream heartbeats.
+
+### 新增
+
+- **Kilo 免费池免密接入（开箱即用）**：Kilo 公共网关对 `isFree:true` 模型完全无鉴权（实测直连生成 cost=0）——注册表条目改为 `optional_key`，**装完网关、一个 key 都不填，就有 15+ 免费模型可直接调用**（kilo-auto/free 自动路由、nemotron-3 全家、ling-3.1-flash、step-5-preview 等）；新增 `models_filter: free` 声明（目录同步只收免费池，付费 id 零泄漏——不过滤会把 374 个必然 401 的付费模型灌进清单）；隐私注记入 YAML 与 UI（免费池 prompt 可能被上游记录，勿发敏感内容）；
+- **思考内容（reasoning）透传**：修复推理模型思考内容被网关静默丢弃的缺陷——`reasoning` / `reasoning_content` / `reasoning_text` / `thinking` 四种拼写全捕获（同帧双报去重，取第一个非空），**按上游拼写原样回写**（DeepSeek 客户端继续读 reasoning_content、OpenRouter 客户端继续读 reasoning）；流式 delta、非流式 message、请求侧 assistant 历史三面同构；真机验证 nemotron 推理模型的完整思考过程出现在响应里；
+- **流响应体形嗅探**：`stream:true` 请求收到整份 JSON 文档（网关负载下 Content-Type 撒谎、或不支持流式的上游）不再误判为断流——嗅探首字节，`{`/`[` 折叠为单帧 chunk 序列（message/usage 完整），`data:` 走 SSE；渐进式窥探不阻塞短首帧（固定窗口 Peek 会把首 chunk 缓冲卡到取消，实测已修）；
+- **下游流心跳**：思考型模型长推理期间上游静默数分钟，30~60s 空闲超时的客户端会掐断连接——网关现在每 20s 下发保活帧（OpenAI 线路 `: omnifusion-keepalive` SSE 注释、Anthropic `/v1/messages` 线路官方 `event: ping`），数据帧与终态语义不受影响。
+
+### 工程说明
+
+- 评估后不移植：dsh 的 Zen 匿名车道（`Bearer public`）需伪装 opencode 客户端 UA + 伪造工具四件套过反滥用门（诚实 UA 实测裸 400）——不绕别家产品的客户端身份门；13 家白嫖账号渠道/合购通道与 BYOK 定位冲突；应用内热升级已有 NSIS 覆盖；
+- 测试证据：reasoning 四拼写去重回写、FreeOnly 过滤（nil/true/false 三态）、JSON 折叠三例、两线路心跳集成（静默期保活帧+数据帧完整）、A2A 取消流回归——全 suite + vet 绿。
+
+
+## [v0.1.28] - 2026-10-01
+
+提供商管理体验轮（用户需求）：模型逐个启停 + 轮询页编辑现场保留。
+> EN: Provider-management UX round (user requests): per-model switches + edit-in-progress preservation on polling pages.
+
+### 新增
+
+- **模型逐个启停**：提供商页「模型数」可点击展开——每个模型一个勾选框，取消=路由不再使用，保存立即生效、重启保留（meta 表持久化；Router.Gate 实时过滤，全禁用回落未过滤的保守语义）；
+- **轮询页编辑现场保留**：5 秒自动刷新不再冲掉编辑中的现场（密钥页输入框/反馈、提供商页展开详情行同款 bug 家族）——重建前摘下 DOM、重建后原样插回；
+- **新端点** `GET/POST /dashboard/api/provider/models(|/set)`：目录快照+禁用标记读取；写入仅限 master token（tokenFromRequest + tokenEqual）。
+
+### 工程说明
+
+- CDP 真实浏览器全链路验证（135 模型展开→取消勾选→保存反馈→API 确认）；全 suite + vet 绿。
+
+
+## [v0.1.27] - 2026-09-30
+
+密钥页行内保存修复。
+> EN: Keys-page inline-save fix.
+
+### 修复
+
+- **行内「添加/更新密钥」点击无反应**：v0.1.26 引入的页面脚本作用域错误（点击即抛异常）修复；CDP 真实浏览器端到端验证：粘贴 → 保存 → 状态翻转「已添加」。
+
+
+## [v0.1.26] - 2026-10-01
+
+密钥管理体验轮（用户两点需求）：keys 页行内添加/更新密钥 + 设置-密钥下拉动态化（38 家自动跟上）。
+> EN: Key-management UX round (two user requests): inline add/update on the keys page + dynamic provider list in shell settings (38 providers, auto-follows the registry).
+
+### 新增
+
+- **keys 页行内密钥录入**：每行自带「粘贴框 + 添加密钥」按钮——待申请行=「去申请↗ + 添加」；已添加行=「更新」（同框回车提交）。保存后状态列立即翻转「✓ 已添加 — 重启网关后生效」，不再进设置逐个选厂商；
+- **设置-密钥下拉动态化**：修复硬编码 24 家旧清单（新 14 家在密钥菜单可见、在设置里看不到的缺陷）——现在从网关 keys API 拉取注册表正本（38 家），今后每周扫描新增厂商自动出现在设置里；网关未起时回落静态骨架；
+- **新控制面端点** `POST /dashboard/api/keys/set`：**仅限 master token**（scoped token 403——写厂商密钥是高权限操作）；AES-256-GCM 加密入 connections 表（与 `ofd key add` 同一路径）；密钥明文不落日志、不回显；未知 provider/空 key 400。
+
+### 工程说明
+
+- Rust 壳新增 `keys_meta` 代理命令（复用 check_updates 的 key 现取模式，绕 CORS）；契约测试覆盖 403/400/200+密文往返；全 suite + vet 绿。
+
+
+## [v0.1.25] - 2026-09-30
+
+免费供给侧大扩容：内置注册表 24→38 家（+14 家有真实免费层的新厂商，含用户点名核实的 agnes-ai）；每周全网扫描自动化上线。
+> EN: Free-tier supply expansion: built-in registry 24 -> 38 providers (+14 verified new free-tier vendors, including user-requested agnes-ai); weekly web scan automation added.
+
+### 新增
+
+- **14 家新厂商**（全部 OpenAI 兼容端点、带官方申请页、免费层有据可查——来源为每日核验的公开清单）：
+  - **Agnes AI**（用户点名）：agnes-2.0-flash 免费不限量、256K 上下文、30 RPM；
+  - **OpenCode Zen**：30+ 免费模型（-free 后缀），含 1M 上下文；
+  - **LLM7.io**：20+ 免费模型，**匿名可用**（optional_key，无 key 也能路由）；
+  - **Kilo Code**：15 个 :free 模型（200 请求/小时）；
+  - **GitHub Models（复活）**：旧端点 2026-07-30 退役后迁至 models.github.ai，16 个免费模型；
+  - **OVHcloud AI Endpoints**：14 个免费模型（欧洲节点）；
+  - **AionLabs / glhf.chat / AI21 / Nscale / Nebius / xAI Grok / Ollama Cloud / 阿里 Model Studio 国际版（qwen-intl）**；
+- **每周全网扫描自动化**：每周一自动对照最新公开清单（awesome-freellm-apis/freellm.net + 中英文检索），新免费厂商、新免费模型、深度优惠（促销折扣）厂商皆在扫描范围；「free」必须有证据才收录（蓝图红线不变）。
+
+### 工程说明
+
+- 自定义 provider 机制（config `providers:` 段）不变——内置长尾之外仍可自行聚合任意厂商；
+- 注册表契约测试与状态计数同步更新（38 家）；全 suite + vet 绿。
+
+
+## [v0.1.24] - 2026-09-30
+
+发布工程轮（审计 R4 完全收官）：产物无密钥签名 + 夜间质量门禁。
+> EN: Release-engineering round (audit R4 fully closed): keyless artifact signing + nightly quality gates.
+
+### 新增
+
+- **无密钥产物签名**（审计 R4 收官）：每个 Release 产物（六平台 zip / checksums / SBOM / 安装包之外的全部 goreleaser 产物）附带 Sigstore `.sig` 签名与 `.cert` 证书——签名身份来自 GitHub Actions 的 OIDC 令牌（本仓库 CI 身份），**零密钥材料需要保管**；验证方法见 README「校验发布产物 / Verifying artifacts」（cosign verify-blob，锚定仓库身份）；
+- **夜间质量门禁**（蓝图 Phase 10 长效化）：每夜（北京 03:30）全量测试 + 混沌套件（版本化报告）+ 吞吐基准，报告以 workflow artifact 归档 30 天——抓跨平台 flaky、混沌不变量漂移与性能回归；支持手动触发（workflow_dispatch）。
+
+### 工程说明
+
+- 签名在 goreleaser 发布管线内完成（发布前 fail-closed：签名失败则不出 Release）；
+- README 双语新增「校验发布产物」节；网络受限用户凭 checksums.txt 仍有完整性保障。
+
+
+## [v0.1.23] - 2026-09-30
+
+用户体验轮 + 发布工程：网关随应用自启（用户裁定"启动软件就是为了用它"）；Release 资产开始携带 SBOM（审计 R4）。
+> EN: UX round + release engineering: the gateway now auto-starts with the app ("launching the app means using it"); releases now ship SBOMs (audit R4).
+
+### 新增
+
+- **网关随应用自启**（用户需求）：应用启动完成首个状态刷新后，网关未运行即自动拉起——不再需要点击「启动网关」。语义精细设计：
+  - **只在启动时尝试一次**——之后用户手动停止的意愿不被翻案（引导卡与按钮仍是停机态的唯一真相）；
+  - **外部网关在场零冲突**——已运行的网关（含用户自行启动的 ofd）返回 already-running，不自作主张再拉一份；
+  - **失败兜底不变**——自启失败（如配置错误）仍由引导卡与状态栏呈现，用户可手动重试；
+- **Release SBOM**（审计 R4 / 蓝图发布工程）：goreleaser 对每个平台归档生成 SPDX 物料清单（`*.spdx.sbom`），本次发版起 Release 资产自动携带——供应链透明度缺口关闭（cosign 签名待密钥管理决策，是 R4 唯一尾巴）。
+
+### 工程说明
+
+- 桌面壳改动一处（init 一次性自启守卫），两个内联脚本块过 node --check；
+- 上一版（v0.1.22）起的二进制面无变化——本版主要是桌面壳体验与发布工程。
+
+
+## [v0.1.22] - 2026-09-30
+
+蓝图第四批施工交付（Phase 9 观测收官 + R1 修复，四个切片）：GenAI 语义关联、feed 过期保护、决策回放记录、更新通道修复。
+> EN: Fourth blueprint delivery batch (Phase 9 observability complete + R1 fix, four slices): GenAI semconv correlation, feed expiry policy, decision replay records, update-channel fix.
+
+### 新增
+
+- **GenAI 语义约定关联面**（`internal/obs/genai.go`，蓝图 Phase 9）：OTel GenAI semconv 命名的九字段（`gen_ai.request.id / operation.name / system / request.model / response.model / conversation.id / task.id / tool.name / tool_call.id`）+ 操作名常量；`/v1/chat`、A2A 非流式与流任务终态各出一行关联日志（耗时+结果）——**零遥测承诺不变**（本地结构化日志面，命名对齐只为可读性与未来 OTLP 兼容）；字段集构造性只有 ID/名称/枚举，载荷与 secret 永不进入；
+- **路由决策回放记录**（store v12 `route_decisions` 表，蓝图 Phase 9 replay record）：每次分发请求落一行——endpoint/请求 ID/胜出 provider/成功/尝试数/耗时 + **evidence=RouteDecision 全量 JSON**（完整候选集+逐候选结果+跳过原因码）；五协议端点（chat/messages/gemini/responses/a2a）统一接线，落库失败 warn 不阻断；**最小证据集纪律：用户载荷构造性不落 evidence**（e2e 断言）；
+- **catalog feed 过期策略**（蓝图 Phase 8 §九 expiry）：生成时刻超 90 天拒收（古董 feed 冒充新鲜目录的镜像劫持面）、30~90 天告警；拒收只回落内置目录不阻断网关；
+- **签名移植利用回归**：v3 签名嫁接 v4 字节（恶意镜像改版本转发旧签名）→ 拒收+基线不动。
+
+### 修复
+
+- **R1（自 v0.1.3 起更新通道从未通过）**：根因是 feed 签名对本地 CRLF 字节做、git 分发面归一化 LF——Ed25519 对字节验签永败。修复：`.gitattributes` 锁签名面文件 LF + feed 升 v4（`generated_at` 刷新）对 LF 字节重签；推送后对 raw.githubusercontent.com 实际字节端到端复验通过。**既有安装基线 3→4 自动接受，@quality 数据源恢复更新能力**。
+
+### 工程说明
+
+- 全部加法式变更；回放记录与关联面均 nil 安全（未装配零行为）；
+- 测试证据：obs 字段名契约、chat/A2A 关联行 e2e、route_decisions 往返+上限+五端点接线、feed 过期/移植/未知签名者/防回滚全表——全 suite + vet 无回归。
+
+
 ## [v0.1.21] - 2026-09-30
 
 升级蓝图第三批施工交付（Phase 5~8，七个垂直切片）：结构感知压缩、Fidelity 证据、MCP Tasks 与可路由标头、A2A 持久任务面、密钥脱敏。
@@ -28,6 +168,7 @@
 - 依赖纪律：TaskStore 持久化经 Persister 钩子 + cmd/ofd 适配器（store 叶子不 import agent）；
 - 测试证据：compression folding/gate/report 契约、agent 状态机/持久化重启存活、A2A 九测（含取消打断 e2e）、security 脱敏 + 三条利用回归——全 suite + vet 无回归。
 
+
 ## [v0.1.20] - 2026-09-30
 
 升级蓝图第二批施工交付（Phase 4 Cache 2.0，三个垂直切片）：缓存策略门、目录代际失效、缓存键证据头。
@@ -50,6 +191,7 @@
 - 全部加法式变更；策略门在 Lookup/WriteBack 入口短路，未装配（nil cache）路径零影响；
 - 跨协议缓存共享（Anthropic 首问 → OpenAI 同逻辑请求命中）经审计确认为 IR 层正确特性，保留并加测试锁死；
 - 测试证据：`internal/intelligence` 策略门全表用例 + `internal/server` hit/miss/cross-protocol 回归 + 目录代际变化→键变化用例，全 suite + vet 无回归。
+
 
 ## [v0.1.19] - 2026-09-25
 
@@ -78,6 +220,7 @@
 - 依赖纪律：quota 包保持叶子（store 实现 Persister 接口，quota 不 import store）；
 - 蓝图施工文档（2026-09-29 三文档）驱动；Phase 0 基线审计见 `docs-internal/audit/`（VERIFIED/INFERRED/UNKNOWN/RISK 四级分类）。
 
+
 ## [v0.1.18] - 2026-09-25
 
 回滚 v0.1.17 壳逻辑回归（看门狗/重建 additions 会卡死壳轮询），保留全部内核修复。**用户实测：点启动网关 → 管家页面正常渲染。**
@@ -89,6 +232,7 @@
 - **保留的内核侧修复**（全部经真机验证）：点击穿透样式自愈（纯 Win32 枚举，注入 1 秒剥掉）、WebView2 缓存仅在版本变化时清除（每次启动都删会在上一实例 WebView2 进程未退时损坏新会话的 ipc:// 协议——新装即死的真因）、子 webview 导航改 eval 自导航（宿主侧 Navigate 会毒化 IPC 分发）、显示子 webview 不再立即 MoveFocus；
 - 内嵌页加载心跳（cookie）保留作诊断数据。
 
+
 ## [v0.1.17] - 2026-09-25
 
 仪表页死界面修复：IPC 看门狗 + 移除显示即 MoveFocus。
@@ -98,6 +242,7 @@
 
 - **对话/提供商/密钥/用量/压缩/弹性页不显示（设置/关于正常）**：用户侧活体取证——网关在跑（托管）、壳每 3 秒都在探测（请求通路活着），但徽标冻结在"command not found"、内嵌页隐藏（**响应通路死亡**）。死亡发生在应用内启动网关成功之后（停→起转换）。两个针对性修复：显示子 webview 后**不再立即 MoveFocus**（长时间隐藏的 webview 被 WebView2 挂起时，立即 MoveFocus 是毒化整条 IPC 响应通路的头号嫌疑——焦点改由导航后的延时补焦承担）；停→起的强制重导航从 0.4s/1.6s 推迟到 1.2s/2.6s（避开 WebView2 恢复窗口）；
 - **IPC 看门狗（自愈保底）**：壳持续追踪状态轮询是否"结算"（成功或失败都算）；**12 秒内没有任何一轮结算（=响应通路被毒化的确切特征）就整页自愈重载**。无论通路被什么毒化，用户最多看到一次界面闪动，不再是死界面。
+
 
 ## [v0.1.16] - 2026-09-24
 
@@ -115,6 +260,7 @@
 
 同机全链路真机测试通过：点击启动网关 → 页面渲染 → 点击输入框 → **键入文字落入输入框**；穿透样式注入后 1 秒内自愈。
 
+
 ## [v0.1.15] - 2026-09-24
 
 升级不生效根因修复：WebView2 缓存旧壳页面；缩放卡死；停机态显示死页面。
@@ -129,6 +275,7 @@
 ### 工程
 
 - 状态轮询里 `gwRunning` 更新先于导航判定；托盘标签刷新随状态变化在主线程执行。
+
 
 ## [v0.1.14] - 2026-09-21
 
@@ -147,6 +294,7 @@
 ### 工程
 
 - 单实例唤起改用与托盘相同的 `reveal_main_window`（unminimize + 置顶一拍）。
+
 
 ## [v0.1.13] - 2026-09-21
 
@@ -171,6 +319,7 @@
 
 - providers 页修复一处残缺的 `</head></head>` 标记。
 
+
 ## [v0.1.12] - 2026-09-13
 
 修一处 v0.1.11 引入的可用性回归：网关没启动时，用户找不到「启动网关」。
@@ -191,6 +340,7 @@
 
 - 清理 CHANGELOG 中重复堆积的 `[Unreleased]` 段（其三行内容早已随 v0.1.8 发布，属于文档残留）。
 
+
 ## [v0.1.11] - 2026-09-12
 
 界面全面重构：浏览器式布局（左菜单 + 标签页）。
@@ -209,6 +359,7 @@
 
 - 侧边栏/标签条浮层与子 webview 的遮挡问题在重构中一并消除（壳内页签与 webview 互斥显示，状态轮询尊重该状态）。
 
+
 ## [v0.1.10] - 2026-09-11
 
 应用外壳成熟轮 + 管家智能化。
@@ -225,6 +376,7 @@
 
 - parseXmlToolCalls 函数体曾因编辑事故丢失（调用处在了、定义丢了）——每条消息报"not defined"，已修复并加三格式单测。
 
+
 ## [v0.1.9] - 2026-09-09
 
 更新提醒与国内双源轮：无遥测的"拉取式"更新检查。
@@ -240,6 +392,7 @@
 
 使用量观测全部走平台原生数据，零自建遥测：Release 下载计数（分版本资产）、仓库克隆/访客数（GitHub Traffic API）、feed 拉取侧服务端日志（活跃估计）。
 
+
 ## [v0.1.8] - 2026-09-09
 
 管家工程吸收轮：长任务、结构化提问、会话回滚。
@@ -254,6 +407,7 @@
 ### 修复
 
 - collect_output 的任务 id 曾被当作守门条件（工具不传 id 时 `kill=true` 被空 id 早退吞掉、进程杀不死）——单槽下 id 仅为回执，不再守门；E2E 补"杀完真的死了"断言。
+
 
 ## [v0.1.7] - 2026-09-06
 
@@ -286,6 +440,7 @@ AI 管家轮：对话页从"会聊"到"会动手"——发现、读改写、核�
 - 内嵌页两处加载级缺陷：motion.js 重复 script 标签移除；首帧 ReferenceError 根治（脚本入 head + 渲染函数降级守卫）；
 - 仓库新增 `scripts/js-syntax-check.mjs`：dashboard 内联 JS 部署前语法门禁（本轮真拦截过一次字符串裸换行）。
 
+
 ## [v0.1.6] - 2026-09-05
 
 免费供给收官轮：24 家内置、全网免费模型目录、一键申请密钥、全站动效。
@@ -305,6 +460,7 @@ AI 管家轮：对话页从"会聊"到"会动手"——发现、读改写、核�
 
 - CLI 错误串双语（v0.1.5 未发部分一并入册）。
 
+
 ## [v0.1.5] - 2026-09-01
 
 西方次优先补齐轮：内置 20 家、目录首批证据数据、CLI 错误双语。
@@ -317,6 +473,7 @@ AI 管家轮：对话页从"会聊"到"会动手"——发现、读改写、核�
 - **目录 feed v2（首批证据驱动数据）**：deepseek-v4-pro / v4-flash 经真实流量验证（3 次调用全成功，`ofd catalog report` 证据）从 probation 升 **stable**；SambaNova 7 个模型携免费定价与能力分入目录（14 提供商 60 模型）；
 - **CLI 错误串双语**：小白高频错误（未知子命令/端口被占/配置加载失败/密钥为空/--env 与 --stdin 冲突/connect 用法与未知客户端）改为「中文（English）」形态；HTTP API 错误维持英文契约不变；
 - **目录回放优先级**：拉取失败回放 store 时不再用低于内置种子版本的陈年副本覆盖随二进制分发的最新数据（实测暴露：v2 种子被旧 v1 store 覆盖）。
+
 
 ## [v0.1.4] - 2026-09-01
 
@@ -348,6 +505,7 @@ CLI 编码代理接入轮：网关不只服务 HTTP 客户端，一条命令把�
 - README 双语新增「设计参考」节：向五个设计参考项目（Bifrost / RouteLLM / OmniRoute / FreeLLMAPI / FreeRide）致谢并声明独立实现非 fork；MIT 义务已在 NOTICE 履行；
 - 新增真机验收矩阵脚本（45 项覆盖四协议/八策略/鉴权/缓存/CLI），供发版前全量回归。
 
+
 ## [v0.1.3] - 2026-08-30
 
 ### 新增
@@ -367,6 +525,7 @@ CLI 编码代理接入轮：网关不只服务 HTTP 客户端，一条命令把�
 
 > EN: 16 built-in providers (DeepSeek / Qwen Bailian / Xiaomi MiMo / Volcengine Ark added); official signed catalog feed v1 on by default — `@quality` auto-ranking works out of the box; root landing page; desktop fresh-install gateway fix; public-source hygiene sweep.
 
+
 ## [v0.1.2] - 2026-08-30
 
 ### 新增
@@ -375,6 +534,7 @@ CLI 编码代理接入轮：网关不只服务 HTTP 客户端，一条命令把�
 - **cheap 真成本路由**：注册表 / 签名 feed 登记每模型定价（USD / 1M tokens；显式 0 = 免费声明，省略 = 未登记），cheap 策略升级为三档真成本排序——登记免费 → 未登记 → 已定价按预计成本升序（输入单价×压缩后 token + 输出单价×名义输出长度），档内保持免费额度余量降序；无定价数据时整体退回 v1 余量语义。存量 9 家同步标注（免费层内 0 价、anthropic 公开单价、未核实费率省略）；feed 新增 `price_in/price_out` 字段（指针语义同注册表，负值/半配对拒收）。
 
 > EN: Three CN providers preinstalled (Zhipu / SiliconFlow / ModelScope — direct-connect free tiers, 9 → 12 built-ins); cheap strategy upgraded to true-cost ordering over declared per-model prices (registry YAML + signed feed `price_in`/`price_out`).
+
 
 ## [v0.1.1] - 2026-08-29
 
@@ -394,6 +554,7 @@ CLI 编码代理接入轮：网关不只服务 HTTP 客户端，一条命令把�
 ### 改进
 
 - 上游 403 错误消息附带区域封锁提示与对策（`HTTPS_PROXY` 或换 provider）——Groq 类地区封锁不再是一句裸状态码。
+
 
 ## [v0.1.0] - 2026-08-29
 

@@ -69,6 +69,7 @@ func (a *Adapter) ListModels(ctx context.Context) ([]provider.ModelInfo, error) 
 			ID            string `json:"id"`
 			ContextLength int64  `json:"context_length"`
 			ContextWindow int64  `json:"context_window"`
+			IsFree        *bool  `json:"isFree"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxModelsBody)).Decode(&payload); err != nil {
@@ -78,6 +79,10 @@ func (a *Adapter) ListModels(ctx context.Context) ([]provider.ModelInfo, error) 
 	out := make([]provider.ModelInfo, 0, len(payload.Data))
 	for _, m := range payload.Data {
 		if m.ID == "" {
+			continue
+		}
+		// isFree 未标记（nil）的清单不区分免费池，只有显式 false 才排除。
+		if a.spec.FreeOnly && m.IsFree != nil && !*m.IsFree {
 			continue
 		}
 		ctxLen := m.ContextLength
