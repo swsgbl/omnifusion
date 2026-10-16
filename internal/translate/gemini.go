@@ -57,9 +57,11 @@ type GeminiContent struct {
 }
 
 // GeminiPart 是内容片段：text、inlineData（内联多模态）或工具面
-// functionCall / functionResponse。
+// functionCall / functionResponse。Thought=true 标记思考 part
+// （Gemini 原生 thought 形态，网关把上游 reasoning 渲染进来）。
 type GeminiPart struct {
 	Text             string                  `json:"text,omitempty"`
+	Thought          bool                    `json:"-"`
 	InlineData       *GeminiInlineData       `json:"inlineData,omitempty"`
 	FunctionCall     *GeminiFunctionCall     `json:"functionCall,omitempty"`
 	FunctionResponse *GeminiFunctionResponse `json:"functionResponse,omitempty"`
@@ -70,6 +72,7 @@ type GeminiPart struct {
 func (p *GeminiPart) UnmarshalJSON(data []byte) error {
 	var head struct {
 		Text             string                  `json:"text"`
+		Thought          bool                    `json:"thought"`
 		InlineData       *GeminiInlineData       `json:"inlineData"`
 		SnakeData        *GeminiInlineData       `json:"inline_data"`
 		FunctionCall     *GeminiFunctionCall     `json:"functionCall"`
@@ -80,7 +83,8 @@ func (p *GeminiPart) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &head); err != nil {
 		return err
 	}
-	p.Text, p.InlineData = head.Text, head.InlineData
+	p.Text, p.Thought = head.Text, head.Thought
+	p.InlineData = head.InlineData
 	if p.InlineData == nil {
 		p.InlineData = head.SnakeData
 	}
@@ -98,9 +102,15 @@ func (p *GeminiPart) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON 按已建模字段展开。
+// MarshalJSON 按已建模字段展开（thought 只在有文本时随行）。
 func (p GeminiPart) MarshalJSON() ([]byte, error) {
 	if p.Text != "" {
+		if p.Thought {
+			return json.Marshal(struct {
+				Text    string `json:"text"`
+				Thought bool   `json:"thought"`
+			}{p.Text, true})
+		}
 		return json.Marshal(struct {
 			Text string `json:"text"`
 		}{p.Text})

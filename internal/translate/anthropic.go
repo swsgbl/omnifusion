@@ -81,10 +81,13 @@ type AnthropicResponse struct {
 	Usage        AnthropicUsage   `json:"usage"`
 }
 
-// AnthropicBlock 是响应内容块：text 或 tool_use。
+// AnthropicBlock 是响应内容块：text、thinking 或 tool_use。
 type AnthropicBlock struct {
 	Type string `json:"type"`
 	Text string `json:"text,omitempty"`
+	// thinking 专属：思考正文（网关中继的上游 reasoning，无签名——
+	// 签名是 Anthropic 官方 API 的往返凭证，中继场景只做展示映射）。
+	Thinking string `json:"thinking,omitempty"`
 	// tool_use 专属：input 是参数对象。
 	ID    string          `json:"id,omitempty"`
 	Name  string          `json:"name,omitempty"`
@@ -98,7 +101,8 @@ type AnthropicUsage struct {
 }
 
 // ToAnthropicMessages 把中枢聚合响应渲染为 Anthropic Messages 形态。
-// 文本 part 逐段映射为独立 text 块；finish_reason 映射见 mapStopReason。
+// 思考内容映射为前置 thinking 块；文本 part 逐段映射为独立 text 块；
+// finish_reason 映射见 mapStopReason。
 func ToAnthropicMessages(resp *schema.Response) *AnthropicResponse {
 	out := &AnthropicResponse{
 		ID:    anthropicID(resp.ID),
@@ -107,6 +111,9 @@ func ToAnthropicMessages(resp *schema.Response) *AnthropicResponse {
 		Model: resp.Model,
 	}
 	for _, ch := range resp.Choices {
+		if ch.Message.Reasoning != "" {
+			out.Content = append(out.Content, AnthropicBlock{Type: "thinking", Thinking: ch.Message.Reasoning})
+		}
 		for _, p := range ch.Message.Content.Parts {
 			if p.Type == schema.PartText {
 				out.Content = append(out.Content, AnthropicBlock{Type: "text", Text: p.Text})

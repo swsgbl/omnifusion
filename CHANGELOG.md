@@ -2,6 +2,24 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [v0.1.30] - 2026-10-13
+
+全面对比审计轮（dsh-our-free-model 对比收口 + v0.1.29 四项移植的接缝审计）：三协议思考渲染、免密厂商可视化、全端点流心跳、diff 形状感知压缩。
+> EN: Full-comparison audit round (dsh comparison closed + seam audit of the four v0.1.29 ports): three-protocol thinking rendering, keyless provider visibility, heartbeats on every streaming endpoint, shape-aware diff compaction.
+
+### 新增
+
+- **三协议思考渲染**：v0.1.29 把 reasoning 透传到 OpenAI 形态，但 Anthropic /v1/messages、Gemini、/v1/responses 三个入站协议的渲染器仍把思考丢弃——现在 Anthropic 客户端看到原生 `thinking` 块（非流前置块+流式 thinking_delta，块序惰性开闭：思考→文本→工具）、Gemini 客户端看到原生 `thought` part；Claude Code 直连本网关时推理模型的思考过程可见（真机 e2e：nemotron/kilo-auto/free 经 /v1/messages 返回 thinking 块+正文）；
+- **keys 页免密厂商可视化**：optional_key 厂商（kilo 免费池/llm7/本地 ollama）此前显示「待申请」——现在状态列显示「⚡ 免密可用」、不计入待申请汇总、不再给「去申请」链接（仍可补 key 解锁更多模型）；CDP 浏览器级验证：38 行渲染、kilo 行 ⚡ 免密可用、汇总正确；
+- **全端点流心跳**：v0.1.29 只覆盖 chat/messages 两路——/v1/responses、Gemini streamGenerateContent、A2A 流式三路补齐（同一 chunkFeeder 模式，静默期 20s SSE 注释帧）；
+- **diff 形状感知压缩**：toolfilter 阶段新增统一 diff 压缩（dsh 头牌过滤器移植）——保文件名+hunk 头+每 hunk 100 行窗口+每文件 +N -M 计数+显式截断标记（模型必须知道被折叠了多少行，否则当作看全了推理）；「替换永不放大」守卫（压缩件不比原文短时整体保留）。
+
+### 工程说明
+
+- 审计确认：压缩管线字段级变更保留 reasoning ✓；reasoning 已关闭后再到的思考增量丢弃（Anthropic 序约束）；
+- 测试证据：thinking 三渲染器双语料、diff 压缩保形/计数/不放大、既有流序断言更新（惰性块序）——全 suite + vet 绿。
+
+
 ## [v0.1.29] - 2026-10-13
 
 借鉴移植轮（研读 GitHub Trending #1 项目 dsh-our-free-model 后的四项移植）：开箱即用免密免费池、思考内容透传、流响应体形嗅探、下游流心跳。

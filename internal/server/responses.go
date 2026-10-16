@@ -145,8 +145,21 @@ func (s *Server) handleResponsesStream(w http.ResponseWriter, r *http.Request,
 
 	winner := attemptWinner(attempts)
 	enc := translate.NewResponsesStreamEncoder()
+	feeder := feedChunks(r.Context(), stream)
+	keepalive := time.NewTicker(sseKeepaliveInterval)
+	defer keepalive.Stop()
 	for {
-		chunk, err := stream.Next(r.Context())
+		var chunk *schema.Chunk
+		var err error
+		select {
+		case res := <-feeder.ch:
+			chunk, err = res.chunk, res.err
+		case <-keepalive.C:
+			if _, werr := io.WriteString(w, openaiKeepaliveFrame); werr == nil {
+				flusher.Flush()
+			}
+			continue
+		}
 		if err == io.EOF {
 			writeSSEFrames(w, flusher, enc.Finish())
 			audit.finish(http.StatusOK, winner, "")

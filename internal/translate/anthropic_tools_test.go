@@ -164,14 +164,15 @@ func TestAnthropicStreamEncoderToolCalls(t *testing.T) {
 		}
 	}
 	out := sb.String()
-	want := []string{"message_start", "content_block_start", "ping",
+	// 惰性开块：纯工具流没有 text 块，tool_use 占 index 0。
+	want := []string{"message_start", "ping",
 		"content_block_start", "content_block_delta",
-		"content_block_stop", "content_block_stop", "message_delta", "message_stop"}
+		"content_block_stop", "message_delta", "message_stop"}
 	if got := eventNames(out); strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("events = %v, want %v", got, want)
 	}
 	for _, s := range []string{
-		`"index":1`, `"type":"tool_use"`, `"id":"toolu_1"`, `"name":"get_weather"`,
+		`"index":0`, `"type":"tool_use"`, `"id":"toolu_1"`, `"name":"get_weather"`,
 		`"partial_json":"{\"city\":\"Paris\"}"`, `"stop_reason":"tool_use"`,
 	} {
 		if !strings.Contains(out, s) {

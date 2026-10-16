@@ -186,8 +186,21 @@ func (s *Server) handleGeminiStream(w http.ResponseWriter, r *http.Request,
 
 	winner := attemptWinner(attempts)
 	enc := translate.NewGeminiStreamEncoder()
+	feeder := feedChunks(r.Context(), stream)
+	keepalive := time.NewTicker(sseKeepaliveInterval)
+	defer keepalive.Stop()
 	for {
-		chunk, err := stream.Next(r.Context())
+		var chunk *schema.Chunk
+		var err error
+		select {
+		case res := <-feeder.ch:
+			chunk, err = res.chunk, res.err
+		case <-keepalive.C:
+			if _, werr := io.WriteString(w, openaiKeepaliveFrame); werr == nil {
+				flusher.Flush()
+			}
+			continue
+		}
 		if err == io.EOF {
 			writeGeminiFrames(w, flusher, enc.Finish())
 			audit.finish(http.StatusOK, winner, "")

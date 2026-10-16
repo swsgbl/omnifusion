@@ -46,6 +46,9 @@ func (e *GeminiStreamEncoder) Feed(c *schema.Chunk) [][]byte {
 		}
 		var cand GeminiCandidate
 		cand.Content.Role = "model"
+		if r := ch.Delta.Reasoning; r != "" {
+			cand.Content.Parts = append(cand.Content.Parts, GeminiPart{Text: r, Thought: true})
+		}
 		if text := ch.Delta.Content.TextOf(); text != "" {
 			cand.Content.Parts = append(cand.Content.Parts, GeminiPart{Text: text})
 		}

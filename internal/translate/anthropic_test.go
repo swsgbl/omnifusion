@@ -151,7 +151,7 @@ func TestAnthropicStreamEncoderSequence(t *testing.T) {
 	write(enc.Finish())
 	out := sb.String()
 
-	want := []string{"message_start", "content_block_start", "ping",
+	want := []string{"message_start", "ping", "content_block_start",
 		"content_block_delta", "content_block_delta",
 		"content_block_stop", "message_delta", "message_stop"}
 	if got := eventNames(out); strings.Join(got, ",") != strings.Join(want, ",") {

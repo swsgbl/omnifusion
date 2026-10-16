@@ -15,6 +15,11 @@ import (
 // AnthropicStreamEncoder 是有状态的流编码器（非并发安全）。
 // Feed 逐 chunk 调用，返回该步应写出的事件帧（可为空）；流终结时
 // 调 Finish 取收尾帧。帧形如 "event: <type>\ndata: <json>\n\n"。
+//
+// 块序惰性开闭：thinking 块只在首个 reasoning 增量时开启（先于
+// text/tool），text 块在首个文本增量时开启，工具块随调用开启——
+// Anthropic 的内容块序是思考→文本→工具，懒开保证中继上游的思考
+// 不被固定 text-first 序挤出。
 type AnthropicStreamEncoder struct {
 	started     bool
 	inputTokens int
@@ -23,7 +28,11 @@ type AnthropicStreamEncoder struct {
 	finish      string // 空=未见到 finish_reason
 	id          string // 首 chunk 的上游 id/model，落进 message_start
 	model       string
-	nextIndex   int         // 下一个块 index（text 占 0，工具块从 1 递增）
+	nextIdx     int // 下一个块 index（0 起按到达序分配）
+	thinkState  int // 0=未开 1=开着 2=已关
+	thinkIdx    int
+	textOpen    bool
+	textIdx     int
 	toolBlocks  map[int]int // 有 index 的流：IR tool_call index → 块 index
 	nilLast     int         // 无 index 流最近的工具块 index（-1=无）
 	openIdx     []int       // 已开工具块 index 序列（Finish 时关闭）
@@ -31,7 +40,25 @@ type AnthropicStreamEncoder struct {
 
 // NewAnthropicStreamEncoder 装配编码器。
 func NewAnthropicStreamEncoder() *AnthropicStreamEncoder {
-	return &AnthropicStreamEncoder{nextIndex: 1, nilLast: -1}
+	return &AnthropicStreamEncoder{nextIdx: 0, thinkIdx: -1, nilLast: -1}
+}
+
+// alloc 分配下一个内容块 index。
+func (e *AnthropicStreamEncoder) alloc() int {
+	idx := e.nextIdx
+	e.nextIdx++
+	return idx
+}
+
+// closeThinking 关闭开着的 thinking 块（思考先于正文，正文首到即收）。
+func (e *AnthropicStreamEncoder) closeThinking(frames [][]byte) [][]byte {
+	if e.thinkState != 1 {
+		return frames
+	}
+	e.thinkState = 2
+	return append(frames, e.frame("content_block_stop", map[string]any{
+		"type": "content_block_stop", "index": e.thinkIdx,
+	}))
 }
 
 // Feed 消费一个归一化 chunk，产出该批事件帧。
@@ -52,22 +79,45 @@ func (e *AnthropicStreamEncoder) Feed(c *schema.Chunk) [][]byte {
 					"usage": AnthropicUsage{InputTokens: e.inputTokens},
 				},
 			}),
-			e.frame("content_block_start", map[string]any{
-				"type": "content_block_start", "index": 0,
-				"content_block": AnthropicBlock{Type: "text"},
-			}),
 			e.frame("ping", map[string]any{"type": "ping"}),
 		)
 	}
 	for _, ch := range c.Choices {
+		if r := ch.Delta.Reasoning; r != "" {
+			if e.thinkState == 0 {
+				e.thinkState = 1
+				e.thinkIdx = e.alloc()
+				frames = append(frames, e.frame("content_block_start", map[string]any{
+					"type": "content_block_start", "index": e.thinkIdx,
+					"content_block": map[string]any{"type": "thinking", "thinking": ""},
+				}))
+			}
+			if e.thinkState == 1 { // 已关闭后再到的思考增量：丢弃（序已进正文）
+				e.outputChars += len([]rune(r))
+				frames = append(frames, e.frame("content_block_delta", map[string]any{
+					"type": "content_block_delta", "index": e.thinkIdx,
+					"delta": map[string]any{"type": "thinking_delta", "thinking": r},
+				}))
+			}
+		}
 		if text := ch.Delta.Content.TextOf(); text != "" {
+			frames = e.closeThinking(frames)
+			if !e.textOpen {
+				e.textOpen = true
+				e.textIdx = e.alloc()
+				frames = append(frames, e.frame("content_block_start", map[string]any{
+					"type": "content_block_start", "index": e.textIdx,
+					"content_block": AnthropicBlock{Type: "text"},
+				}))
+			}
 			e.outputChars += len([]rune(text))
 			frames = append(frames, e.frame("content_block_delta", map[string]any{
-				"type": "content_block_delta", "index": 0,
+				"type": "content_block_delta", "index": e.textIdx,
 				"delta": map[string]any{"type": "text_delta", "text": text},
 			}))
 		}
 		for _, tc := range ch.Delta.ToolCalls {
+			frames = e.closeThinking(frames)
 			frames = append(frames, e.toolFrames(tc)...)
 		}
 		if ch.FinishReason != "" {
@@ -90,8 +140,7 @@ func (e *AnthropicStreamEncoder) toolFrames(tc schema.ToolCall) [][]byte {
 	idx, seen := e.toolBlockIdx(tc)
 	var frames [][]byte
 	if !seen {
-		idx = e.nextIndex
-		e.nextIndex++
+		idx = e.alloc()
 		e.openIdx = append(e.openIdx, idx)
 		if tc.Index != nil {
 			if e.toolBlocks == nil {
@@ -130,22 +179,31 @@ func (e *AnthropicStreamEncoder) toolBlockIdx(tc schema.ToolCall) (int, bool) {
 	return 0, false
 }
 
-// Finish 产出收尾帧：block 停止、stop_reason/用量汇总、message_stop。
-// 未见过 finish_reason 按 end_turn 收尾（断流也走这里，不悬挂客户端）。
+// Finish 产出收尾帧：开着的块逐个停止、stop_reason/用量汇总、
+// message_stop。未见过 finish_reason 按 end_turn 收尾（断流也走这里，
+// 不悬挂客户端）。空流（一次 Feed 都没发生）保持旧形：开一个空
+// text 块再收尾，客户端拿到合法空消息。
 func (e *AnthropicStreamEncoder) Finish() [][]byte {
 	if !e.started {
 		e.started = true
 		e.id = "msg_ofd_empty"
-		return [][]byte{
+		e.textOpen = true
+		e.textIdx = e.alloc()
+		return append([][]byte{
 			e.frame("message_start", map[string]any{"type": "message_start", "message": map[string]any{
 				"id": e.id, "type": "message", "role": "assistant", "model": e.model,
 				"content": []any{}, "stop_reason": nil, "stop_sequence": nil,
 				"usage": AnthropicUsage{},
 			}}),
-			e.frame("content_block_start", map[string]any{"type": "content_block_start", "index": 0,
+			e.frame("content_block_start", map[string]any{"type": "content_block_start", "index": e.textIdx,
 				"content_block": AnthropicBlock{Type: "text"}}),
-		}
+		}, e.closeFrames()...)
 	}
+	return e.closeFrames()
+}
+
+// closeFrames 是所有已开块的统一收尾（text/thinking/tool + 汇总）。
+func (e *AnthropicStreamEncoder) closeFrames() [][]byte {
 	stop := e.finish
 	if stop == "" {
 		stop = "end_turn"
@@ -154,8 +212,16 @@ func (e *AnthropicStreamEncoder) Finish() [][]byte {
 	if tokens == 0 {
 		tokens = e.outputChars // 无 usage 的上游按字符估算
 	}
-	frames := [][]byte{
-		e.frame("content_block_stop", map[string]any{"type": "content_block_stop", "index": 0}),
+	var frames [][]byte
+	if e.thinkState == 1 {
+		frames = append(frames, e.frame("content_block_stop", map[string]any{
+			"type": "content_block_stop", "index": e.thinkIdx,
+		}))
+		e.thinkState = 2
+	}
+	if e.textOpen {
+		frames = append(frames, e.frame(
+			"content_block_stop", map[string]any{"type": "content_block_stop", "index": e.textIdx}))
 	}
 	for _, idx := range e.openIdx {
 		frames = append(frames, e.frame(

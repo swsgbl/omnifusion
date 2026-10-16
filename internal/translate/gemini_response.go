@@ -29,13 +29,19 @@ type GeminiUsage struct {
 }
 
 // ToGeminiGenerateContent 把 IR 聚合响应渲染为 Gemini wire 形。
-// 文本 part 拼进 model 角色的 parts；finish_reason 映射见
-// MapFinishToGemini；usage 改名 prompt/candidatesTokenCount。
+// 思考内容渲染为前置 thought part（Gemini 原生形态）；文本 part 拼进
+// model 角色的 parts；finish_reason 映射见 MapFinishToGemini；
+// usage 改名 prompt/candidatesTokenCount。
 func ToGeminiGenerateContent(resp *schema.Response) *GeminiResponse {
 	out := &GeminiResponse{ResponseID: resp.ID, ModelVersion: resp.Model}
 	var cand GeminiCandidate
 	cand.Content.Role = "model"
 	for _, ch := range resp.Choices {
+		if ch.Message.Reasoning != "" {
+			cand.Content.Parts = append(cand.Content.Parts, GeminiPart{
+				Text: ch.Message.Reasoning, Thought: true,
+			})
+		}
 		for _, p := range ch.Message.Content.Parts {
 			if p.Type == schema.PartText {
 				cand.Content.Parts = append(cand.Content.Parts, GeminiPart{Text: p.Text})

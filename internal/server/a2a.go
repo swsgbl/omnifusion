@@ -438,8 +438,22 @@ func (s *Server) a2aStream(w http.ResponseWriter, r *http.Request, req *a2a.Requ
 		}, time.Since(start), streamDone)
 	}()
 	var full strings.Builder
+	feeder := feedChunks(streamCtx, stream)
+	keepalive := time.NewTicker(sseKeepaliveInterval)
+	defer keepalive.Stop()
 	for {
-		chunk, err := stream.Next(streamCtx)
+		var chunk *schema.Chunk
+		var err error
+		select {
+		case res := <-feeder.ch:
+			chunk, err = res.chunk, res.err
+		case <-keepalive.C:
+			// SSE 注释帧：A2A 客户端按 SSE 规范忽略，仅维持连接活性。
+			if _, werr := io.WriteString(w, openaiKeepaliveFrame); werr == nil {
+				flusher.Flush()
+			}
+			continue
+		}
 		if err == io.EOF {
 			break
 		}

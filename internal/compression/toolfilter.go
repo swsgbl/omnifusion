@@ -119,7 +119,9 @@ func (s *ToolFilterStage) Apply(msgs []schema.Message) ([]schema.Message, Compre
 			continue
 		}
 		folded := s.fold(text, commands[m.ToolCallID])
-		if folded == text {
+		// 压缩件永不比原文长（安全规则：替换不放大）——小 diff 加前缀
+		// 可能微涨，此时原样保留。
+		if len(folded) >= len(text) {
 			continue
 		}
 		filtered++
@@ -156,11 +158,111 @@ func (s *ToolFilterStage) record(filtered, before, saved int) {
 
 // fold 对一段工具输出文本应用命令感知的折叠策略。
 func (s *ToolFilterStage) fold(text, command string) string {
+	// 统一 diff 形状感知压缩（git diff/show 等）：保文件名+hunk 头+
+	// 有界 hunk 窗口+每文件增删计数——比头尾截断保形得多（dsh 项目
+	// 实测 40KB diff 压 90% 后模型仍能正确作答）。
+	if strings.HasPrefix(text, "diff --git ") {
+		return compactGitDiff(text)
+	}
 	if isListCommand(command) { // 列表类：同质罗列，保头即可。
 		return collapseRepeatedLines(truncateLines(text, s.limit(), 0))
 	}
 	// 日志类与未知命令：头尾信息密集 + 重复折叠。
 	return collapseRepeatedLines(truncateLines(text, s.config.HeadLines, s.config.TailLines))
+}
+
+// gitDiffHunkMaxLines 是每个 hunk 保留的最大增删行数（窗口外折叠为
+// 计数——模型必须知道被折叠了多少行，否则会当作看全了推理）。
+const gitDiffHunkMaxLines = 100
+
+// gitDiffMaxLines 是整个压缩输出的行数上限。
+const gitDiffMaxLines = 500
+
+// compactGitDiff 压缩统一 diff：逐文件保留文件名、@@ hunk 头、每个
+// hunk 前若干增删行与上下文，其余折叠为 "... (N lines truncated)"；
+// 文件收尾带 "+N -M" 汇总；截断过则显式标记（模型知道这是压缩件）。
+func compactGitDiff(diff string) string {
+	var out []string
+	currentFile := ""
+	added, removed := 0, 0
+	inHunk := false
+	hunkShown, hunkSkipped := 0, 0
+	wasTruncated := false
+
+	flushSkipped := func() {
+		if hunkSkipped > 0 {
+			out = append(out, "  ... ("+itoa(hunkSkipped)+" lines truncated)")
+			wasTruncated = true
+			hunkSkipped = 0
+		}
+	}
+	flushFile := func() {
+		if currentFile != "" && (added > 0 || removed > 0) {
+			out = append(out, "  +"+itoa(added)+" -"+itoa(removed))
+		}
+	}
+
+	for _, line := range strings.Split(diff, "\n") {
+		switch {
+		case strings.HasPrefix(line, "diff --git"):
+			flushSkipped()
+			flushFile()
+			// "diff --git a/x b/y"：取首个 " b/" 之后的全部（路径本身
+			// 可能再含 " b/"，首切+保留余下即正确路径）。
+			if i := strings.Index(line, " b/"); i >= 0 {
+				currentFile = line[i+3:]
+			} else {
+				currentFile = "unknown"
+			}
+			out = append(out, "\n"+currentFile)
+			added, removed, inHunk, hunkShown = 0, 0, false, 0
+		case strings.HasPrefix(line, "@@"):
+			flushSkipped()
+			inHunk, hunkShown = true, 0
+			out = append(out, "  "+line)
+		case inHunk:
+			isAdd := strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "+++")
+			isDel := strings.HasPrefix(line, "-") && !strings.HasPrefix(line, "---")
+			switch {
+			case isAdd:
+				added++
+			case isDel:
+				removed++
+			case strings.HasPrefix(line, "\\"):
+				// "\ No newline at end of file" 不占窗口。
+			default:
+				// 上下文行只在已有窗口内容时保留（紧挨变更才有意义）。
+				if hunkShown == 0 {
+					continue
+				}
+			}
+			if isAdd || isDel {
+				if hunkShown < gitDiffHunkMaxLines {
+					out = append(out, "  "+line)
+					hunkShown++
+				} else {
+					hunkSkipped++
+				}
+			} else if hunkShown < gitDiffHunkMaxLines {
+				out = append(out, "  "+line)
+				hunkShown++
+			} else {
+				hunkSkipped++
+			}
+		}
+		if len(out) >= gitDiffMaxLines {
+			out = append(out, "\n... (more changes truncated)")
+			wasTruncated = true
+			goto done
+		}
+	}
+done:
+	flushSkipped()
+	flushFile()
+	if wasTruncated {
+		out = append(out, "[diff compacted by omnifusion]")
+	}
+	return strings.Join(out, "\n")
 }
 
 // limit 是列表类截断保留行数。
