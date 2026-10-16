@@ -2,7 +2,7 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
-## [v0.1.30] - 2026-10-13
+## [v0.1.30] - 2026-10-16
 
 全面对比审计轮（dsh-our-free-model 对比收口 + v0.1.29 四项移植的接缝审计）：三协议思考渲染、免密厂商可视化、全端点流心跳、diff 形状感知压缩。
 > EN: Full-comparison audit round (dsh comparison closed + seam audit of the four v0.1.29 ports): three-protocol thinking rendering, keyless provider visibility, heartbeats on every streaming endpoint, shape-aware diff compaction.
