@@ -139,6 +139,26 @@ func TestProviderProbeAPI(t *testing.T) {
 		t.Errorf("busy = %s, want throttled", verdicts["busy"])
 	}
 
+	// GET 读缓存：同一批结论可恢复（页面刷新徽标恢复路径）。
+	req, _ = http.NewRequest(http.MethodGet, ts.URL+"/dashboard/api/provider/probe?provider=mockprobe&key="+testGatewayToken, nil)
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("cached GET status = %d", resp.StatusCode)
+	}
+	var cached struct {
+		Results []probeResult `json:"results"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&cached); err != nil {
+		t.Fatal(err)
+	}
+	if len(cached.Results) != 3 {
+		t.Fatalf("cached results = %d, want 3", len(cached.Results))
+	}
+
 	// 未知 provider 400。
 	req, _ = http.NewRequest(http.MethodPost, ts.URL+"/dashboard/api/provider/probe?provider=nope&key="+testGatewayToken, nil)
 	resp, err = http.DefaultClient.Do(req)

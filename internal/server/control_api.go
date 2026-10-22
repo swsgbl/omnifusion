@@ -45,7 +45,12 @@ func (s *Server) handleDashboardAPI(w http.ResponseWriter, r *http.Request) {
 		// 改模型启停是用户偏好写操作：master-only（同 keys/set）。
 		s.scopeGuard(w, r, ScopeHealth, http.MethodPost, s.handleProviderModelsSet)
 	case "provider/probe":
-		// 模型探测发真实请求（花极小额度）：master-only（同 keys/set）。
+		// GET=读最近一轮缓存结论（ScopeHealth 读）；POST=发真实请求
+		// 探测（花极小额度）：master-only（同 keys/set）。
+		if r.Method == http.MethodGet {
+			s.scopeGuard(w, r, ScopeHealth, http.MethodGet, s.handleProviderProbeCached)
+			return
+		}
 		s.scopeGuard(w, r, ScopeHealth, http.MethodPost, s.handleProviderProbe)
 	case "health":
 		s.scopeGuard(w, r, ScopeHealth, http.MethodGet, s.handleDashboardHealth)

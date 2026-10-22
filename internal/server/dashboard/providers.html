@@ -190,6 +190,17 @@ async function toggleExpand(name, cellTd) {
     if (expandedProvider !== name) return; // 轮询间隙用户已切换
     lastModels = body.models || [];
     renderDetailRow(null, lastModels);
+    // 恢复最近一轮探测结论（网关内存缓存；无记录静默跳过）。
+    try {
+      const pr = await fetch('api/provider/probe?provider=' + encodeURIComponent(name) + (key ? '&key=' + encodeURIComponent(key) : ''));
+      const pb = await pr.json();
+      if (expandedProvider === name && pr.ok && pb.results && pb.results.length) {
+        const pv = {};
+        pb.results.forEach(r => { pv[r.model] = r; });
+        probeStates[name] = pv;
+        renderDetailRow(null, lastModels); // 带徽标重绘
+      }
+    } catch (e2) { /* 缓存恢复失败不打扰 */ }
   } catch (e) {
     renderDetailRow(null, [], String(e));
   }

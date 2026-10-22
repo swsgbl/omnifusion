@@ -363,6 +363,23 @@ func (s *Server) handleProviderProbe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"provider": p, "results": results})
 }
 
+// handleProviderProbeCached 返回该 provider 最近一轮探测结论（页面
+// 刷新/重展开时恢复徽标；无记录回空表）。
+func (s *Server) handleProviderProbeCached(w http.ResponseWriter, r *http.Request) {
+	p := strings.TrimSpace(r.URL.Query().Get("provider"))
+	if p == "" {
+		writeAPIError(w, http.StatusBadRequest, "provider query required", "invalid_request_error", "")
+		return
+	}
+	cached := probeResults.get(p)
+	out := make([]probeResult, 0, len(cached))
+	for _, res := range cached {
+		out = append(out, res)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Model < out[j].Model })
+	writeJSON(w, http.StatusOK, map[string]any{"provider": p, "results": out})
+}
+
 // mergeStoredKeys 用 connections 表覆盖 stored 记录（保留注入来源之外
 // 的 label 与 updated_at）。
 func mergeStoredKeys(keys map[string]dashKey, conns []store.Connection) {
