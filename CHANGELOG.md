@@ -2,6 +2,22 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [v0.1.32] - 2026-10-22
+
+dsh 借鉴收官轮：模型可用性探测（providers 页"哪个模型现在真的能用"）+ @premium 提示补齐。
+> EN: dsh-borrowing finale: model availability probing on the providers page + @premium hints surfaced.
+
+### 新增
+
+- **模型可用性探测**：providers 页展开行的「探测可用性」按钮——每模型发一条极小真实请求（max_tokens 16 的 "ping"，约 20 tokens），按保守纪律判五态：**只有"网关明确点名该模型不可路由"（404/400/422 + unavailable/not supported/no such model 等措辞）才判 ✗ 不可用**；429=⚠ 限流；5xx/401/403/超时/传输=? 不定罪（反代的 "Service Unavailable" 不是模型判词）；✓=真实可用（含延迟）。并发 3、单探测 20s、整轮 90s 预算、单轮帽 40 模型；结论时点性内存态（重启即弃）；**master-only**（探测花真实额度）。真机验证：kilo 免费池 17 模型 → 15✓/1✗/1⚠（免费池确实有死模型——这正是本功能要暴露的事实）；
+- **@premium 提示补齐**：管家万能配方（中英）与 get_access_info 的模型别名清单加入 @premium（付费优先、免费兜底）。
+
+### 工程说明
+
+- CDP 浏览器级全链路验证（展开→点击探测→徽标渲染→汇总条）；verdict 分类 9 例单测 + 端点 e2e（scoped 403/未知家 400/三态结论）；
+- 至此 dsh 借鉴清单全部处置完毕（四移植 + 探测 + 三裁定不移植）。
+
+
 ## [v0.1.31] - 2026-10-22
 
 magpie 借鉴融合轮（yetone/magpie 研究后按用户需求落地"付费选项/付费优先"）：付费优先策略 + 每日预算护栏 + 成本核算。

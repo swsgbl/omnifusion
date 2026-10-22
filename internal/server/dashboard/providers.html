@@ -30,6 +30,11 @@
   #err { color: #f85149; white-space: pre-wrap; }
   /* 模型展开面（模型数列可点 → 勾选启停） */
   tr.pdetail > td { background: rgba(22,27,34,.6); padding: 12px 18px; }
+  .pstat { display: inline-block; min-width: 14px; text-align: center; font-weight: 700; border-radius: 4px; padding: 0 4px; }
+  .pstat.st-available { color: #3fb950; }
+  .pstat.st-unavailable { color: #f85149; background: rgba(248,81,73,.12); }
+  .pstat.st-throttled { color: #d29922; }
+  .pstat.st-unknown { color: #8b949e; }
   a.mlink { color: #58a6ff; text-decoration: none; border-bottom: 1px dotted #58a6ff; }
   .pmodels { display: flex; flex-wrap: wrap; gap: 6px 14px; max-height: 240px; overflow-y: auto; }
   .pm { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px; }
@@ -95,6 +100,10 @@ const I18N = {
     pmodels_save: 'Save switches',
     pmodels_saved: '✓ saved — takes effect immediately',
     pmodels_hint: 'unchecked = excluded from routing (instant, survives restart)',
+    probe_btn: 'Probe availability',
+    probe_running: 'Probing… (tiny real request per model, up to 90s)',
+    probe_hint: 'probe = one tiny real request per model (~20 tokens): ✓ usable / ✗ gateway refuses / ⚠ rate-limited / ? no verdict',
+    probe_st_available: '✓', probe_st_unavailable: '✗', probe_st_throttled: '⚠', probe_st_unknown: '?',
   },
   zh: {
     page_title: 'OmniFusion · 提供商',
@@ -117,6 +126,10 @@ const I18N = {
     pmodels_save: '保存开关',
     pmodels_saved: '✓ 已保存 — 立即生效',
     pmodels_hint: '取消勾选 = 路由不再使用该模型（立即生效，重启保留）',
+    probe_btn: '探测可用性',
+    probe_running: '探测中…（每模型一条极小真实请求，最长 90 秒）',
+    probe_hint: '探测 = 每模型发一条极小真实请求（约 20 tokens）：✓ 可用 / ✗ 网关拒收 / ⚠ 限流 / ? 无定论',
+    probe_st_available: '✓', probe_st_unavailable: '✗', probe_st_throttled: '⚠', probe_st_unknown: '?',
   },
 };
 const t = (k) => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
@@ -160,6 +173,8 @@ function entCell(e) {
 // （有未保存勾选）的行冻结不重渲染。
 let expandedProvider = null;   // 当前展开的 provider id
 const dirtyProviders = new Set(); // 有未保存修改的 provider（轮询冻结）
+const probeStates = {};          // provider → {model: {state, latency_ms}}（最近一轮探测）
+let lastModels = [];             // 最近一次展开拉取的模型清单（探测后重绘用）
 
 async function toggleExpand(name, cellTd) {
   if (expandedProvider === name) {
@@ -173,7 +188,8 @@ async function toggleExpand(name, cellTd) {
     const resp = await fetch('api/provider/models?provider=' + encodeURIComponent(name) + (key ? '&key=' + encodeURIComponent(key) : ''));
     const body = await resp.json();
     if (expandedProvider !== name) return; // 轮询间隙用户已切换
-    renderDetailRow(null, body.models || []);
+    lastModels = body.models || [];
+    renderDetailRow(null, lastModels);
   } catch (e) {
     renderDetailRow(null, [], String(e));
   }
@@ -199,20 +215,60 @@ function renderDetailRow(state, models, errMsg) {
     if (!models.length) {
       td.innerHTML = '<span class="pload">' + t('pmodels_empty') + '</span>';
     } else {
-      const items = models.map(m =>
-        `<label class="pm ${m.disabled ? 'off' : ''}">` +
+      const pv = probeStates[expandedProvider] || {};
+      const items = models.map(m => {
+        const badge = pv[m.id]
+          ? `<span class="pstat st-${esc(pv[m.id].state)}" title="${esc(pv[m.id].state)}${pv[m.id].latency_ms ? ' · ' + Math.round(pv[m.id].latency_ms) + 'ms' : ''}">${t('probe_st_' + pv[m.id].state)}</span>`
+          : '';
+        return `<label class="pm ${m.disabled ? 'off' : ''}">` +
         `<input type="checkbox" data-m="${esc(m.id)}" ${m.disabled ? '' : 'checked'}>` +
         `<span class="pmid">${esc(m.id)}</span>` +
         (m.ctx_len ? `<span class="pmctx">${m.ctx_len >= 1000000 ? (m.ctx_len / 1000000).toFixed(1) + 'M' : Math.round(m.ctx_len / 1000) + 'K'}</span>` : '') +
-        `</label>`).join('');
+        badge +
+        `</label>`;
+      }).join('');
       td.innerHTML = '<div class="pmodels">' + items + '</div>' +
         `<div class="pact"><button type="button" id="pmSave">${t('pmodels_save')}</button>` +
+        `<button type="button" id="pmProbe">${t('probe_btn')}</button>` +
         `<span class="pmsg" id="pmMsg"></span>` +
-        `<span class="phint">${t('pmodels_hint')}</span></div>`;
+        `<span class="phint">${t('pmodels_hint')} · ${t('probe_hint')}</span></div>`;
     }
   }
   tr.appendChild(td);
   mainRow.after(tr);
+  const probe = document.getElementById('pmProbe');
+  if (probe) {
+    probe.onclick = async () => {
+      probe.disabled = true;
+      dirtyProviders.add(expandedProvider); // 探测期间冻结轮询重渲染
+      const msg = document.getElementById('pmMsg');
+      if (msg) msg.textContent = t('probe_running');
+      try {
+        const resp = await fetch('api/provider/probe?provider=' + encodeURIComponent(expandedProvider) + (key ? '&key=' + encodeURIComponent(key) : ''), { method: 'POST' });
+        const body = await resp.json().catch(() => ({}));
+        if (resp.ok && body.results) {
+          const pv = {};
+          (body.results || []).forEach(r => { pv[r.model] = r; });
+          probeStates[expandedProvider] = pv;
+          renderDetailRow(null, lastModels, null); // 原地重绘带徽标
+          const m2 = document.getElementById('pmMsg');
+          if (m2) {
+            const cnt = { available: 0, unavailable: 0, throttled: 0, unknown: 0 };
+            (body.results || []).forEach(r => { if (cnt[r.state] !== undefined) cnt[r.state]++; });
+            m2.textContent = '✓ ' + t('probe_st_available') + cnt.available + '  ' + t('probe_st_unavailable') + cnt.unavailable + '  ' + t('probe_st_throttled') + cnt.throttled + '  ' + t('probe_st_unknown') + cnt.unknown;
+          }
+        } else if (msg) {
+          msg.textContent = (body.error && body.error.message) || ('HTTP ' + resp.status);
+          probe.disabled = false;
+          return;
+        }
+      } catch (e) {
+        if (msg) msg.textContent = String(e);
+      }
+      const pb = document.getElementById('pmProbe');
+      if (pb) pb.disabled = false;
+    };
+  }
   const save = document.getElementById('pmSave');
   if (save) {
     save.onclick = async () => {

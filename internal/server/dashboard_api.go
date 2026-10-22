@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/swsgbl/omnifusion/internal/provider"
 	"github.com/swsgbl/omnifusion/internal/security"
 	"github.com/swsgbl/omnifusion/internal/store"
 )
@@ -309,6 +310,57 @@ func (s *Server) handleProviderModelsSet(w http.ResponseWriter, r *http.Request)
 		s.log.Info("provider model switches updated", "provider", p, "disabled", len(in.Disabled))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "provider": p, "disabled": len(in.Disabled)})
+}
+
+// handleProviderProbe 是模型可用性探测端点（master-only，真实请求花
+// 极小额度）：?provider=NAME 取目录在册模型（帽 40）有界并发探测，
+// 返回五态结论并缓存最近一轮。结论是时点性的（不落库）。
+func (s *Server) handleProviderProbe(w http.ResponseWriter, r *http.Request) {
+	tok := tokenFromRequest(r)
+	if tok == "" || !tokenEqual(tok, s.gatewayToken) {
+		writeAPIError(w, http.StatusForbidden,
+			"probing models spends real (tiny) quota and requires the master gateway key",
+			"permission_error", "insufficient_scope")
+		return
+	}
+	p := strings.TrimSpace(r.URL.Query().Get("provider"))
+	if p == "" {
+		writeAPIError(w, http.StatusBadRequest, "provider query required", "invalid_request_error", "")
+		return
+	}
+	var target provider.Provider
+	if s.router != nil {
+		for _, cand := range s.router.Providers {
+			if cand.Name() == p {
+				target = cand
+				break
+			}
+		}
+	}
+	if target == nil {
+		writeAPIError(w, http.StatusBadRequest,
+			"provider is not active (no key / not instantiated)", "invalid_request_error", "")
+		return
+	}
+	var models []string
+	if s.catalog != nil {
+		for _, e := range s.catalog.Snapshot() {
+			if e.Provider == p {
+				models = append(models, e.ID)
+			}
+		}
+	}
+	if len(models) == 0 {
+		writeAPIError(w, http.StatusServiceUnavailable,
+			"no catalog models for this provider yet (sync in progress?)", "server_error", "")
+		return
+	}
+	if s.log != nil {
+		s.log.Info("provider probe started", "provider", p, "models", len(models))
+	}
+	results := probeProvider(r.Context(), target, models)
+	probeResults.set(p, results)
+	writeJSON(w, http.StatusOK, map[string]any{"provider": p, "results": results})
 }
 
 // mergeStoredKeys 用 connections 表覆盖 stored 记录（保留注入来源之外
