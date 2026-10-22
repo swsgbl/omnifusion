@@ -78,7 +78,7 @@ const DirectiveSmart = "smart"
 //（server 边界转为 WithQualityAuto）。
 const DirectiveQuality = "quality"
 
-var builtinStrategyNames = []string{"priority", "cheap", "fast", "lkgp", "quality"}
+var builtinStrategyNames = []string{"priority", "cheap", "fast", "lkgp", "quality", "premium"}
 
 func knownDirectiveName(name string) bool {
 	if name == "auto" || name == DirectiveCombo || name == DirectiveFusion || name == DirectiveSmart {
@@ -162,6 +162,9 @@ func (r *Router) strategyByName(name string) Strategy {
 		return lkgpStrategy{s: r.Scoring}
 	case "quality":
 		return qualityStrategy{cap: r.Capability}
+	case "premium":
+		return premiumStrategy{pr: r.Price, cap: r.Capability,
+			spend: r.SpendToday, budget: r.DailyBudgetUSD}
 	default:
 		return nil // 未知名在边界层已拒绝；兜底回注册序
 	}

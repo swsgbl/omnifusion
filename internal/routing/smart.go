@@ -68,6 +68,15 @@ func (r *Router) candidatesFor(cfg dispatchConfig, req *schema.UnifiedRequest) (
 		}
 		return cands, nil
 	}
+	// 裸 @premium（无目标模型）：每家取其最强模型（同 qualityAuto 约束），
+	// 付费家在前、免费殿后，预算耗尽反转。
+	if cfg.strategyName == "premium" && req.Model == "" {
+		cands := r.premiumCandidates(cfg)
+		if len(cands) == 0 {
+			return nil, errors.New("routing: @premium auto needs catalog capability data (none available); pick a specific model and retry")
+		}
+		return cands, nil
+	}
 	return r.candidates(cfg, req.Model), nil
 }
 

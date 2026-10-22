@@ -42,6 +42,7 @@ type Server struct {
 	gatewayToken string
 	keyring      *security.Keyring   // 密钥环（dashboard 内联添加密钥用；nil = 端点 503）
 	modelGate    *store.ModelGateStore // 模型启停存储（providers 页可编辑；nil = 写端点 503）
+	costLedger   *CostLedger          // 成本账本（@premium 预算护栏与 usage 成本列；nil = 零成本语义）
 
 	a2aCard  *a2a.AgentCard                // A2A 发现清单（；nil = 不挂 agent-card 与 /rpc）
 	a2aModel string                        // A2A 缺省目标模型（可含 @指令）

@@ -118,6 +118,13 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-OmniFusion-Cache-Key", s.cache.KeyPrefix(&req))
 	w.Header().Set("X-OmniFusion-Route", dec.Summary())
 	setDegradedHeader(w, attemptDegraded(attempts))
+	s.setPremiumBudgetHeader(w, routeSrc)
+	if resp.Usage != nil && s.costLedger != nil {
+		if usd := s.costLedger.Estimate(resp.ProviderName, resp.Model,
+			resp.Usage.PromptTokens, resp.Usage.CompletionTokens); usd > 0 {
+			w.Header().Set("X-OmniFusion-Cost", formatCostUSD(usd))
+		}
+	}
 	writeJSON(w, http.StatusOK, resp)
 	s.auditDone("chat", req.Model, comboName, start, resp.ProviderName, resp.Usage, false)
 	// L5 缓存异步回写：WithoutCancel 防客户端断开中断回写。

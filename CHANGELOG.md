@@ -2,6 +2,24 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [v0.1.31] - 2026-10-22
+
+magpie 借鉴融合轮（yetone/magpie 研究后按用户需求落地"付费选项/付费优先"）：付费优先策略 + 每日预算护栏 + 成本核算。
+> EN: magpie-inspired round: premium-first routing strategy + daily budget guard + cost accounting.
+
+### 新增
+
+- **@premium 付费优先策略**（magpie 付费感知思想）：`@premium:模型` 或裸 `@premium`（自动选各家最强模型）——已登记付费价的候选排前（档内按能力分降序：付费的意图是质量），免费池殿后兜底；`X-OmniFusion-Strategy: premium` 头同义。cheap 的镜像三档（免费→未登记→付费升序 ↔ 付费→未登记→免费）；
+- **每日预算护栏**（付费优先但不失控）：`budget.daily_usd` 配置日预算——今日成本达到预算时 @premium 整序**自动反转为免费优先**（免费池升为第一档，付费家保留序列尾部作最后手段）；裸 @premium 响应带 `X-OmniFusion-Budget` 头（lane=paid/free + spent/budget）；
+- **成本核算**（magpie cost 思想）：CostLedger 按登记定价把每次请求 token 用量折算美元（USD=in×PriceIn/1M+out×PriceOut/1M），日粒度聚合持久化（store meta，重启不丢当日账）；缓存命中不计（上游未发生花费）；非流式响应带 `X-OmniFusion-Cost` 头；**usage 页新增「今日成本（估）」列与顶部汇总**（每 provider + 总量）；
+- 成本记账独立于审计开关（预算护栏不随 audit 关闭而失效）。
+
+### 工程说明
+
+- 评估后不移植（magpie 其余面）：订阅账号池/每日暖机（IDE 产品账号薅配额，与前轮 dsh 白嫖渠道同裁定）；60+ agent 配置改写（已有 ofd connect 四家+管家通用接线）；插件 JS 中间件（与单二进制 Go 身份冲突）；
+- 测试证据：premium 三态排序（付费优先/预算反转/无源保序）+ 指令解析、账本折算/聚合/重启恢复、usage API 成本字段——全 suite + vet 绿。
+
+
 ## [v0.1.30] - 2026-10-16
 
 全面对比审计轮（dsh-our-free-model 对比收口 + v0.1.29 四项移植的接缝审计）：三协议思考渲染、免密厂商可视化、全端点流心跳、diff 形状感知压缩。

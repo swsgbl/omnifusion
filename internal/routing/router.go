@@ -96,6 +96,12 @@ type Router struct {
 	// 402/配额关键词 → 付费观测（free 层已不可用）。成功尝试不喂：
 	// 成功不区分免费/付费（那是定价面的事实），账本只记直接证据。
 	Ledger *quota.Ledger
+	// SpendToday 返回今日累计成本（USD 估算，成本账本注入；premium
+	// 策略的预算护栏数据源）；nil = 未装配（无预算语义）。
+	SpendToday func() float64
+	// DailyBudgetUSD 是每日付费预算（0 = 不设限）。@premium 在今日
+	// 花费达到该值时整序反转为免费优先——付费优先但不失控。
+	DailyBudgetUSD float64
 }
 
 // Dispatch 执行分发，成功时返回聚合响应与全部尝试记录；

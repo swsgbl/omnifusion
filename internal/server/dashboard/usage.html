@@ -37,6 +37,7 @@
   <thead><tr>
     <th data-i18n="th_provider">provider</th><th class="num" data-i18n="th_rpm">rpm / limit</th><th class="num" data-i18n="th_rpd">rpd / limit</th>
     <th class="num" data-i18n="th_tpm">tpm / limit</th><th class="num" data-i18n="th_tpd">tpd / limit</th><th data-i18n="th_headroom">headroom</th>
+    <th class="num" data-i18n="th_cost">cost today</th>
   </tr></thead>
   <tbody id="rows"></tbody>
 </table>
@@ -58,9 +59,10 @@ const I18N = {
     nav_compression: 'Compression', nav_resilience: 'Resilience', nav_chat: 'Chat',
     th_provider: 'provider', th_rpm: 'rpm / limit', th_rpd: 'rpd / limit',
     th_tpm: 'tpm / limit', th_tpd: 'tpd / limit', th_headroom: 'headroom',
+    th_cost: 'cost today (est)',
     bar_open: 'open',
     empty: 'no traffic yet',
-    meta: 'sliding windows: 1m / 24h · semantic cache: {n} entries · refreshed {time}',
+    meta: 'sliding windows: 1m / 24h · semantic cache: {n} entries · cost today: {c} · refreshed {time}',
   },
   zh: {
     page_title: 'OmniFusion · 用量',
@@ -68,9 +70,10 @@ const I18N = {
     nav_compression: '压缩', nav_resilience: '弹性', nav_chat: '对话',
     th_provider: '提供商', th_rpm: 'rpm / 上限', th_rpd: 'rpd / 上限',
     th_tpm: 'tpm / 上限', th_tpd: 'tpd / 上限', th_headroom: '余量',
+    th_cost: '今日成本（估）',
     bar_open: '不限',
     empty: '暂无流量',
-    meta: '滑动窗口：1m / 24h · 语义缓存：{n} 条 · 刷新于 {time}',
+    meta: '滑动窗口：1m / 24h · 语义缓存：{n} 条 · 今日成本：{c} · 刷新于 {time}',
   },
 };
 const t = (k) => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
@@ -103,6 +106,10 @@ function bar(h) {
     `<span class="meta">${unlimited ? t('bar_open') : pct.toFixed(0) + '%'}</span>`;
 }
 function cell(cls, text) { return `<td${cls ? ` class="${cls}"` : ''}>${text}</td>`; }
+function fmtCost(usd) {
+  if (!usd || usd <= 0) return '–';
+  return '$' + (usd < 0.01 ? usd.toFixed(6) : usd < 1 ? usd.toFixed(4) : usd.toFixed(2));
+}
 
 async function load() {
   const err = document.getElementById('err');
@@ -113,7 +120,7 @@ async function load() {
     if (!resp.ok) return;
     const rows = document.getElementById('rows');
     if (!body.usage.length) {
-      rows.innerHTML = `<tr><td colspan="6" class="empty">${t('empty')}</td></tr>`;
+      rows.innerHTML = `<tr><td colspan="7" class="empty">${t('empty')}</td></tr>`;
     } else {
       rows.innerHTML = body.usage.map(u => '<tr>' + [
         cell('', vname(u.provider)),
@@ -122,6 +129,7 @@ async function load() {
         cell('num', fmt(u.tpm, u.limits.tpm)),
         cell('num', fmt(u.tpd, u.limits.tpd)),
         cell('', bar(u.headroom)),
+        cell('num', fmtCost(u.cost_today)),
       ].join('') + '</tr>').join('');
     }
     if (window.OFD) {
@@ -129,7 +137,7 @@ async function load() {
       document.querySelectorAll('#rows .bar > span').forEach(s => OFD.motion.bar(s, parseFloat(s.dataset.pct)));
     }
     document.getElementById('meta').textContent =
-      t('meta').replace('{n}', body.cache_entries).replace('{time}', new Date().toLocaleTimeString());
+      t('meta').replace('{n}', body.cache_entries).replace('{c}', fmtCost(body.cost_total)).replace('{time}', new Date().toLocaleTimeString());
   } catch (e) {
     err.textContent = String(e);
   }

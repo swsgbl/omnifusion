@@ -20,6 +20,7 @@ import (
 	"github.com/swsgbl/omnifusion/internal/config"
 	"github.com/swsgbl/omnifusion/internal/intelligence"
 	"github.com/swsgbl/omnifusion/internal/obs"
+	"github.com/swsgbl/omnifusion/internal/provider"
 	"github.com/swsgbl/omnifusion/internal/security"
 	"github.com/swsgbl/omnifusion/internal/server"
 	"github.com/swsgbl/omnifusion/internal/store"
@@ -161,6 +162,21 @@ func run() error {
 		srv.SetModelGate(gate)
 	} else {
 		logger.Warn("model gate store unavailable; per-model switches disabled", "err", err)
+	}
+
+	// 成本账本（付费车道）：按登记定价把 token 用量折算成美元日汇总
+	//（meta 表持久化）；@premium 预算护栏与 usage 页成本列共用。
+	ledgerCost := server.NewCostLedger(st, logger, func(providerName, model string) (provider.Price, bool) {
+		if router.Price == nil {
+			return provider.Price{}, false
+		}
+		return router.Price.Price(providerName, model)
+	})
+	srv.SetCostLedger(ledgerCost)
+	router.SpendToday = ledgerCost.TodayTotal
+	router.DailyBudgetUSD = cfg.Budget.DailyUSD
+	if cfg.Budget.DailyUSD > 0 {
+		logger.Info("premium budget guard enabled", "daily_usd", cfg.Budget.DailyUSD)
 	}
 
 	// quality 策略能力分查询（签名 feed 的 capability 字段是数据源；

@@ -30,6 +30,9 @@ func (c *Config) Validate() error {
 	if c.Audit.MaxRows < 0 {
 		return fmt.Errorf("audit.max_rows: %d 不能为负", c.Audit.MaxRows)
 	}
+	if c.Budget.DailyUSD < 0 {
+		return fmt.Errorf("budget.daily_usd: %v 不能为负", c.Budget.DailyUSD)
+	}
 	if err := c.validateCombos(); err != nil {
 		return err
 	}

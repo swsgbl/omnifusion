@@ -18,6 +18,15 @@ type A2AConfig struct {
 	DefaultModel string `yaml:"default_model"`
 }
 
+// BudgetConfig 是付费车道（@premium 付费优先策略）的预算护栏：
+// 每日付费预算（美元估算，成本账本按登记定价折算）；0 = 不设限。
+// 今日花费达到该值时 @premium 整序反转为免费优先（免费池兜底，
+// 付费家保留在序列尾部作最后手段），响应头 X-OmniFusion-Budget
+// 报当前车道。
+type BudgetConfig struct {
+	DailyUSD float64 `yaml:"daily_usd"`
+}
+
 // CatalogConfig 是 签名目录 feed：社区维护的窗口/众测数据源。
 // feed_url + feed_pubkey 成对配置才启用（pinned Ed25519 公钥，64 hex）；
 // 双空 = 未启用（默认，零行为变更）。

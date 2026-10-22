@@ -33,9 +33,14 @@ type auditRecord struct {
 }
 
 // recordRequest 双写指标与审计行（provider 空值归一为 none）。
+// 成本记账在审计门之前——预算护栏是独立功能，不随审计开关关闭。
 func (s *Server) recordRequest(rec auditRecord) {
 	if rec.Provider == "" {
 		rec.Provider = auditProviderNone
+	}
+	if s.costLedger != nil && rec.Provider != auditProviderNone && !rec.CacheHit &&
+		rec.Status == http.StatusOK && (rec.TokensIn > 0 || rec.TokensOut > 0) {
+		s.costLedger.Record(rec.Provider, rec.Model, rec.TokensIn, rec.TokensOut)
 	}
 	d := time.Duration(rec.LatencyMS * float64(time.Millisecond))
 	s.metrics.RecordRequest(rec.Endpoint, rec.Provider, rec.Status, d)

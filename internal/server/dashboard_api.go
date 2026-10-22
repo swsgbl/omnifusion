@@ -166,6 +166,10 @@ func (s *Server) SetKeyring(kr *security.Keyring) { s.keyring = kr }
 // nil = 读写端点 503，页面只读展开仍可用）。
 func (s *Server) SetModelGate(g *store.ModelGateStore) { s.modelGate = g }
 
+// SetCostLedger 注入成本账本（@premium 预算护栏与 usage 成本列；
+// nil = 记账跳过、预算恒未耗尽）。
+func (s *Server) SetCostLedger(l *CostLedger) { s.costLedger = l }
+
 // handleDashboardKeys 合并注入的 key 来源（cmd/ofd 装配期事实）与
 // connections 表（stored 记录的 label/updated_at；密文永不离开 store）。
 func (s *Server) handleDashboardKeys(w http.ResponseWriter, _ *http.Request) {
@@ -337,14 +341,23 @@ type dashUsage struct {
 	TPD      int64      `json:"tpd"`
 	Limits   dashLimits `json:"limits"`
 	Headroom float64    `json:"headroom"`
+	// CostToday 是该 provider 今日美元估算成本（成本账本；未装配=0）。
+	CostToday float64 `json:"cost_today"`
 }
 
-// handleDashboardUsage 返回各 key 的四窗口滑窗用量与语义缓存计数。
+// handleDashboardUsage 返回各 key 的四窗口滑窗用量、语义缓存计数与
+// 今日成本汇总（magpie 借鉴：花费可见是付费车道的前提）。
 func (s *Server) handleDashboardUsage(w http.ResponseWriter, _ *http.Request) {
 	out := struct {
 		Usage        []dashUsage `json:"usage"`
 		CacheEntries int64       `json:"cache_entries"`
+		CostTotal    float64     `json:"cost_total"`
+		CostRequests int64       `json:"cost_requests"`
 	}{Usage: []dashUsage{}}
+	var costByProvider map[string]float64
+	if s.costLedger != nil {
+		out.CostTotal, costByProvider, out.CostRequests = s.costLedger.TodaySnapshot()
+	}
 	if s.router != nil && s.router.Quota != nil {
 		snaps := s.router.Quota.Snapshots()
 		names := make([]string, 0, len(snaps))
@@ -356,8 +369,9 @@ func (s *Server) handleDashboardUsage(w http.ResponseWriter, _ *http.Request) {
 			sn := snaps[n]
 			out.Usage = append(out.Usage, dashUsage{
 				Provider: n, RPM: sn.RPM, RPD: sn.RPD, TPM: sn.TPM, TPD: sn.TPD,
-				Limits:   dashLimits{RPM: sn.Limits.RPM, RPD: sn.Limits.RPD, TPM: sn.Limits.TPM, TPD: sn.Limits.TPD},
-				Headroom: sn.Headroom,
+				Limits:    dashLimits{RPM: sn.Limits.RPM, RPD: sn.Limits.RPD, TPM: sn.Limits.TPM, TPD: sn.Limits.TPD},
+				Headroom:  sn.Headroom,
+				CostToday: costByProvider[n],
 			})
 		}
 	}

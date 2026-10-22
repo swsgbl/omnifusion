@@ -60,6 +60,13 @@ func (s *Server) dispatchOptions(r *http.Request, req *schema.UnifiedRequest) ([
 			req.Model = "" // 清掉指令串，防泄漏进成员过滤（否则只剩无目录的家可试）
 			return []routing.DispatchOption{routing.WithStrategyName("cheap")}, "", false, routing.ReasonCheapAuto, nil
 		}
+		if directive == "premium" && bare == "" { // 裸 @premium：付费优先的自动选强
+			if s.router == nil || s.router.Capability == nil {
+				return nil, "", false, source, errors.New("premium auto needs capability data (configure catalog feed)")
+			}
+			req.Model = ""
+			return []routing.DispatchOption{routing.WithStrategyName("premium")}, "", false, "premium_auto", nil
+		}
 		if bare == "" {
 			return nil, "", false, source, errors.New("strategy directive needs a target model, e.g. \"@fast:llama-3.3-70b\"")
 		}
