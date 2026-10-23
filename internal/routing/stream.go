@@ -145,7 +145,11 @@ func (r *Router) tryOneStream(ctx context.Context, p provider.Provider, sp provi
 
 	events, err := sp.ParseStream(sctx, call, upstreamResp)
 	if err != nil {
-		_ = events.Close()
+		// 出错路径 events 可能是 nil 接口（非 2xx 等在 ParseStream 内
+		// 早退）——Close 前必须判空。
+		if events != nil {
+			_ = events.Close()
+		}
 		return fail(err)
 	}
 
