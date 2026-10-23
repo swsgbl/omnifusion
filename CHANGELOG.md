@@ -2,6 +2,21 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [v0.1.33] - 2026-10-23
+
+免费安全网（用户报障修复："和 AI 管家聊天都聊不了了"）：裸 @quality/@premium 候选追加免密免费池兜底。
+> EN: Free-pool safety net (fixes the user-reported "butler chat stopped working"): bare @quality/@premium now append the keyless free pool as last-resort lane.
+
+### 修复
+
+- **管家/@quality 在免费层大面积劣化时 502**：实测当晚 zhipu/groq 密钥失效冷却、deepseek/siliconflow 配额耗尽——`@quality` 只从"有能力分的 feed 厂商"选候选，**免密免费池（kilo 15 个可用模型）不在候选集**，全灭直接 502，管家不可用（与 9 月 uniTerm 事故同款病灶）。修复=freeSafetyNet：裸 `@quality`/`@premium` 的候选序列尾部追加"登记免费价（0/0）的已实例化 provider 取其免费模型"（kilo-auto/free 一类自路由入口），按 (provider, model) 去重——能力/付费车道全灭时免费池接住，兑现"免费池永远是安全网"；无能力数据但有免费池时也不再报错（此前直接 400 提示挑模型）。`@cheap` 候选本含登记免费价模型，无需变更；
+- 验证升级：**CDP 真实浏览器驱动管家页对话**（默认 @quality 发送→免费池应答"收到"——v0.1.32 缺失的那课补上）+ 劣化全灭端到端单测（dead 家 401→kilo 接住）+ 去重/有偿家不入网单测。
+
+### 工程说明
+
+- 全量串行门禁 + vet 绿；@cheap/@premium 裸指令、探测双端点、thinking、usage 成本面在本轮全部复验通过。
+
+
 ## [v0.1.32] - 2026-10-22
 
 dsh 借鉴收官轮：模型可用性探测（providers 页"哪个模型现在真的能用"）+ @premium 提示补齐。

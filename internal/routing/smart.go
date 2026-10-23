@@ -51,6 +51,7 @@ func (r *Router) candidatesFor(cfg dispatchConfig, req *schema.UnifiedRequest) (
 	}
 	if cfg.qualityAuto {
 		cands := r.qualityCandidates(cfg)
+		cands = append(cands, r.freeSafetyNet(cands)...)
 		if len(cands) == 0 {
 			return nil, errQualityNoData
 		}
@@ -72,12 +73,44 @@ func (r *Router) candidatesFor(cfg dispatchConfig, req *schema.UnifiedRequest) (
 	// 付费家在前、免费殿后，预算耗尽反转。
 	if cfg.strategyName == "premium" && req.Model == "" {
 		cands := r.premiumCandidates(cfg)
+		cands = append(cands, r.freeSafetyNet(cands)...)
 		if len(cands) == 0 {
 			return nil, errors.New("routing: @premium auto needs catalog capability data (none available); pick a specific model and retry")
 		}
 		return cands, nil
 	}
 	return r.candidates(cfg, req.Model), nil
+}
+
+// freeSafetyNet 是裸 auto 指令（@quality/@premium）的免费安全网：已
+// 实例化 provider 中登记了免费价（CheapestModel 0/0）的家取其免费
+// 模型，去重后追加到序列尾部——能力/付费车道全灭时免密免费池
+//（kilo 一类）兜底，兑现"免费池永远是安全网"（2026-10-23 用户
+// 实撞：keyed 免费层大面积劣化时 @quality 直接 502，管家不可用；
+// @cheap 因候选含登记免费价模型而幸存）。@cheap 自身候选已含
+// 免费池，无需追加。
+func (r *Router) freeSafetyNet(existing []candidate) []candidate {
+	if r.Price == nil {
+		return nil
+	}
+	seen := make(map[string]bool, len(existing))
+	for _, c := range existing {
+		seen[c.p.Name()+"\x00"+c.model] = true
+	}
+	var out []candidate
+	for _, p := range r.Providers {
+		id, price, ok := r.Price.CheapestModel(p.Name())
+		if !ok || price.In > 0 || price.Out > 0 {
+			continue // 只收显式声明免费的家
+		}
+		key := p.Name() + "\x00" + id
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, candidate{p: p, model: id})
+	}
+	return out
 }
 
 // cheapCandidates 是裸 "@cheap" 的候选生成：每家取其登记最低价模型，
