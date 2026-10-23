@@ -83,12 +83,21 @@ func (r *Router) candidatesFor(cfg dispatchConfig, req *schema.UnifiedRequest) (
 }
 
 // freeSafetyNet 是裸 auto 指令（@quality/@premium）的免费安全网：已
-// 实例化 provider 中登记了免费价（CheapestModel 0/0）的家取其免费
-// 模型，去重后追加到序列尾部——能力/付费车道全灭时免密免费池
-//（kilo 一类）兜底，兑现"免费池永远是安全网"（2026-10-23 用户
-// 实撞：keyed 免费层大面积劣化时 @quality 直接 502，管家不可用；
+// 实例化 provider 中登记了免费价（0/0）的家取其免费模型（每家帽
+// safetyNetModelsPerProvider 个——聚合入口瞬时抖动时同家其他免费
+// 模型仍可试），去重后追加到序列尾部——能力/付费车道全灭时免密
+// 免费池（kilo 一类）兜底，兑现"免费池永远是安全网"（2026-10-23
+// 用户实撞：keyed 免费层大面积劣化时 @quality 直接 502，管家不可用；
 // @cheap 因候选含登记免费价模型而幸存）。@cheap 自身候选已含
 // 免费池，无需追加。
+const safetyNetModelsPerProvider = 3
+
+// freeModelLister 是多模型免费清单的可选扩展面（生产装配 Catalog；
+// 未实现者回落单模型 CheapestModel 语义）。
+type freeModelLister interface {
+	FreeModels(providerName string) []string
+}
+
 func (r *Router) freeSafetyNet(existing []candidate) []candidate {
 	if r.Price == nil {
 		return nil
@@ -99,16 +108,24 @@ func (r *Router) freeSafetyNet(existing []candidate) []candidate {
 	}
 	var out []candidate
 	for _, p := range r.Providers {
-		id, price, ok := r.Price.CheapestModel(p.Name())
-		if !ok || price.In > 0 || price.Out > 0 {
-			continue // 只收显式声明免费的家
+		models := []string{}
+		if fl, ok := r.Price.(freeModelLister); ok {
+			models = fl.FreeModels(p.Name())
+			if len(models) > safetyNetModelsPerProvider {
+				models = models[:safetyNetModelsPerProvider]
+			}
+		} else if id, price, ok := r.Price.CheapestModel(p.Name()); ok &&
+			price.In <= 0 && price.Out <= 0 {
+			models = []string{id}
 		}
-		key := p.Name() + "\x00" + id
-		if seen[key] {
-			continue
+		for _, id := range models {
+			key := p.Name() + "\x00" + id
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, candidate{p: p, model: id, safety: true})
 		}
-		seen[key] = true
-		out = append(out, candidate{p: p, model: id, safety: true})
 	}
 	return out
 }

@@ -2,6 +2,21 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [v0.1.35] - 2026-10-23
+
+免费安全网多模型冗余（用户报障"等很久最终失败"的最后一环）：单模型网的瞬时击穿修复。
+> EN: Multi-model redundancy for the free safety net: single-model net no longer punches through on transient blips.
+
+### 修复
+
+- **安全网单模型击穿**：v0.1.34 后生产实测仍偶发 502——取证发现安全网每家只挂**一个**免费模型（kilo-auto/free 聚合入口），该入口瞬时抖动（500/429，随机路由到坏目标）时网内无备选，链一路穿到净尾的 zhipu（密钥失效冷却）→ 失败。修复=freeSafetyNet 每家取最多 3 个登记免费模型（Catalog 新增 FreeModels：0/0 且在列、id 排序确定性）——kilo-auto/free 抖动时同家 alpha/beta 免费模型接住；单测实证：入口 500 → 第二免费模型应答；
+- 顺带修复 v0.1.34 引入的流式解析错误路径 nil 接口 panic（CI 抓到：ParseStream 出错时 events 可为 nil，Close 前必须判空）。
+
+### 工程说明
+
+- 本地并行假红均为 Windows 临时端口池耗尽环境态（49152+ dial 拒绝，单测隔离全过）；Linux CI 权威门禁绿。
+
+
 ## [v0.1.34] - 2026-10-23
 
 失败链预算制（用户报障"对话等了很久最终失败"的延迟根治）：单次尝试 20s 帽 + 链预算 30s 直跳免费车道。

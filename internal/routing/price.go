@@ -168,6 +168,30 @@ func (c *Catalog) CheapestModel(providerName string) (string, provider.Price, bo
 	return bestID, best, found
 }
 
+// FreeModels 返回该 provider 登记免费价（0/0）且在列（live/静态）的
+// 模型 id，按 id 排序（确定性）。免费安全网的多模型冗余数据源：
+// 免密池的聚合入口（kilo-auto/free 一类）瞬时抖动时，同家的其他
+// 免费模型仍在网内可试。
+func (c *Catalog) FreeModels(providerName string) []string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	live := map[string]bool{}
+	for _, m := range c.models[providerName] {
+		live[m.ID] = true
+	}
+	for _, m := range c.static[providerName] {
+		live[m.ID] = true
+	}
+	var out []string
+	for id, p := range c.mergedPrices(providerName) {
+		if p.In <= 0 && p.Out <= 0 && live[id] {
+			out = append(out, id)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 // mergedPrices 合并该 provider 的静态与 feed 价格索引（调用方持读锁）。
 func (c *Catalog) mergedPrices(providerName string) map[string]provider.Price {
 	merged := map[string]provider.Price{}
