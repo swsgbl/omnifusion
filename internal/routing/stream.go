@@ -37,11 +37,17 @@ func (r *Router) DispatchStream(ctx context.Context, req *schema.UnifiedRequest,
 		return nil, nil, err
 	}
 	attempts := make([]Attempt, 0, len(r.Providers))
-	for _, c := range cands {
+	chainStart := time.Now()
+	hasSafetyLane := chainHasSafety(cands)
+	for i, c := range cands {
 		if ctx.Err() != nil {
 			break
 		}
 		if att, skipped := r.skipIfBlocked(c.p); skipped {
+			attempts = append(attempts, att)
+			continue
+		}
+		if att, skipped := r.skipIfChainOverBudget(c, cands[i:], chainStart); skipped {
 			attempts = append(attempts, att)
 			continue
 		}
@@ -54,8 +60,14 @@ func (r *Router) DispatchStream(ctx context.Context, req *schema.UnifiedRequest,
 			})
 			continue
 		}
+		// 单次尝试帽只约束"到首 chunk"的窗口（死连接的静默体不再吃满
+		// 300s 流超时）；首 chunk 落地后流寿命由 streamTimeout 治理。
+		attemptBudget := time.Duration(0)
+		if hasSafetyLane && !c.safety {
+			attemptBudget = failoverAttemptBudget
+		}
 		start := time.Now()
-		stream, att := r.tryOneStream(ctx, c.p, sp, c.model, req)
+		stream, att := r.tryOneStream(ctx, c.p, sp, c.model, req, attemptBudget)
 		// 延迟口径：到首 chunk 落地（可切换窗口的边界）为止。
 		r.Scoring.Observe(c.p.Name(), time.Since(start), att.Err == nil)
 		att.Kind = Classify(att.Err)
@@ -78,7 +90,11 @@ func (r *Router) DispatchStream(ctx context.Context, req *schema.UnifiedRequest,
 	return nil, attempts, &DispatchError{Attempts: attempts}
 }
 
-func (r *Router) tryOneStream(ctx context.Context, p provider.Provider, sp provider.StreamParser, model string, req *schema.UnifiedRequest) (provider.ChunkStream, Attempt) {
+// tryOneStream 执行单次流尝试。budget>0 时用 watchdog 定时器罩住
+// "连接 → 解析 → 首 chunk"整窗（到点 cancel 本跳的 sctx——Do/体读/
+// 嗅探 Peek 全部随之解除阻塞）；首 chunk 落地即停表，流寿命仍由
+// streamTimeout 约束——预算不掐断长思考流。
+func (r *Router) tryOneStream(ctx context.Context, p provider.Provider, sp provider.StreamParser, model string, req *schema.UnifiedRequest, budget time.Duration) (provider.ChunkStream, Attempt) {
 	att := Attempt{Provider: p.Name()}
 
 	perAttempt := *req
@@ -100,39 +116,54 @@ func (r *Router) tryOneStream(ctx context.Context, p provider.Provider, sp provi
 	}
 
 	sctx, cancel := context.WithTimeout(ctx, streamTimeout)
-	httpReq, err := http.NewRequestWithContext(sctx, call.Method, call.URL, bytes.NewReader(call.Body))
-	if err != nil {
-		cancel()
-		att.Err = fmt.Errorf("build request: %w", err)
-		return nil, att
-	}
-	httpReq.Header = call.Header
-
-	upstreamResp, err := sp.StreamClient().Do(httpReq)
-	if err != nil {
-		cancel()
-		att.Err = fmt.Errorf("upstream transport: %w", err)
-		return nil, att
+	// 预算 watchdog：到点 cancel sctx，本跳任何阻塞阶段（含 ParseStream
+	// 的体形嗅探 Peek）一并解除；成功路径在返回前 Stop。
+	var watchdog *time.Timer
+	if budget > 0 {
+		watchdog = time.AfterFunc(budget, cancel)
 	}
 
-	events, err := sp.ParseStream(sctx, call, upstreamResp)
-	if err != nil {
+	fail := func(err error) (provider.ChunkStream, Attempt) {
+		if watchdog != nil {
+			watchdog.Stop()
+		}
 		cancel()
 		att.Err = err
 		return nil, att
 	}
 
-	// buffer-first-chunk：先取出首个事件，失败还能换家。
+	httpReq, err := http.NewRequestWithContext(sctx, call.Method, call.URL, bytes.NewReader(call.Body))
+	if err != nil {
+		return fail(fmt.Errorf("build request: %w", err))
+	}
+	httpReq.Header = call.Header
+
+	upstreamResp, err := sp.StreamClient().Do(httpReq)
+	if err != nil {
+		return fail(fmt.Errorf("upstream transport: %w", err))
+	}
+
+	events, err := sp.ParseStream(sctx, call, upstreamResp)
+	if err != nil {
+		_ = events.Close()
+		return fail(err)
+	}
+
+	// buffer-first-chunk：先取出首个事件，失败还能换家（watchdog 仍在
+	// 罩这一窗）。sctx 被 watchdog 掐断时 Next 以 ctx 错误返回。
 	first, err := events.Next(sctx)
 	if err != nil {
 		_ = events.Close()
-		cancel()
-		if errors.Is(err, io.EOF) { // 空流等价于无输出
-			att.Err = fmt.Errorf("stream produced no chunks")
-		} else {
-			att.Err = fmt.Errorf("stream first chunk: %w", err)
+		if sctx.Err() != nil && budget > 0 {
+			return fail(errFirstChunkBudget)
 		}
-		return nil, att
+		if errors.Is(err, io.EOF) { // 空流等价于无输出
+			return fail(fmt.Errorf("stream produced no chunks"))
+		}
+		return fail(fmt.Errorf("stream first chunk: %w", err))
+	}
+	if watchdog != nil {
+		watchdog.Stop() // 首 chunk 已落地：预算使命完成，长流交给 streamTimeout
 	}
 	return &bufferedStream{
 		first:    first,
@@ -143,6 +174,9 @@ func (r *Router) tryOneStream(ctx context.Context, p provider.Provider, sp provi
 		onBreak:  r.midStreamReporter(p.Name(), call.Model),
 	}, att
 }
+
+// errFirstChunkBudget 是首 chunk 预算超时（可换家的本地判定）。
+var errFirstChunkBudget = errors.New("stream first chunk budget exceeded")
 
 // midStreamReporter 产出 bufferedStream 的流中断裂回调（
 // un-ship bytes"——已发出的流不可撤回，

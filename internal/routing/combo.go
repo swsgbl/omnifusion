@@ -45,6 +45,10 @@ func (r *Router) providerByName(name string) provider.Provider {
 type candidate struct {
 	p     provider.Provider
 	model string
+	// safety 标记免费安全网候选（freeSafetyNet 产物）：失败链预算
+	//（router.go failoverChainBudget）超时后非 safety 候选让位，
+	// 直接跳到兜底车道——大面积劣化时用户等待以秒计而非分钟。
+	safety bool
 }
 
 // comboCandidates 解析组合成员为尝试序列：声明序（=用户优先级）→

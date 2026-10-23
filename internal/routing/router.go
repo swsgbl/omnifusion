@@ -119,7 +119,9 @@ func (r *Router) Dispatch(ctx context.Context, req *schema.UnifiedRequest, opts 
 		return nil, nil, err
 	}
 	attempts := make([]Attempt, 0, len(r.Providers))
-	for _, c := range cands {
+	chainStart := time.Now()
+	hasSafetyLane := chainHasSafety(cands)
+	for i, c := range cands {
 		if ctx.Err() != nil {
 			break
 		}
@@ -127,8 +129,14 @@ func (r *Router) Dispatch(ctx context.Context, req *schema.UnifiedRequest, opts 
 			attempts = append(attempts, att)
 			continue
 		}
+		if att, skipped := r.skipIfChainOverBudget(c, cands[i:], chainStart); skipped {
+			attempts = append(attempts, att)
+			continue
+		}
 		start := time.Now()
-		resp, att := r.tryOne(ctx, c.p, c.model, req)
+		actx, cancel := attemptCtx(ctx, c, hasSafetyLane)
+		resp, att := r.tryOne(actx, c.p, c.model, req)
+		cancel()
 		r.Scoring.Observe(c.p.Name(), time.Since(start), att.Err == nil)
 		att.Kind = Classify(att.Err)
 		attempts = append(attempts, att)
@@ -146,6 +154,64 @@ func (r *Router) Dispatch(ctx context.Context, req *schema.UnifiedRequest, opts 
 		}
 	}
 	return nil, attempts, &DispatchError{Attempts: attempts}
+}
+
+// 失败链预算（v0.1.34，用户实撞"等很久最终失败"）：大面积劣化时
+// 逐候选串行重试会把每家的 header/首 chunk 等待烧满（非流上限 120s、
+// 流式首 chunk 事实上可到 300s）才轮到兜底车道。两条预算线：
+//   - failoverAttemptBudget：链含 safety 候选时，非 safety 候选单次
+//     尝试的硬帽（流式只帽到首 chunk，不伤长流）；
+//   - failoverChainBudget：链累计超过该值且后方还有 safety 候选时，
+//     余下非 safety 候选直接跳过（SkipReason=chain_budget），立即
+//     落到免费安全网。
+// safety 候选不设帽（兜底家按自身超时治理）；链无 safety 候选时
+// 两条预算线都不生效（普通请求行为零变化）。var 供测试缩短（生产
+// 默认 20s/30s）。
+var (
+	failoverAttemptBudget = 20 * time.Second
+	failoverChainBudget   = 30 * time.Second
+)
+
+// chainHasSafety 报告链里是否有免费安全网候选。
+func chainHasSafety(cands []candidate) bool {
+	for _, c := range cands {
+		if c.safety {
+			return true
+		}
+	}
+	return false
+}
+
+// attemptCtx 给单次尝试加预算帽（仅链含 safety 时、仅非 safety 候选）。
+// 调用方在 tryOne 返回后立即 cancel（成功响应已完整解析，取消无害）。
+func attemptCtx(ctx context.Context, c candidate, hasSafetyLane bool) (context.Context, context.CancelFunc) {
+	if hasSafetyLane && !c.safety {
+		return context.WithTimeout(ctx, failoverAttemptBudget)
+	}
+	return context.WithCancel(ctx)
+}
+
+// skipIfChainOverBudget 在链累计超预算且后方仍有 safety 候选时跳过
+// 当前非 safety 候选（预算跳过也记 Attempt，回放证据面可见）。
+func (r *Router) skipIfChainOverBudget(c candidate, rest []candidate, chainStart time.Time) (Attempt, bool) {
+	if c.safety || time.Since(chainStart) <= failoverChainBudget {
+		return Attempt{}, false
+	}
+	for _, rc := range rest {
+		if rc.safety {
+			if r.Log != nil {
+				r.Log.Warn("failover chain budget exceeded; jumping to free lane",
+					"provider", c.p.Name(), "budget", failoverChainBudget.String())
+			}
+			return Attempt{
+				Provider:   c.p.Name(),
+				Model:      c.model,
+				Err:        fmt.Errorf("routing: skipped (chain budget %s exceeded; free lane ahead)", failoverChainBudget),
+				SkipReason: "chain_budget",
+			}, true
+		}
+	}
+	return Attempt{}, false
 }
 
 // tryOne 对单个候选执行 Translate → HTTP → Parse；model 是实际发往

@@ -108,7 +108,7 @@ func (r *Router) freeSafetyNet(existing []candidate) []candidate {
 			continue
 		}
 		seen[key] = true
-		out = append(out, candidate{p: p, model: id})
+		out = append(out, candidate{p: p, model: id, safety: true})
 	}
 	return out
 }
