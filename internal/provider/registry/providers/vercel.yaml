@@ -1,0 +1,25 @@
+providers:
+  - id: vercel
+    kind: openai_compat
+    display_name: Vercel AI Gateway
+    # OpenAI 兼容聚合网关（2026-10-26 每周扫描 #4 收录；模型 id 为
+    # vendor/model 形，与 openrouter 同构，无加价按厂商牌价计）。
+    base_url: https://ai-gateway.vercel.sh/v1
+    auth_style: bearer
+    key_env: AI_GATEWAY_API_KEY
+    signup_url: https://vercel.com/ai-gateway
+    capabilities:
+      input: [text]
+      output: [text]
+      features: [tools]
+    # 官方 FAQ：免费层=按月发放的长期额度（非过期试用）；免费子集
+    # 模型、按模型限速；启用免费额度前账号需绑定支付方式验证。
+    free_tier: 每月含免费额度（免费子集模型、按模型限速；需绑支付方式）
+    models:
+      # 目录内 0 价免费模型（官方目录 tags 含 free；-free 后缀即免费档）。
+      - id: reflection/beam-free
+        price_in: 0
+        price_out: 0
+      - id: nvidia/nemotron-3.5-lightning-free
+        price_in: 0
+        price_out: 0

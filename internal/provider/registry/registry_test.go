@@ -11,10 +11,10 @@ import (
 
 var expectedIDs = []string{
 	"agnes", "ai21", "aionlabs", "anthropic", "ark", "cerebras", "chutes", "cloudflare", "cohere",
-	"deepseek", "gemini", "github-models", "glhf", "groq", "huggingface", "hunyuan", "kilo", "llm7",
+	"deepseek", "gemini", "glhf", "groq", "huggingface", "hunyuan", "kilo", "llm7",
 	"mimo", "mistral", "modelscope", "nebius", "nscale", "nvidia", "ollama", "ollama-cloud",
 	"opencode-zen", "openrouter", "ovhcloud", "qianfan", "qwen", "qwen-intl", "sambanova", "siliconflow", "spark",
-	"together", "xai", "zhipu",
+	"together", "vercel", "xai", "zhipu",
 }
 
 // expectedKinds 声明非 openai_compat 的原生适配器。

@@ -2,6 +2,22 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [v0.1.36] - 2026-10-26
+
+每周免费厂商扫描 #4 首次产出真实注册表变更：一减一增，免费池保持 38 家。
+> EN: Weekly free-provider scan #4 yields the first real registry change: one out, one in, free pool stays at 38.
+
+### 变更
+
+- **移除 github-models**：GitHub 官方 changelog 实锤 GitHub Models 已于 2026-07-30 全面停运（playground/模型目录/inference API/BYOK 全下线，存量客户同样停止，端点返 410，官方指路 Azure Foundry 迁移）。注册表内该条目的"新家"注释系当时误判，维持死条目会在失败链里白烧尝试位。引用面干净（仅 YAML 与 registry_test）。
+- **新增 vercel（Vercel AI Gateway）**：OpenAI 兼容聚合网关（`https://ai-gateway.vercel.sh/v1`，Bearer 认证，模型 id 为 vendor/model 形与 openrouter 同构）。免费层官方 FAQ 明确"按月发放的长期额度、非过期试用"；证据链=官方 pricing/rate-limits/FAQ/api-keys 四页 + 公开目录 `GET /v1/models?freeTier=true` 实查。登记两款目录内 0 价免费模型（reflection/beam-free、nvidia/nemotron-3.5-lightning-free）。注意项：启用免费额度前账号需绑定支付方式（403 customer_verification_required），免费层为模型子集 + 按模型限速。
+- registry_test expectedIDs 同步换血（-github-models +vercel，字典序 together/vercel/xai）；provider 文件数与 statuscmd 计数维持 38 不变。
+
+### 工程说明
+
+- 本地全量门禁首跑大面积红=Windows 临时端口池耗尽环境态（15252 个 TIME_WAIT；排干后 routing/server/agent/compression/sdk 五包隔离全绿，registry/provider/config 直绿）；Linux CI 权威门禁复核。
+
+
 ## [v0.1.35] - 2026-10-23
 
 免费安全网多模型冗余（用户报障"等很久最终失败"的最后一环）：单模型网的瞬时击穿修复。
