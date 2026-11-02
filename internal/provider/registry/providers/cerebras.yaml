@@ -10,16 +10,13 @@ providers:
       input: [text]
       output: [text]
       features: [tools]
-    free_tier: 免费试用 1M tokens/天、30K TPM、5 RPM（无卡）
+    # 2026-10 政策变更（每周扫描 #5 官方文档实锤）：无永久免费层——
+    # 新账号添加验证支付方式后送 $5 试用额度，30 天有效不续；试用内
+    # 限额 1M TPD / 30K TPM / 5 RPM。此前"无卡永久免费"注记作废，
+    # 模型去 0/0 免费声明（BYOK 按量付费仍可用，费率未核实不登记）。
+    free_tier: 无永久免费层；绑卡送 $5 试用额度（30 天，不续）
     rate_limits: {rpm: 5, tpm: 30000, tpd: 1000000}
     models:
-      # 免费试用/开发者额度内 $0（额度耗尽转按量，不登记）。
       - id: gpt-oss-120b
-        price_in: 0
-        price_out: 0
       - id: zai-glm-4.7
-        price_in: 0
-        price_out: 0
       - id: gemma-4-31b
-        price_in: 0
-        price_out: 0

@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "generated_at": 1790747639,
   "providers": {
     "sambanova": {
@@ -80,9 +80,9 @@
     },
     "cerebras": {
       "models": [
-        {"id": "gpt-oss-120b", "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
-        {"id": "zai-glm-4.7", "status": "probation", "capability": 76, "price_in": 0, "price_out": 0},
-        {"id": "gemma-4-31b", "status": "probation", "capability": 65, "price_in": 0, "price_out": 0}
+        {"id": "gpt-oss-120b", "status": "probation", "capability": 74},
+        {"id": "zai-glm-4.7", "status": "probation", "capability": 76},
+        {"id": "gemma-4-31b", "status": "probation", "capability": 65}
       ]
     },
     "cloudflare": {

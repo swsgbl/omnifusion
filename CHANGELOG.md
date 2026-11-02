@@ -2,6 +2,21 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [v0.1.37] - 2026-11-02
+
+每周免费厂商扫描 #5：注册表真实性维护——Cerebras 免费层政策变更纠偏（2026 年 10 月起绑卡试用制）。
+> EN: Weekly scan #5: registry truth maintenance — Cerebras discontinued its permanent free tier (now a card-required $5/30-day trial).
+
+### 变更
+
+- **Cerebras 去免费化**：官方 inference-docs 实锤——新账号须添加验证支付方式后获 $5 试用额度（30 天有效不续），官方原文明确"Cerebras doesn't currently offer a no-cost tier that renews automatically"；试用内限额 1M TPD / 30K TPM / 5 RPM（与原登记一致）。注册表动作：cerebras.yaml 的"无卡永久免费"注记作废改为试用制说明，三款模型（gpt-oss-120b / zai-glm-4.7 / gemma-4-31b）撤下 0/0 免费价声明（BYOK 按量付费不受影响，费率未核实按惯例不登记）；feed v5 同步去价并重签（Ed25519，pubkey 不变）。效果：Cerebras 退出免费安全网与免费池排序（不给免费语义掺假），配额/探测/付费路由面不变。
+- 扫描侧另两笔裁定不入册：七牛云（官方页明示 Conatus Free 为"限时免费活动"，2026-10-24 至 11-30，活动制非永久免费层）；GitHub Models 在 mnfst 清单中仍被收录=聚合清单滞后实证（上周已按官方 changelog 移除）。
+
+### 工程说明
+
+- 本地全量门禁首跑 136 红=Windows 临时端口池耗尽环境态（121 处套接字耗尽签名、15349 个 TIME_WAIT；排干后 11 包隔离全绿）；Linux CI 权威门禁复核。
+
+
 ## [v0.1.36] - 2026-10-26
 
 每周免费厂商扫描 #4 首次产出真实注册表变更：一减一增，免费池保持 38 家。
