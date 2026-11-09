@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "generated_at": 1790747639,
   "providers": {
     "sambanova": {
@@ -112,10 +112,10 @@
     },
     "huggingface": {
       "models": [
-        {"id": "deepseek-ai/DeepSeek-V3", "status": "probation", "capability": 80, "price_in": 0, "price_out": 0},
-        {"id": "google/gemma-2-9b-it", "status": "probation", "capability": 52, "price_in": 0, "price_out": 0},
-        {"id": "meta-llama/llama-3.1-8b-instruct", "status": "probation", "capability": 50, "price_in": 0, "price_out": 0},
-        {"id": "Qwen/Qwen2.5-7B-Instruct", "status": "probation", "capability": 48, "price_in": 0, "price_out": 0}
+        {"id": "deepseek-ai/DeepSeek-V3", "status": "probation", "capability": 80},
+        {"id": "google/gemma-2-9b-it", "status": "probation", "capability": 52},
+        {"id": "meta-llama/llama-3.1-8b-instruct", "status": "probation", "capability": 50},
+        {"id": "Qwen/Qwen2.5-7B-Instruct", "status": "probation", "capability": 48}
       ]
     },
     "ark": {

@@ -2,6 +2,21 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [v0.1.38] - 2026-11-09
+
+每周免费厂商扫描 #6：注册表真实性维护（第二笔去免费化）——HuggingFace 免费月度额度已取消。
+> EN: Weekly scan #6: registry truth maintenance (second de-free) — HuggingFace no longer includes monthly free credits.
+
+### 变更
+
+- **HuggingFace 去免费化**：官方定价页实锤 Included Monthly Credits 表——**Free Users = None**（原文"Free users can use Inference Providers by purchasing credits, or by upgrading to PRO"；PRO/Team 为 $2/月）。此前第三方源流传的"免费层 $0.10/月"不实。注册表动作：huggingface.yaml 的免费层注记改为"无免费月度额度（PRO $2/月）"；feed v6 将 4 款模型（DeepSeek-V3 / gemma-2-9b-it / llama-3.1-8b-instruct / Qwen2.5-7B-Instruct）撤下 0/0 免费价并重签。效果：HF 退出免费安全网与免费池；BYOK 按量付费（厂商牌价无加价）与 @quality 能力排序不受影响。
+- 扫描侧裁定不入册：AIHubMix / 快米兔 / DMXAPI / RelayAI / OpenLLM Shop 等均为中转聚合站（连续六周同类排除）；讯飞星火 X2.6"10 亿 Token 免费领"为限时领取活动（在册厂商 Spark Lite 永久免费注记不变）。
+
+### 工程说明
+
+- 本地全量门禁首跑 121 红=Windows 临时端口池耗尽环境态（113 处套接字签名；排干后 11 包隔离全绿）；Linux CI 权威门禁复核。
+
+
 ## [v0.1.37] - 2026-11-02
 
 每周免费厂商扫描 #5：注册表真实性维护——Cerebras 免费层政策变更纠偏（2026 年 10 月起绑卡试用制）。

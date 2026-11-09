@@ -2344,7 +2344,7 @@ dependencies = [
 
 [[package]]
 name = "omnifusion-desktop"
-version = "0.1.37"
+version = "0.1.38"
 dependencies = [
  "serde",
  "serde_json",

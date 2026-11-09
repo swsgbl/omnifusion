@@ -10,7 +10,11 @@ providers:
       input: [text, image]
       output: [text]
       features: [tools]
-    free_tier: Inference Providers 免费额度（$0.10/月免费层）
+    # 2026-11 官方定价页实锤（每周扫描 #6）：免费账户月度额度= None
+    # （"Free users can use Inference Providers by purchasing credits, or
+    # by upgrading to PRO"）；PRO/Team $2/月。免费层不复存在，feed 同步
+    # 去价；BYOK 按量付费（厂商牌价无加价）不受影响。
+    free_tier: 无免费月度额度（PRO $2/月）；按量需购Credits
     models:
       - id: meta-llama/llama-3.1-8b-instruct
       - id: Qwen/Qwen2.5-7B-Instruct
