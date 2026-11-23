@@ -2,6 +2,21 @@
 
 本文件记录用户可感知的变更；格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化（SemVer）。
 
+## [v0.1.39] - 2026-11-23
+
+每周免费厂商扫描 #8：在册厂商新模型牌价登记——qwen4-max（Qwen4 正式版 2026-11-15 发布）。
+> EN: Weekly scan #8: register verified list pricing for qwen4-max (Qwen4 official release, 2026-11-15) on an in-registry provider.
+
+### 变更
+
+- **qwen4-max 牌价登记**：Qwen4 正式版于 2026-11-15 发布（千问平台/百炼同步上线）。按官方百炼价格文档核对，qwen4-max 北京地域牌价 **$1.413 输入 / $4.24 输出 per 1M tokens**（USD 口径），登记进 qwen.yaml——cheap 真成本路由与 CostLedger 费用估算从此覆盖该模型。首发 Token Plan 5 折/新用户叠加 1 折为条件促销，按纪律不登记（只登记稳定牌价）；registry_test 新增价格契约断言（1.413/4.24）。
+- 扫描侧其余裁定：Kimi/Moonshot API 维持无免费层判定（官方 $1 起充按量制；英文检索把免费聊天助手与 API 混为一谈的"Kimi 免费层"说法不实）；百炼无新永久免费模型（qwen4-max/qwen-flash 免费额度均为 90 天限时、且限新加坡地域）；无新免费厂商（新面孔仍是中转站与目录站）；无值得登记的深度优惠（DeepSeek V4.1 Flash 90% off 为聚合渠道价）。
+
+### 工程说明
+
+- 本地全量门禁首跑 148 红=Windows 临时端口池耗尽环境态（140 处套接字签名；排干后隔离重跑全绿）；Linux CI 权威门禁复核。
+
+
 ## [v0.1.38] - 2026-11-09
 
 每周免费厂商扫描 #6：注册表真实性维护（第二笔去免费化）——HuggingFace 免费月度额度已取消。

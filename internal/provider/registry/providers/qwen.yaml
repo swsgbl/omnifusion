@@ -19,3 +19,9 @@ providers:
       - id: qwen-flash
       - id: qwen-plus
       - id: qwen3.8-max
+      # 2026-11-23 每周扫描 #8 核对（官方百炼价格文档）：qwen4-max
+      # 北京地域牌价 $1.413/$4.24 per 1M（USD 口径）。首发 Token Plan
+      # 5 折/新用户叠加 1 折为条件促销，不登记——只登记稳定牌价。
+      - id: qwen4-max
+        price_in: 1.413
+        price_out: 4.24

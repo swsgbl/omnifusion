@@ -196,6 +196,10 @@ func TestPriceIndex(t *testing.T) {
 	if p, ok := byID["anthropic"].PriceIndex()["claude-sonnet-4-5"]; !ok || p.In != 3 || p.Out != 15 {
 		t.Errorf("anthropic sonnet-4-5 price = %+v ok=%v, want 3/15", p, ok)
 	}
+	// qwen4-max：官方百炼价格文档核对的北京地域牌价（USD/1M）。
+	if p, ok := byID["qwen"].PriceIndex()["qwen4-max"]; !ok || p.In != 1.413 || p.Out != 4.24 {
+		t.Errorf("qwen qwen4-max price = %+v ok=%v, want 1.413/4.24", p, ok)
+	}
 	if _, ok := byID["anthropic"].PriceIndex()["claude-opus-4-6"]; ok {
 		t.Error("anthropic opus-4-6 should be unpriced (rate unverified)")
 	}
