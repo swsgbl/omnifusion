@@ -14,9 +14,11 @@
   .meta { color: #8b949e; font-size: 12px; }
   #btnSync { margin-left: 8px; padding: 2px 10px; font-size: 12px; background: #161b22;
              color: #58a6ff; border: 1px solid #30363d; border-radius: 6px; cursor: pointer; }
-  #btnSync:hover { border-color: #58a6ff; }
+  #btnSync:hover:not(:disabled) { border-color: #58a6ff; }
   #btnSync:disabled { opacity: .5; cursor: default; }
-  table { border-collapse: collapse; width: 100%; }
+  /* 表头吸顶：长表滚动时列含义不丢（separate 让表头的边框跟着吸顶走）。 */
+  table { border-collapse: separate; border-spacing: 0; width: 100%; }
+  thead th { position: sticky; inset-block-start: 0; z-index: 1; background: #0d1117; }
   th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #21262d; }
   th { color: #8b949e; font-weight: 600; white-space: nowrap; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -35,7 +37,8 @@
   .pstat.st-unavailable { color: #f85149; background: rgba(248,81,73,.12); }
   .pstat.st-throttled { color: #d29922; }
   .pstat.st-unknown { color: #8b949e; }
-  a.mlink { color: #58a6ff; text-decoration: none; border-bottom: 1px dotted #58a6ff; }
+  button.mlink { color: #58a6ff; background: none; border: none; padding: 0; font: inherit; cursor: pointer;
+                   text-decoration: underline dotted; text-decoration-color: #58a6ff; text-underline-offset: 3px; }
   .pmodels { display: flex; flex-wrap: wrap; gap: 6px 14px; max-height: 240px; overflow-y: auto; }
   .pm { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px; }
   .pm input { accent-color: #1f6feb; }
@@ -48,25 +51,33 @@
   .phint { color: #8b949e; font-size: 11px; }
   .pload, .perr { color: #8b949e; font-size: 12px; }
   .perr { color: #f85149; }
+  /* 视觉隐藏、读屏可见（跳转链接）；聚焦时现身。 */
+  .vh:where(:not(:focus, :active)) { position: absolute !important; width: 1px !important; height: 1px !important; margin: -1px !important; padding: 0 !important; overflow: hidden !important; clip-path: inset(50%) !important; white-space: nowrap !important; border: 0 !important; }
+  .skip:focus { position: fixed; top: 8px; left: 8px; z-index: 10; padding: 6px 12px; background: #1f6feb; color: #fff; border-radius: 6px; text-decoration: none; }
+  /* 跳转链接落点：内容区获得焦点时给一圈细线，说明"你在这里"。 */
+  main:focus { outline: 2px solid #58a6ff; outline-offset: -2px; }
 </style>
-<script src="assets/gsap.min.js"></script>
-<script src="assets/motion.js"></script>
+<script src="assets/gsap.min.js" defer></script>
+<script src="assets/motion.js" defer></script>
 </head>
 <body>
+<a class="vh skip" href="#main" data-i18n="skip_main">Skip to main content</a>
 <header>
-  <h1 data-i18n="page_title">OmniFusion · Providers</h1>
-  <nav id="nav"></nav>
+  <h1 id="pageTitle" data-i18n="page_title">OmniFusion · Providers</h1>
+  <nav id="nav" data-i18n-aria="nav_label"></nav>
 </header>
+<main id="main" tabindex="-1">
 <p class="meta" id="meta"></p>
 <p class="meta"><span id="syncinfo"></span><button id="btnSync" data-i18n="refresh_models">Refresh models</button></p>
-<div id="err"></div>
-<table>
+<div id="err" role="status"></div>
+<table aria-labelledby="pageTitle">
   <thead><tr>
-    <th data-i18n="th_provider">provider</th><th class="num" data-i18n="th_models">models</th><th class="num" data-i18n="th_latency">latency ms</th>
-    <th class="num" data-i18n="th_success">success</th><th data-i18n="th_entitlement">free tier</th><th data-i18n="th_last_success">last success</th><th data-i18n="th_cooldowns">cooldowns</th>
+    <th scope="col" data-i18n="th_provider">provider</th><th class="num" scope="col" data-i18n="th_models">models</th><th class="num" scope="col" data-i18n="th_latency">latency ms</th>
+    <th class="num" scope="col" data-i18n="th_success">success</th><th scope="col" data-i18n="th_entitlement">free tier</th><th scope="col" data-i18n="th_last_success">last success</th><th scope="col" data-i18n="th_cooldowns">cooldowns</th>
   </tr></thead>
   <tbody id="rows"></tbody>
 </table>
+</main>
 <script>
 'use strict';
 // --- i18n (pattern shared across dashboard pages) ---
@@ -81,6 +92,7 @@ const LANG = (() => {
 const I18N = {
   en: {
     page_title: 'OmniFusion · Providers',
+    nav_label: 'Pages', skip_main: 'Skip to main content',
     nav_providers: 'Providers', nav_keys: 'Keys', nav_usage: 'Usage',
     nav_compression: 'Compression', nav_resilience: 'Resilience', nav_chat: 'Chat',
     th_provider: 'provider', th_models: 'models', th_latency: 'latency ms',
@@ -107,6 +119,7 @@ const I18N = {
   },
   zh: {
     page_title: 'OmniFusion · 提供商',
+    nav_label: '页面', skip_main: '跳到主要内容',
     nav_providers: '提供商', nav_keys: '密钥', nav_usage: '用量',
     nav_compression: '压缩', nav_resilience: '弹性', nav_chat: '对话',
     th_provider: '提供商', th_models: '模型数', th_latency: '延迟 ms',
@@ -135,6 +148,7 @@ const I18N = {
 const t = (k) => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
 document.documentElement.lang = LANG === 'zh' ? 'zh-CN' : 'en';
 document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+document.querySelectorAll('[data-i18n-aria]').forEach(el => { el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria'))); });
 
 const key = new URLSearchParams(location.search).get('key') || '';
 const PAGES = [['providers','nav_providers'],['keys','nav_keys'],['usage','nav_usage'],
@@ -142,11 +156,23 @@ const PAGES = [['providers','nav_providers'],['keys','nav_keys'],['usage','nav_u
 const pageHref = (id, lang) => id + '.html?' + (key ? 'key=' + encodeURIComponent(key) + '&' : '') + 'lang=' + lang;
 const EMBED = new URLSearchParams(location.search).has('embed');
 try { document.cookie = 'ofdPageLoaded=' + Date.now() + '; path=/; SameSite=Lax'; } catch (e) {} // 桌面端内嵌：壳是唯一语言/导航控制源
-if (!EMBED) document.getElementById('nav').innerHTML = PAGES.map(([id, nk]) => {
-  const cur = id === 'providers' ? ' aria-current="page"' : '';
-  return `<a href="${pageHref(id, LANG)}"${cur}>${t(nk)}</a>`;
-}).join('') +
-  ` <a href="${pageHref('providers', 'zh')}">中文</a> <a href="${pageHref('providers', 'en')}">EN</a>`;
+{
+  const nav = document.getElementById('nav');
+  if (EMBED) {
+    nav.hidden = true;
+    document.querySelector('.skip').hidden = true;
+  } else {
+    const link = (href, text) => { const a = document.createElement('a'); a.href = href; a.textContent = text; return a; };
+    nav.replaceChildren(
+      ...PAGES.map(([id, nk]) => {
+        const a = link(pageHref(id, LANG), t(nk));
+        if (id === 'providers') a.setAttribute('aria-current', 'page');
+        return a;
+      }),
+      link(pageHref('providers', 'zh'), '中文'), link(pageHref('providers', 'en'), 'EN'),
+    );
+  }
+}
 
 function cell(cls, text) { return `<td${cls ? ` class="${cls}"` : ''}>${text}</td>`; }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -162,7 +188,7 @@ function entCell(e) {
   }
   if (e.observed_at) {
     const srcKey = 'ent_source_' + (e.source || '').replace(/-/g, '_');
-    const src = I18N[LANG] && I18N[LANG][srcKey] ? I18N[LANG][srcKey] : (e.source || '');
+    const src = I18N[LANG] && I18N[LANG][srcKey] ? I18N[LANG][srcKey] : esc(e.source || '');
     main += `<div class="ent-meta">${t('ent_observed').replace('{time}', new Date(e.observed_at).toLocaleString()).replace('{source}', src)}</div>`;
   }
   return cell('', main);
@@ -176,23 +202,54 @@ const dirtyProviders = new Set(); // 有未保存修改的 provider（轮询冻�
 const probeStates = {};          // provider → {model: {state, latency_ms}}（最近一轮探测）
 let lastModels = [];             // 最近一次展开拉取的模型清单（探测后重绘用）
 
-async function toggleExpand(name, cellTd) {
+// moveAfter 把 node 挪到 ref 后面，并保住它的连接状态（焦点、勾选、动画）。
+// 普通的 remove + insert 会让这些状态全部丢失；moveBefore 尚未在所有
+// 引擎落地（Safari 不支持），所以先探测、异常时退回普通插入。
+function moveAfter(parent, node, ref) {
+  if (ref.nextSibling === node) return;
+  if ('moveBefore' in Element.prototype) {
+    try { parent.moveBefore(node, ref.nextSibling); return; } catch (e) { /* 退回普通插入 */ }
+  }
+  ref.after(node);
+}
+
+const mainRowOf = (name) => document.getElementById('rows').querySelector('tr[data-p="' + CSS.escape(name) + '"]');
+
+// setExpandedState 同步模型数按钮的展开态：aria-expanded 常在；aria-controls
+// 只在展开时挂——指向不存在的 id 会被辅助技术判为无效引用。
+function setExpandedState(mainRow, open) {
+  const btn = mainRow && mainRow.querySelector('button.mlink');
+  if (!btn) return;
+  btn.setAttribute('aria-expanded', String(open));
+  if (open) btn.setAttribute('aria-controls', 'pdetail'); else btn.removeAttribute('aria-controls');
+}
+
+async function toggleExpand(name) {
   if (expandedProvider === name) {
     expandedProvider = null;
+    setExpandedState(mainRowOf(name), false);
     renderDetailRow();
     return;
   }
   expandedProvider = name;
+  setExpandedState(mainRowOf(name), true);
   renderDetailRow('loading');
+  await loadDetail(name);
+}
+
+// loadDetail 拉取某厂商的模型清单并重绘展开的详情行——用户展开与轮询
+// 发现详情行丢失时共用。
+async function loadDetail(name, background = false) {
+  const opts = background ? { priority: 'low' } : {};
   try {
-    const resp = await fetch('api/provider/models?provider=' + encodeURIComponent(name) + (key ? '&key=' + encodeURIComponent(key) : ''));
+    const resp = await fetch('api/provider/models?provider=' + encodeURIComponent(name) + (key ? '&key=' + encodeURIComponent(key) : ''), opts);
     const body = await resp.json();
     if (expandedProvider !== name) return; // 轮询间隙用户已切换
     lastModels = body.models || [];
     renderDetailRow(null, lastModels);
     // 恢复最近一轮探测结论（网关内存缓存；无记录静默跳过）。
     try {
-      const pr = await fetch('api/provider/probe?provider=' + encodeURIComponent(name) + (key ? '&key=' + encodeURIComponent(key) : ''));
+      const pr = await fetch('api/provider/probe?provider=' + encodeURIComponent(name) + (key ? '&key=' + encodeURIComponent(key) : ''), opts);
       const pb = await pr.json();
       if (expandedProvider === name && pr.ok && pb.results && pb.results.length) {
         const pv = {};
@@ -215,6 +272,7 @@ function renderDetailRow(state, models, errMsg) {
   if (!mainRow) return; // provider 行消失（网关重启等）
   const tr = document.createElement('tr');
   tr.className = 'pdetail';
+  tr.id = 'pdetail';
   tr.dataset.p = expandedProvider;
   const td = document.createElement('td');
   td.colSpan = 7;
@@ -241,7 +299,7 @@ function renderDetailRow(state, models, errMsg) {
       td.innerHTML = '<div class="pmodels">' + items + '</div>' +
         `<div class="pact"><button type="button" id="pmSave">${t('pmodels_save')}</button>` +
         `<button type="button" id="pmProbe">${t('probe_btn')}</button>` +
-        `<span class="pmsg" id="pmMsg"></span>` +
+        `<span class="pmsg" id="pmMsg" role="status"></span>` +
         `<span class="phint">${t('pmodels_hint')} · ${t('probe_hint')}</span></div>`;
     }
   }
@@ -306,25 +364,24 @@ function renderDetailRow(state, models, errMsg) {
   }
 }
 
-async function load() {
-  const err = document.getElementById('err');
+// 错误区是 live region（role="status"）：同一条错误不重复写入，读屏才不会每 5s 被念一遍。
+const err = document.getElementById('err');
+const setErr = (msg) => { if (err.textContent !== msg) err.textContent = msg; };
+
+async function load(background = false) {
   try {
-    const resp = await fetch('api/providers' + (key ? '?key=' + encodeURIComponent(key) : ''));
+    const resp = await fetch('api/providers' + (key ? '?key=' + encodeURIComponent(key) : ''), background ? { priority: 'low' } : {});
     const body = await resp.json();
-    err.textContent = resp.ok ? '' : (body.error && body.error.message) || `HTTP ${resp.status}`;
+    setErr(resp.ok ? '' : (body.error && body.error.message) || `HTTP ${resp.status}`);
     if (!resp.ok) return;
     const rows = document.getElementById('rows');
-    // 轮询重建主行会销毁展开的详情行——先摘下来（含保存反馈），
-    // 主行重建后原样插回（现场保留：勾选/消息不丢）。
-    const det = rows.querySelector('tr.pdetail');
-    const detProvider = det ? det.dataset.p : null;
-    if (det) det.remove();
-    if (!body.providers.length) {
-      rows.innerHTML = `<tr><td colspan="7" class="empty">${t('empty')}</td></tr>`;
-    } else {
-      rows.innerHTML = body.providers.map(p => '<tr data-p="' + esc(p.name) + '">' + [
+    // 模型数按钮若正持有键盘焦点，主行重建后把焦点还给它（重建会换掉节点）。
+    const ae = document.activeElement;
+    const focusP = ae && ae.classList && ae.classList.contains('mlink') && rows.contains(ae) ? ae.dataset.p : null;
+    const html = body.providers.length
+      ? body.providers.map(p => '<tr data-p="' + esc(p.name) + '">' + [
         cell('', vname(p.name)),
-        `<td class="num"><a href="#" class="mlink" data-p="${esc(p.name)}">${p.models} ▾</a></td>`,
+        `<td class="num"><button type="button" class="mlink" data-p="${esc(p.name)}" aria-expanded="false">${p.models} ▾</button></td>`,
         cell('num', p.latency_ms ? p.latency_ms.toFixed(0) : '–'),
         cell('num', p.success_rate > 0 ? (p.success_rate * 100).toFixed(0) + '%' : '–'),
         entCell(p.entitlement),
@@ -332,19 +389,31 @@ async function load() {
         cell('', (p.cooldowns || []).map(c => esc((c.scope === 'model' ? t('cd_model').replace('{m}', c.model) : t('cd_plain'))
           .replace('{time}', new Date(c.until).toLocaleTimeString())
           .replace('{reason}', c.reason))).join('<br>') || '–'),
-      ].join('') + '</tr>').join('');
+      ].join('') + '</tr>').join('')
+      : `<tr><td colspan="7" class="empty">${t('empty')}</td></tr>`;
+    // 展开的详情行全程保持连接："摘下来再插回"会让行内的键盘焦点与勾选
+    // 现场在每次轮询时丢失。只换主行；详情行按需挪回它的主行后面
+    //（现场保留：保存反馈/勾选不丢——用户 2026-10-01 反馈"刷新冲掉输入"同款纪律）。
+    const det = rows.querySelector('tr.pdetail');
+    const detProvider = det ? det.dataset.p : null;
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    rows.querySelectorAll(':scope > tr:not(.pdetail)').forEach(r => r.remove());
+    rows.prepend(tpl.content);
+    const mainRow = detProvider ? mainRowOf(detProvider) : null;
+    if (det && mainRow && expandedProvider === detProvider) {
+      moveAfter(rows, det, mainRow);
+      setExpandedState(mainRow, true);
+    } else {
+      // provider 集变化（行消失）时丢弃旧详情行；展开目标还在就静默重拉。
+      if (det) det.remove();
+      if (expandedProvider && !dirtyProviders.has(expandedProvider)) loadDetail(expandedProvider, true);
     }
-    // 详情行插回：原样（保存反馈/勾选现场保留——用户 2026-10-01 反馈
-    // "刷新冲掉输入" 同款纪律）；provider 集变化（行消失）时丢弃。
-    if (detProvider && expandedProvider === detProvider &&
-        rows.querySelector('tr[data-p="' + CSS.escape(detProvider) + '"]')) {
-      const mainRow = rows.querySelector('tr[data-p="' + CSS.escape(detProvider) + '"]');
-      mainRow.after(det);
-    } else if (expandedProvider && !dirtyProviders.has(expandedProvider)) {
-      // 展开目标没了或首次轮询：重拉一份（静默刷新态）。
-      renderDetailRow('refresh');
+    if (focusP) {
+      const row = mainRowOf(focusP);
+      if (row) row.querySelector('button.mlink').focus();
     }
-    if (window.OFD) OFD.motion.rows(document.getElementById('rows'));
+    if (window.OFD) OFD.motion.rows(rows);
     document.getElementById('meta').textContent =
       t('meta').replace('{p}', body.providers.length).replace('{m}', body.models_total).replace('{time}', new Date().toLocaleTimeString());
     // 模型目录同步状态（live /models 每小时自动拉一轮；按钮可手动立刻刷）。
@@ -355,18 +424,19 @@ async function load() {
       si.textContent = t('sync_never');
     }
   } catch (e) {
-    err.textContent = String(e);
+    setErr(String(e));
   }
 }
 // 模型数点击展开（事件委托——轮询重建行不丢）。
 document.getElementById('rows').addEventListener('click', (ev) => {
-  const a = ev.target.closest('a.mlink');
-  if (!a) return;
-  ev.preventDefault();
-  toggleExpand(a.dataset.p);
+  const btn = ev.target.closest('button.mlink');
+  if (btn) toggleExpand(btn.dataset.p);
 });
 load();
-setInterval(load, 5000);
+// 轮询只在页面可见时进行，回到页面立即补刷；后台刷新请求走低优先级，
+// 不与用户触发的请求抢带宽。
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(true); });
+setInterval(() => { if (!document.hidden) load(true); }, 5000);
 // 「刷新模型」：后台同步立即返回，页面 5s 轮询自然带出新目录。
 document.getElementById('btnSync').onclick = async function () {
   const btn = this;
@@ -379,7 +449,5 @@ document.getElementById('btnSync').onclick = async function () {
   setTimeout(() => { btn.textContent = label; btn.disabled = false; }, 3000);
 };
 </script>
-<script src="assets/gsap.min.js"></script>
-<script src="assets/motion.js"></script>
 </body>
 </html>

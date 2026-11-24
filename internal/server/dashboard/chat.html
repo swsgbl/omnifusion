@@ -6,7 +6,9 @@
 <title data-i18n="page_title">OmniFusion · Chat</title>
 <style>
   :root { color-scheme: dark; }
-  body { font: 14px/1.6 system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+  /* dvh：移动端浏览器地址栏收起/展开时视口高度会变，vh 会让输入框被遮住。 */
+  body { font: 14px/1.6 system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 0; display: flex; flex-direction: column; height: 100dvh; }
+  main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   header { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; padding: 14px 20px 8px; }
   h1 { font-size: 18px; margin: 0; }
   nav a { color: #58a6ff; text-decoration: none; margin-right: 12px; }
@@ -17,7 +19,7 @@
   button { padding: 5px 14px; cursor: pointer; }
   button:disabled { opacity: .5; cursor: default; }
   #log { flex: 1; overflow-y: auto; padding: 8px 20px; }
-  .msg { margin: 10px 0; padding: 10px 14px; border-radius: 10px; white-space: pre-wrap; word-break: break-word; max-width: 860px; }
+  .msg { margin: 10px 0; padding: 10px 14px; border-radius: 10px; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 860px; }
   .user { background: #1f3a5f; margin-left: auto; }
   .assistant { background: #161b22; }
   .assistant .meta { color: #8b949e; font-size: 12px; margin-bottom: 4px; }
@@ -25,7 +27,7 @@
   .composer { display: flex; gap: 10px; padding: 12px 20px 16px; }
   textarea { flex: 1; resize: vertical; min-height: 52px; max-height: 200px; padding: 9px 12px; }
   .hint { color: #8b949e; font-size: 12px; }
-  textarea::placeholder { color: #6e7681; }
+  textarea::placeholder { color: #8b949e; } /* #6e7681 在输入框底色上只有 3.6:1 */
   .ops { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
   .ops input { accent-color: #58a6ff; }
   .approve-box { margin: 10px 0; padding: 10px 14px; border: 1px solid #d29922; border-radius: 10px; max-width: 860px; background: #211b0e; }
@@ -51,20 +53,31 @@
   .tool-bubble .tb-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
   .tool-bubble .tb-name { color: #79c0ff; font-family: ui-monospace, Consolas, monospace; }
   .tool-bubble .tb-arg { color: #8b949e; font-family: ui-monospace, Consolas, monospace; word-break: break-all; }
-  .tool-bubble .tb-time { margin-left: auto; color: #6e7681; font-size: 12px; white-space: nowrap; }
-  .tool-bubble .tb-res { margin-top: 4px; color: #6e7681; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 60px; overflow: hidden; }
+  .tool-bubble .tb-time { margin-left: auto; color: #8b949e; font-size: 12px; white-space: nowrap; }
+  .tool-bubble .tb-res { margin-top: 4px; color: #8b949e; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 60px; overflow: hidden; }
   .think-indicator { margin: 4px 0 8px; padding: 8px 14px; background: #161b22; border: 1px dashed #30363d; border-radius: 10px; color: #8b949e; font-size: 13px; display: flex; align-items: center; gap: 8px; }
-  .think-indicator .pulse { width: 8px; height: 8px; border-radius: 50%; background: #58a6ff; animation: ofd-pulse 1.2s ease-in-out infinite; }
+  .think-indicator .pulse { width: 8px; height: 8px; border-radius: 50%; background: #58a6ff; }
+  /* 持续动画只在用户没有要求减少动效时才有（静态下圆点常亮，状态仍可读）。 */
+  @media (prefers-reduced-motion: no-preference) {
+    .think-indicator .pulse { animation: ofd-pulse 1.2s ease-in-out infinite; }
+  }
   @keyframes ofd-pulse { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
+  /* 视觉隐藏、读屏可见（跳转链接）；聚焦时现身。 */
+  .vh:where(:not(:focus, :active)) { position: absolute !important; width: 1px !important; height: 1px !important; margin: -1px !important; padding: 0 !important; overflow: hidden !important; clip-path: inset(50%) !important; white-space: nowrap !important; border: 0 !important; }
+  .skip:focus { position: fixed; top: 8px; left: 8px; z-index: 10; padding: 6px 12px; background: #1f6feb; color: #fff; border-radius: 6px; text-decoration: none; }
+  /* 跳转链接落点：内容区获得焦点时给一圈细线，说明"你在这里"。 */
+  main:focus { outline: 2px solid #58a6ff; outline-offset: -2px; }
 </style>
-<script src="assets/gsap.min.js"></script>
-<script src="assets/motion.js"></script>
+<script src="assets/gsap.min.js" defer></script>
+<script src="assets/motion.js" defer></script>
 </head>
 <body>
+<a class="vh skip" href="#main" data-i18n="skip_main">Skip to main content</a>
 <header>
   <h1 data-i18n="page_title">OmniFusion · Chat</h1>
-  <nav id="nav"></nav>
+  <nav id="nav" data-i18n-aria="nav_label"></nav>
 </header>
+<main id="main" tabindex="-1">
 <div class="toolbar">
   <label for="model" class="hint" data-i18n="lbl_model">Model</label>
   <select id="model"><option value="@quality">&#9889; &#33258;&#21160;&#65288;&#26368;&#24378;&#20248;&#20808;&#65289;</option></select>
@@ -76,9 +89,12 @@
 <div id="updatebar" style="display:none"><a id="updatelink" target="_blank" rel="noopener noreferrer"></a></div>
 <div id="log"><div class="hint" id="welcome" data-i18n="welcome"></div></div>
 <div class="composer">
-  <textarea id="input" data-i18n-ph="ph_input" placeholder="Type a message… (Enter to send, Shift+Enter for newline)"></textarea>
+  <label class="vh" for="input" data-i18n="lbl_input">Message</label>
+  <textarea id="input" enterkeyhint="send" data-i18n-ph="ph_input" placeholder="Type a message… (Enter to send, Shift+Enter for newline)"></textarea>
   <button id="send" data-i18n="btn_send">Send</button>
 </div>
+<div class="vh" id="live" role="status" aria-live="polite"></div>
+</main>
 <script>
 'use strict';
 const LANG = (() => {
@@ -92,6 +108,7 @@ const LANG = (() => {
 const I18N = {
   en: {
     page_title: 'OmniFusion · Assistant',
+    nav_label: 'Pages', skip_main: 'Skip to main content', lbl_input: 'Message',
     nav_providers: 'Providers', nav_keys: 'Keys', nav_usage: 'Usage',
     nav_compression: 'Compression', nav_resilience: 'Resilience', nav_chat: 'Assistant',
     lbl_model: 'Model', btn_clear: 'Clear', btn_send: 'Send', btn_stop: 'Stop',
@@ -115,6 +132,7 @@ const I18N = {
   },
   zh: {
     page_title: 'OmniFusion \u00b7 \u7ba1\u5bb6',
+    nav_label: '页面', skip_main: '跳到主要内容', lbl_input: '消息',
     nav_providers: '\u63d0\u4f9b\u5546', nav_keys: '\u5bc6\u94a5', nav_usage: '\u7528\u91cf',
     nav_compression: '\u538b\u7f29', nav_resilience: '\u5f39\u6027', nav_chat: '\u7ba1\u5bb6',
     lbl_model: '\u6a21\u578b', btn_clear: '\u6e05\u7a7a', btn_send: '\u53d1\u9001', btn_stop: '\u505c\u6b62',
@@ -141,6 +159,8 @@ const t = (k) => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
 document.documentElement.lang = LANG === 'zh' ? 'zh-CN' : 'en';
 document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
 document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-ph')); });
+document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+document.querySelectorAll('[data-i18n-aria]').forEach(el => { el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria'))); });
 
 const key = new URLSearchParams(location.search).get('key') || '';
 const PAGES = [['providers','nav_providers'],['keys','nav_keys'],['usage','nav_usage'],
@@ -148,11 +168,23 @@ const PAGES = [['providers','nav_providers'],['keys','nav_keys'],['usage','nav_u
 const pageHref = (id, lang) => id + '.html?' + (key ? 'key=' + encodeURIComponent(key) + '&' : '') + 'lang=' + lang;
 const EMBED = new URLSearchParams(location.search).has('embed');
 try { document.cookie = 'ofdPageLoaded=' + Date.now() + '; path=/; SameSite=Lax'; } catch (e) {} // 桌面端内嵌：壳是唯一语言/导航控制源
-if (!EMBED) document.getElementById('nav').innerHTML = PAGES.map(([id, nk]) => {
-  const cur = id === 'chat' ? ' aria-current="page"' : '';
-  return `<a href="${pageHref(id, LANG)}"${cur}>${t(nk)}</a>`;
-}).join('') +
-  ` <a href="${pageHref('chat', 'zh')}">\u4e2d\u6587</a> <a href="${pageHref('chat', 'en')}">EN</a>`;
+{
+  const nav = document.getElementById('nav');
+  if (EMBED) {
+    nav.hidden = true;
+    document.querySelector('.skip').hidden = true;
+  } else {
+    const link = (href, text) => { const a = document.createElement('a'); a.href = href; a.textContent = text; return a; };
+    nav.replaceChildren(
+      ...PAGES.map(([id, nk]) => {
+        const a = link(pageHref(id, LANG), t(nk));
+        if (id === 'chat') a.setAttribute('aria-current', 'page');
+        return a;
+      }),
+      link(pageHref('chat', 'zh'), '中文'), link(pageHref('chat', 'en'), 'EN'),
+    );
+  }
+}
 // WebView2 已知问题：内嵌（跨源 iframe）时键击不进本页——任何指针
 // 按下先自聚窗口（配合壳的 contentWindow.focus()），键盘即可输入。
 if (EMBED) document.addEventListener('pointerdown', () => { window.focus(); }, true);
@@ -200,6 +232,27 @@ modelSel.addEventListener('change', () => { try { localStorage.setItem('ofd-chat
 // --- conversation ---
 const log = document.getElementById('log'), input = document.getElementById('input'),
       send = document.getElementById('send'), status = document.getElementById('status');
+
+// streamPaint 把流式分片合并到动画帧：每收到一个分片就"写 DOM + 读
+// scrollHeight"是典型的布局抖动（写一次、强制布局一次），长回复每秒几十次。
+// 这里每帧最多写一次；flush 在收尾时把末尾内容立刻送上屏（后台标签页里
+// 动画帧不触发，没有 flush 结尾就会缺一段）。
+function streamPaint(out, getText) {
+  let frame = 0;
+  const apply = () => { frame = 0; out.textContent = getText(); log.scrollTop = log.scrollHeight; };
+  const schedule = () => { if (!frame) frame = requestAnimationFrame(apply); };
+  schedule.flush = () => { cancelAnimationFrame(frame); apply(); };
+  return schedule;
+}
+
+// announce 向读屏播报回合级事件（完成/失败/待批准/待回答）。对话流本身
+// 逐字更新，不能做成 live region——只在有结论时说一句；先清空再下一帧
+// 写入，连续两次相同的内容也会被重新播报。
+const live = document.getElementById('live');
+function announce(msg) {
+  live.textContent = '';
+  requestAnimationFrame(() => { live.textContent = msg; });
+}
 let history = [], busy = false, abort = null;
 
 function bubble(role, cls) {
@@ -314,6 +367,7 @@ function askUser(question, header, options) {
     const title = document.createElement('div');
     title.className = 'approve-title';
     title.textContent = question || '';
+    announce(question || '');
     if (header) {
       const chip = document.createElement('span');
       chip.className = 'ask-chip';
@@ -344,7 +398,12 @@ function askUser(question, header, options) {
     otherInput.className = 'ask-input';
     const submitOther = () => { cleanup(); resolve(otherInput.value.trim() || otherInput.placeholder); };
     other.onclick = submitOther;
-    otherInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitOther(); } });
+    otherInput.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  if (e.isComposing || e.keyCode === 229) return; // 输入法组合态的回车是"上屏"，不是提交
+  submitOther();
+});
     const cancel = document.createElement('button');
     cancel.className = 'approve-deny ask-cancel';
     cancel.textContent = t('ask_cancel');
@@ -373,6 +432,7 @@ function askApproval(cmdText) {
     const cmd = document.createElement('code');
     cmd.className = 'approve-cmd';
     cmd.textContent = cmdText;
+    announce(t('approval_title') + ' ' + cmdText);
     const row = document.createElement('div');
     row.className = 'approve-row';
     const allow = document.createElement('button');
@@ -409,12 +469,18 @@ async function sendMsg() {
   try {
     if (document.getElementById('ops').checked) await runOps(out); else await runStream(out);
     status.textContent = t('done');
+    announce(t('done'));
   } catch (e) {
     if (e.name === 'AbortError') {
       status.textContent = t('done'); // 用户主动停止：部分回复已显示在 out
+      announce(t('done'));
     } else {
-      out.innerHTML = '<span class="err">' + esc(String(e.message || e)) + '</span>';
+      const errLine = document.createElement('span');
+      errLine.className = 'err';
+      errLine.textContent = String(e.message || e);
+      out.replaceChildren(errLine);
       status.textContent = t('err');
+      announce(errLine.textContent);
       history.pop(); // 失败回合不入历史
     }
   } finally {
@@ -448,7 +514,7 @@ function restoreSession(name) {
   sessionName = name;
   history.length = 0;
   history.push(...s.msgs.map(m => ({ role: m.role, content: m.content })));
-  log.innerHTML = '';
+  log.replaceChildren();
   for (const m of history) {
     const b = bubble('', m.role === 'user' ? 'user' : 'assistant');
     if (m.role !== 'user') { const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = modelSel.value; b.prepend(meta); }
@@ -465,7 +531,7 @@ function revertTo(idx) {
 }
 function deleteSession(name) {
   saveSessions(loadSessions().filter(x => x.name !== name));
-  if (sessionName === name) { sessionName = ''; history.length = 0; log.innerHTML = ''; }
+  if (sessionName === name) { sessionName = ''; history.length = 0; log.replaceChildren(); }
   renderSessionBar();
 }
 function exportSession() {
@@ -485,6 +551,7 @@ function renderSessionBar() {
   const list = loadSessions();
   const sel = document.createElement('select');
   sel.id = 'sessSel';
+  sel.setAttribute('aria-label', t('sess_title'));
   sel.onchange = () => restoreSession(sel.value);
   const opt = document.createElement('option');
   opt.value = ''; opt.textContent = t('sess_new');
@@ -544,6 +611,7 @@ async function runStream(out) {
   }
   const reader = resp.body.getReader(), dec = new TextDecoder();
   let buf = '';
+  const paint = streamPaint(out, () => acc);
   try {
     for (;;) {
       const { done, value } = await reader.read();
@@ -558,13 +626,15 @@ async function runStream(out) {
         try {
           const ch = JSON.parse(data);
           const delta = ch.choices && ch.choices[0] && ch.choices[0].delta && ch.choices[0].delta.content;
-          if (delta) { acc += delta; out.textContent = acc; log.scrollTop = log.scrollHeight; }
+          if (delta) { acc += delta; paint(); }
         } catch (e) {}
       }
     }
   } catch (e) {
     if (e.name === 'AbortError' && acc) history.push({ role: 'assistant', content: acc }); // 停止保留半程回复
     throw e;
+  } finally {
+    paint.flush();
   }
   if (acc) history.push({ role: 'assistant', content: acc });
 }
@@ -765,6 +835,7 @@ async function runOps(out) {
     }
     const reader = sResp.body.getReader(), dec = new TextDecoder();
     let acc = '', buf = '';
+    const paint = streamPaint(out, () => acc);
     try {
       for (;;) {
         const { done, value } = await reader.read();
@@ -779,13 +850,15 @@ async function runOps(out) {
           try {
             const ch = JSON.parse(data);
             const delta = ch.choices && ch.choices[0] && ch.choices[0].delta && ch.choices[0].delta.content;
-            if (delta) { acc += delta; out.textContent = acc; log.scrollTop = log.scrollHeight; }
+            if (delta) { acc += delta; paint(); }
           } catch (e) {}
         }
       }
     } catch (e) {
       if (e.name === 'AbortError' && acc) { history.push({ role: 'assistant', content: acc }); }
       throw e;
+    } finally {
+      paint.flush();
     }
     if (!acc) throw new Error(t('err_empty'));
     history.push({ role: 'assistant', content: acc });
@@ -814,18 +887,26 @@ function trimOpsContext(msgs) {
 }
 send.addEventListener('click', () => { if (busy && abort) abort.abort(); else { sendMsg(); input.focus(); } });
 input.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+  if (e.key !== 'Enter' || e.shiftKey) return;
+  e.preventDefault(); // 回车的默认动作（换行）不要发生
+  // 输入法组合态的回车是"上屏"不是"发送"：中文/日文/韩文用户选候选词时
+  // 按下回车，消息不能带着半截拼音发出去。Safari 会在 compositionend 之后
+  // 才派发这次 keydown（isComposing 已复位），所以再查 keyCode 229。
+  if (e.isComposing || e.keyCode === 229) return;
+  sendMsg();
 });
 // 页面加载即聚焦输入框：桌面端子 webview 重导航后即便 OS 焦点已交还，
 // DOM 焦点也停在 body 上（还得再点一下才能打字）——这里直接落到输入框。
 input.focus();
 document.addEventListener('visibilitychange', () => { if (!document.hidden) input.focus(); });
 document.getElementById('clear').addEventListener('click', () => {
-  history = []; sessionName = ''; log.innerHTML = '<div class="hint">' + t('welcome') + '</div>';
+  history = []; sessionName = '';
+  const welcome = document.createElement('div');
+  welcome.className = 'hint';
+  welcome.textContent = t('welcome');
+  log.replaceChildren(welcome);
   renderSessionBar(); input.focus();
 });
 </script>
-<script src="assets/gsap.min.js"></script>
-<script src="assets/motion.js"></script>
 </body>
 </html>

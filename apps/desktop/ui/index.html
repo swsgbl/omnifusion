@@ -16,7 +16,9 @@
     --border-muted: #21262d;
     --fg: #e6edf3;
     --muted: #8b949e;
-    --faint: #6e7681;
+    /* faint 承担小号说明文字：对三种底色（bg / surface / raised）都须 ≥ 4.5:1
+       （#6e7681 只有 3.6–4.0:1，不达 WCAG AA）。 */
+    --faint: #828a96;
     --accent: #2f81f7;
     --accent-hover: #4b93f8;
     --accent-subtle: rgba(47, 129, 247, .15);
@@ -24,7 +26,6 @@
     --warning: #d29922;
     --danger: #f85149;
     --info: #58a6ff;
-    --focus-ring: 0 0 0 3px rgba(47, 129, 247, .35);
     --r-sm: 4px; --r-md: 6px; --r-lg: 8px; --r-xl: 12px;
     --sidebar-w: 240px; --sidebar-w-collapsed: 56px;
     --tabstrip-h: 40px; --statusbar-h: 32px;
@@ -41,8 +42,11 @@
 
   /* ── Sidebar ── */
   .sidebar { width: var(--sidebar-w); flex: 0 0 var(--sidebar-w); background: var(--surface);
-             border-right: 1px solid var(--border); display: flex; flex-direction: column;
-             transition: width .15s cubic-bezier(.2,0,0,1), flex-basis .15s cubic-bezier(.2,0,0,1); }
+             border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  /* 侧栏收起/展开的宽度过渡是空间位移：只在用户没有要求减少动效时才有。 */
+  @media (prefers-reduced-motion: no-preference) {
+    .sidebar { transition: width .15s cubic-bezier(.2,0,0,1), flex-basis .15s cubic-bezier(.2,0,0,1); }
+  }
   .sidebar.collapsed { width: var(--sidebar-w-collapsed); flex-basis: var(--sidebar-w-collapsed); }
   .side-head { height: 48px; display: flex; align-items: center; gap: 9px; padding: 0 10px;
                border-bottom: 1px solid var(--border-muted); }
@@ -59,12 +63,19 @@
   .nav-section { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase;
                  color: var(--faint); padding: 14px 10px 6px; white-space: nowrap; }
   .sidebar.collapsed .nav-section { padding: 14px 0 6px; text-align: center; font-size: 0; }
-  .sidebar.collapsed .nav-section::after { content: "···"; font-size: 11px; letter-spacing: 0; }
-  .nav-item { height: 32px; display: flex; align-items: center; gap: 10px; padding: 0 10px;
+  /* 收起态的"···"是纯装饰（分区名仍在 DOM 里，只是字号为 0）：content 的
+     替代文本参数置空，读屏不再把它念成省略号。前一行是不支持该语法的
+     引擎的兜底。 */
+  .sidebar.collapsed .nav-section::after { content: "···"; content: "···" / ""; font-size: 11px; letter-spacing: 0; }
+  .nav-item { position: relative; height: 32px; display: flex; align-items: center; gap: 10px; padding: 0 10px;
               border: none; background: transparent; color: var(--muted); cursor: pointer;
               border-radius: var(--r-md); font: 500 13px var(--font-ui); text-align: left; width: 100%; }
   .nav-item:hover { background: var(--surface-hover); color: var(--fg); }
   .nav-item.is-active { background: var(--accent-subtle); color: var(--fg); }
+  /* 当前页不能只靠颜色标识：左侧一道强调色竖条。用 border 画——高对比度
+     模式会抹掉 background，border 仍在。 */
+  .nav-item.is-active::before { content: ""; position: absolute; inset-inline-start: 0; inset-block: 6px;
+                                inline-size: 0; border-inline-start: 3px solid var(--accent); border-radius: 2px; }
   .nav-item.is-active .nav-ico { color: var(--accent); }
   .nav-ico { width: 16px; flex: 0 0 16px; text-align: center; font-size: 14px; }
   .nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -88,21 +99,30 @@
   .tabs-scroll { display: flex; align-items: flex-end; gap: 2px; overflow-x: auto;
                  scrollbar-width: none; max-width: 100%; }
   .tabs-scroll::-webkit-scrollbar { display: none; }
+  /* 页签 = 容器 + 两个真按钮（切换 / 关闭）。此前关闭键是按钮里的一个
+     span：进不了 Tab 序，键盘用户关不了页签，页签的可访问名称里还混着
+     "✕"。切换键沿用原先按钮的排版；全局 button 样式在这里还原。 */
   .tab { position: relative; height: 32px; min-width: 112px; max-width: 220px; display: flex;
-         align-items: center; gap: 8px; padding: 0 8px 0 12px; border: none; cursor: pointer;
+         align-items: center; padding: 0 8px 0 0; cursor: pointer;
          border-radius: var(--r-lg) var(--r-lg) 0 0; background: transparent; color: var(--muted);
          font: 500 13px var(--font-ui); white-space: nowrap; }
   .tab:hover { background: var(--surface-hover); color: var(--fg); }
   .tab.is-active { background: var(--bg); color: var(--fg); }
-  .tab.is-active::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
-                           border-radius: var(--r-lg) var(--r-lg) 0 0; background: var(--accent); }
+  /* 选中指示条用 border 画（高对比度模式下 background 会被抹掉）。 */
+  .tab.is-active::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 0;
+                           border-top: 2px solid var(--accent);
+                           border-radius: var(--r-lg) var(--r-lg) 0 0; }
   .tab-ico { font-size: 13px; flex: 0 0 14px; text-align: center; }
   .tab-label { overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: left; }
-  .tab-close { width: 16px; height: 16px; flex: 0 0 16px; display: grid; place-items: center;
-               border: none; background: transparent; color: var(--faint); cursor: pointer;
-               border-radius: var(--r-sm); font-size: 12px; opacity: 0; transition: opacity .12s; }
-  .tab:hover .tab-close, .tab.is-active .tab-close { opacity: 1; }
-  .tab-close:hover { background: var(--surface-hover); color: var(--fg); }
+  .tab .tab-btn { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 100%;
+                  padding: 0 6px 0 12px; border: none; background: transparent; color: inherit;
+                  border-radius: var(--r-lg) var(--r-lg) 0 0; font: inherit; text-align: left; }
+  .tab .tab-btn:hover { border: none; }
+  .tab button.tab-close { width: 16px; height: 16px; flex: 0 0 16px; display: grid; place-items: center;
+                          padding: 0; border: none; background: transparent; color: var(--faint);
+                          cursor: pointer; border-radius: var(--r-sm); font-size: 12px; opacity: 0; transition: opacity .12s; }
+  .tab:hover .tab-close, .tab.is-active .tab-close, .tab:focus-within .tab-close { opacity: 1; }
+  .tab button.tab-close:hover { background: var(--surface-hover); color: var(--fg); border: none; }
   .tab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex: 0 0 7px; }
   .newtab { width: 28px; height: 28px; flex: 0 0 28px; margin-bottom: 2px; display: grid;
             place-items: center; border: none; background: transparent; color: var(--muted);
@@ -123,7 +143,7 @@
   .gw-down-card { display: flex; flex-direction: column; align-items: center; gap: 8px;
                   max-width: 460px; padding: 0 24px; }
   .gw-down-glyph { font-size: 40px; opacity: .5; }
-  .gw-down-card h3 { font-size: 17px; font-weight: 600; color: var(--fg); }
+  .gw-down-card h2 { font-size: 17px; font-weight: 600; color: var(--fg); }
   .gw-down-card p { font-size: 13px; line-height: 1.7; }
   button.xl { margin-top: 10px; padding: 11px 30px; font-size: 15px; font-weight: 600; }
 
@@ -149,18 +169,20 @@
   /* ── Buttons & inputs ── */
   button { background: var(--surface-hover); color: var(--fg); border: 1px solid var(--border);
            border-radius: var(--r-md); padding: 6px 12px; cursor: pointer; font: 500 13px var(--font-ui); }
-  button:hover { border-color: var(--muted); }
+  /* 悬停反馈不给禁用态（:not 排除，而不是靠后面的规则覆盖）。 */
+  button:hover:not(:disabled) { border-color: var(--muted); }
   button:disabled { opacity: .45; cursor: not-allowed; }
   button.primary { background: rgba(31,111,235,.22); border-color: #316dca; color: #cae0ff; }
-  button.primary:hover { background: rgba(31,111,235,.32); }
+  button.primary:hover:not(:disabled) { background: rgba(31,111,235,.32); }
   button.danger { background: rgba(218,54,52,.2); border-color: #b62324; color: #ffd7d5; }
-  button.danger:hover { background: rgba(218,54,52,.3); }
+  button.danger:hover:not(:disabled) { background: rgba(218,54,52,.3); }
   select, input { background: var(--bg); color: var(--fg); border: 1px solid var(--border);
                   border-radius: var(--r-md); padding: 6px 9px; font-size: 13px; }
   select { cursor: pointer; }
   input { width: 100%; }
-  input:focus, select:focus, button:focus-visible { outline: none; border-color: var(--accent);
-                                                     box-shadow: var(--focus-ring); }
+  /* 焦点环用 outline：高对比度模式会抹掉 box-shadow，outline 仍在。 */
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px;
+                                                     border-color: var(--accent); }
 
   /* ── Shell pages (设置/关于：壳内页面，与 dashboard 页签同级) ── */
   .shell-page { position: absolute; inset: 0; z-index: 3; overflow-y: auto; padding: 24px 28px;
@@ -177,7 +199,8 @@
   .modal-tabs .mtab { border: none; border-bottom: 2px solid transparent; background: transparent;
     color: var(--muted); padding: 8px 14px; cursor: pointer; font-size: 13px; border-radius: 0; }
   .modal-tabs .mtab:hover { color: var(--fg); }
-  .modal-tabs .mtab.active { color: var(--fg); border-bottom-color: var(--accent); }
+  /* 选中态只从 aria-selected 取：视觉态与无障碍态不可能不一致。指示条是 border。 */
+  .modal-tabs .mtab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
   .mpanel { display: none; }
   .mpanel.is-active { display: block; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -209,12 +232,21 @@
   /* ── Empty state (no tabs open) ── */
   .empty-state { position: absolute; inset: 0; z-index: 1; display: none; place-items: center; text-align: center; }
   .empty-state .glyph { font-size: 40px; opacity: .55; }
-  .empty-state h3 { margin: 12px 0 6px; font-size: 15px; font-weight: 600; }
+  .empty-state h2 { margin: 12px 0 6px; font-size: 15px; font-weight: 600; }
   .empty-state p { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
   .chips { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
   .chip { padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px;
           background: transparent; color: var(--muted); font-size: 12.5px; cursor: pointer; }
   .chip:hover { background: var(--surface-hover); color: var(--fg); border-color: var(--muted); }
+
+  /* ── Typography & contrast preferences ── */
+  .lang { padding: 3px 8px; font-size: 11.5px; } /* 语言菜单（原先写在行内 style 里） */
+  h1, h2, h3 { text-wrap: balance; }             /* 短标题：各行长度均衡 */
+  p { text-wrap: pretty; }                       /* 正文：避免末行孤字 */
+  /* 设计用了低对比度的边框与次要文字：对主动要求更高对比度的用户做加固。 */
+  @media (prefers-contrast: more) {
+    :root { --border: #6e7681; --border-muted: #484f58; --faint: #a3acb8; }
+  }
 </style>
 </head>
 <body>
@@ -222,80 +254,84 @@
   <!-- ── Left sidebar: navigation ── -->
   <aside class="sidebar" id="sidebar">
     <div class="side-head">
-      <div class="side-logo">⚡</div>
-      <div class="side-brand">OmniFusion</div>
-      <button class="side-collapse" id="sideCollapse" title="Ctrl+B">«</button>
+      <div class="side-logo" aria-hidden="true">⚡</div>
+      <h1 class="side-brand">OmniFusion</h1>
+      <button type="button" class="side-collapse" id="sideCollapse" title="Ctrl+B" aria-label="Collapse sidebar" aria-expanded="true">«</button>
     </div>
-    <nav class="side-nav" id="sideNav"></nav>
+    <nav class="side-nav" id="sideNav" aria-label="Pages"></nav>
   </aside>
 
   <!-- ── Main column: tab strip + content + status bar ── -->
   <div class="main">
-    <div class="tabstrip">
-      <div class="tabs-scroll" id="tabs"></div>
-      <button class="newtab" id="newTab" title="">+</button>
+    <!-- 顶栏（页签条 + 窗口级控件）是页面的 banner 地标。 -->
+    <header class="tabstrip">
+      <!-- 页面导航（浏览器式页签），不是 tablist：tabs 模式留给同一视图内的分区切换。 -->
+      <nav class="tabs-scroll" id="tabs" aria-label="Open pages"></nav>
+      <button type="button" class="newtab" id="newTab" title="" aria-label="Open a new tab">+</button>
       <div class="tabstrip-spacer"></div>
       <div class="strip-right">
         <a id="updateBadge" class="badge upd" style="display:none" target="_blank" rel="noopener noreferrer"></a>
         <span class="badge off" id="statusBadge"></span>
-        <select id="selLang" title="Language" style="padding:3px 8px;font-size:11.5px">
+        <select id="selLang" class="lang" aria-label="Language">
           <option value="auto">跟随系统 / Auto</option>
           <option value="zh">中文</option>
           <option value="en">English</option>
         </select>
       </div>
-    </div>
+    </header>
 
     <!-- 子 webview 承载区（Rust 侧精确覆盖此矩形）；壳内页面（设置/关于）
-         与之共用此区域，激活壳页面时隐藏子 webview。 -->
-    <div id="frameWrap">
+         与之共用此区域，激活壳页面时隐藏子 webview。这一块就是页面的主内容地标。 -->
+    <main id="frameWrap">
       <!-- 网关未运行时的首选入口：整块内容区就是一个「启动网关」大按钮。
            状态栏的小按钮不显眼，小白找不到——这里才是视线落点。 -->
       <div id="gwDown">
         <div class="gw-down-card">
-          <div class="gw-down-glyph">⚡</div>
-          <h3 id="gwDownTitle"></h3>
+          <div class="gw-down-glyph" aria-hidden="true">⚡</div>
+          <h2 id="gwDownTitle"></h2>
           <p id="gwDownSub"></p>
-          <button id="btnStartBig" class="primary xl"></button>
+          <button type="button" id="btnStartBig" class="primary xl"></button>
         </div>
       </div>
       <div class="empty-state" id="emptyState">
         <div>
-          <div class="glyph">⚡</div>
-          <h3 id="emptyTitle"></h3>
+          <div class="glyph" aria-hidden="true">⚡</div>
+          <h2 id="emptyTitle"></h2>
           <p id="emptyDesc"></p>
           <div class="chips" id="emptyChips"></div>
         </div>
       </div>
 
-      <!-- 设置（内置页签：网关 / 密钥 / 客户端） -->
+      <!-- 设置（内置页签：网关 / 密钥 / 客户端）。内部分区是真正的 tabs：
+           focusgroup 原生处理方向键（Chromium 150+），脚本负责选中态；
+           初始状态直接写在 HTML 里（首个选中，其余 hidden）。 -->
       <div class="shell-page" id="page-settings">
         <h2 class="page-head" id="settingsTitle"></h2>
         <p class="page-sub" id="settingsSub"></p>
-        <div class="modal-tabs">
-          <button class="mtab active" data-tab="gateway"></button>
-          <button class="mtab" data-tab="keys"></button>
-          <button class="mtab" data-tab="clients"></button>
+        <div class="modal-tabs" role="tablist" focusgroup="tablist nomemory" aria-label="Settings sections">
+          <button type="button" class="mtab" id="mtab-gateway" role="tab" aria-selected="true" focusgroupstart data-tab="gateway"></button>
+          <button type="button" class="mtab" id="mtab-keys" role="tab" aria-selected="false" data-tab="keys"></button>
+          <button type="button" class="mtab" id="mtab-clients" role="tab" aria-selected="false" data-tab="clients"></button>
         </div>
-        <div class="mpanel is-active" id="tab-gateway">
+        <div class="mpanel is-active" id="tab-gateway" role="tabpanel" aria-labelledby="mtab-gateway">
           <div class="card">
             <h3><span id="cardGateway"></span></h3>
             <div class="grid">
-              <label><span id="lblBin"></span><input id="inBin" /></label>
-              <label><span id="lblConfig"></span><input id="inConfig" /></label>
-              <label><span id="lblBase"></span><input id="inBase" value="http://127.0.0.1:20130" /></label>
-              <button id="btnSave"></button>
+              <label><span id="lblBin"></span><input id="inBin" autocomplete="off" autocapitalize="off" spellcheck="false" /></label>
+              <label><span id="lblConfig"></span><input id="inConfig" autocomplete="off" autocapitalize="off" spellcheck="false" /></label>
+              <label><span id="lblBase"></span><input id="inBase" value="http://127.0.0.1:20130" autocomplete="off" autocapitalize="off" spellcheck="false" /></label>
+              <button type="button" id="btnSave"></button>
             </div>
           </div>
           <div class="card">
             <h3><span id="cardToken"></span><span class="hint" id="cardTokenHint"></span></h3>
             <div class="row2">
-              <label><span id="lblKey"></span><input id="inKey" /></label>
-              <button id="btnKey" class="primary"></button>
+              <label><span id="lblKey"></span><input id="inKey" autocomplete="off" autocapitalize="off" spellcheck="false" /></label>
+              <button type="button" id="btnKey" class="primary"></button>
             </div>
           </div>
         </div>
-        <div class="mpanel" id="tab-keys">
+        <div class="mpanel" id="tab-keys" role="tabpanel" aria-labelledby="mtab-keys" hidden>
           <div class="card">
             <h3><span id="cardKeys"></span><span class="hint" id="cardKeysHint"></span></h3>
             <div class="row2">
@@ -305,13 +341,13 @@
                        新厂商自动跟上），fallback 保留最小骨架防网关未起。 -->
                 </select>
               </label>
-              <button id="btnKeyAdd"></button>
-              <button id="btnSignup" title=""></button>
+              <button type="button" id="btnKeyAdd"></button>
+              <button type="button" id="btnSignup" title=""></button>
             </div>
             <div class="msg" id="keyAddHint"></div>
           </div>
         </div>
-        <div class="mpanel" id="tab-clients">
+        <div class="mpanel" id="tab-clients" role="tabpanel" aria-labelledby="mtab-clients" hidden>
           <div class="card">
             <h3><span id="cardClients"></span><span class="hint" id="cardClientsHint"></span></h3>
             <div class="row2">
@@ -324,7 +360,7 @@
                   <option value="pi">pi（运维 AI，聚合密钥驱动）</option>
                 </select>
               </label>
-              <button id="btnConnect"></button>
+              <button type="button" id="btnConnect"></button>
             </div>
             <div class="msg" id="connectHint"></div>
           </div>
@@ -334,7 +370,7 @@
       <!-- 关于 -->
       <div class="shell-page" id="page-about">
         <div class="about-wrap">
-          <div class="about-logo">⚡</div>
+          <div class="about-logo" aria-hidden="true">⚡</div>
           <h2>OmniFusion Desktop</h2>
           <div class="ver-row" id="aboutVersion"></div>
           <p id="aboutDesc"></p>
@@ -345,25 +381,26 @@
             <a id="aboutLicenseLink" href="https://github.com/swsgbl/omnifusion/blob/main/NOTICE" target="_blank">NOTICE</a>
           </p>
           <p class="about-license">Apache-2.0 · BYOK 本地优先 · 零遥测</p>
-          <button id="aboutCheck"></button>
-          <button id="aboutCopy" class="ghost"></button>
+          <button type="button" id="aboutCheck"></button>
+          <button type="button" id="aboutCopy" class="ghost"></button>
         </div>
       </div>
-    </div>
+    </main>
 
     <!-- ── Status bar: gateway state + actions ── -->
-    <div class="statusbar" id="statusbar">
-      <span class="sb-dot" id="sbDot"></span>
+    <footer class="statusbar" id="statusbar">
+      <span class="sb-dot" id="sbDot" aria-hidden="true"></span>
       <span id="sbText"></span>
-      <span class="sb-sep">|</span>
+      <span class="sb-sep" aria-hidden="true">|</span>
       <span class="sb-mono" id="sbBase"></span>
-      <div class="msg" id="msg"></div>
+      <!-- 状态消息是 live region：保存成功/失败会被读屏播报。 -->
+      <div class="msg" id="msg" role="status"></div>
       <div class="sb-actions">
-        <button id="btnRefresh"></button>
-        <button id="btnStart" class="primary"></button>
-        <button id="btnStop" class="danger"></button>
+        <button type="button" id="btnRefresh"></button>
+        <button type="button" id="btnStart" class="primary"></button>
+        <button type="button" id="btnStop" class="danger"></button>
       </div>
-    </div>
+    </footer>
   </div>
 </div>
 
@@ -408,6 +445,8 @@ const I18N = {
     tabGateway: "网关", tabKeys: "密钥", tabClients: "客户端",
     verDesktop: "桌面端", verGateway: "网关", verUnknown: "未运行",
     aboutCopy: "复制版本信息", aboutCopied: "已复制到剪贴板",
+    sideNavLabel: "页面", openPages: "已打开的页面", closeTab: "关闭标签页：{t}", langLabel: "语言",
+    collapseSidebar: "收起侧边栏", expandSidebar: "展开侧边栏", settingsTabs: "设置分区",
     aboutDesc: "把全球免费大模型聚合到一个本地端点。BYOK 本地优先，零遥测，密钥永不出本机。",
     updateFound: "✨ 发现新版本 {v}，已打开下载页", updateNone: "✓ 已是最新版本", updateFail: "检查更新失败: ",
     detail: { managed: "运行中（本应用托管）", external: "运行中（外部启动）", stopped: "未运行" },
@@ -452,6 +491,8 @@ const I18N = {
     tabGateway: "Gateway", tabKeys: "API Keys", tabClients: "CLI Clients",
     verDesktop: "Desktop", verGateway: "Gateway", verUnknown: "not running",
     aboutCopy: "Copy version info", aboutCopied: "Copied to clipboard",
+    sideNavLabel: "Pages", openPages: "Open pages", closeTab: "Close tab: {t}", langLabel: "Language",
+    collapseSidebar: "Collapse sidebar", expandSidebar: "Expand sidebar", settingsTabs: "Settings sections",
     aboutDesc: "Aggregate the world's free LLMs behind one local endpoint. BYOK local-first, zero telemetry, keys never leave your machine.",
     updateFound: "✨ New version {v} available — download page opened", updateNone: "✓ You are on the latest version", updateFail: "Update check failed: ",
     detail: { managed: "Running (managed)", external: "Running (external)", stopped: "Stopped" },
@@ -524,34 +565,69 @@ function restoreTabs() {
   if (!openTabs.includes(activePage)) activePage = openTabs[0];
 }
 
-// ── 侧边栏渲染 + 折叠 ──
 // ── 侧边栏渲染（两段：导航页 + 系统页，全部统一为标签页入口）──
+// 侧栏与页签条每次激活都会整体重建。键盘用户刚按回车激活的那一项会连
+// 节点一起被换掉，浏览器随即把焦点丢给 <body>——所以重建前记下焦点在
+// 哪一项，重建后还给同一项。只对键盘焦点（:focus-visible）这么做，且仅
+// 当焦点真的在壳页面里（键盘在子 webview 里时不干预）。
+const focusedItemIn = (root, itemSel) => {
+  const el = document.activeElement;
+  const item = el && root.contains(el) ? el.closest(itemSel) : null;
+  return item && document.hasFocus() && el.matches(":focus-visible") ? item : null;
+};
+// 装饰性图标（emoji）对读屏隐藏：按钮的名称就是旁边的文字。
+const icon = (cls, glyph) => {
+  const s = document.createElement("span");
+  s.className = cls;
+  s.setAttribute("aria-hidden", "true");
+  s.textContent = glyph;
+  return s;
+};
 function renderSidebar() {
   const nav = $("sideNav");
-  nav.innerHTML = "";
+  const wasFocused = focusedItemIn(nav, ".nav-item");
+  const refocus = wasFocused ? wasFocused.dataset.page : null;
+  const nodes = [];
   const addSection = (label) => {
     const sec = document.createElement("div");
     sec.className = "nav-section";
     sec.textContent = label;
-    nav.appendChild(sec);
+    nodes.push(sec);
   };
   const addItem = (id) => {
     const b = document.createElement("button");
+    b.type = "button";
     b.className = "nav-item" + (id === activePage ? " is-active" : "");
+    b.dataset.page = id;
     b.title = t.tabs[id];
-    b.innerHTML = `<span class="nav-ico">${PAGE_ICON[id]}</span><span class="nav-label"></span>`;
-    b.querySelector(".nav-label").textContent = t.tabs[id];
+    if (id === activePage) b.setAttribute("aria-current", "page");
+    const label = document.createElement("span");
+    label.className = "nav-label";
+    label.textContent = t.tabs[id];
+    b.append(icon("nav-ico", PAGE_ICON[id]), label);
     b.onclick = () => openTab(id);
-    nav.appendChild(b);
+    nodes.push(b);
   };
   addSection(t.navMain);
   DASH_PAGES.forEach(addItem);
   addSection(t.navSystem);
   SHELL_PAGES.forEach(addItem);
+  nav.replaceChildren(...nodes); // 一次原子替换，不经过 HTML 解析器
+  if (refocus) {
+    const again = nav.querySelector('.nav-item[data-page="' + refocus + '"]');
+    if (again) again.focus();
+  }
+}
+// syncCollapseState 让收起按钮的名称与展开态跟侧栏一致（语言切换时也刷新）。
+function syncCollapseState(collapsed) {
+  const btn = $("sideCollapse");
+  btn.setAttribute("aria-expanded", String(!collapsed));
+  btn.setAttribute("aria-label", collapsed ? t.expandSidebar : t.collapseSidebar);
 }
 function setCollapsed(collapsed) {
   $("sidebar").classList.toggle("collapsed", collapsed);
   $("sideCollapse").textContent = collapsed ? "»" : "«";
+  syncCollapseState(collapsed);
   try { localStorage.setItem("ofd-desktop-sidebar", collapsed ? "1" : "0"); } catch {}
   setTimeout(layoutDash, 170); // 折叠动画结束后重新对齐子 webview
 }
@@ -560,21 +636,45 @@ $("sideCollapse").onclick = () => setCollapsed(!$("sidebar").classList.contains(
 // ── 标签条渲染 ──
 function renderTabs() {
   const strip = $("tabs");
-  strip.innerHTML = "";
-  for (const id of openTabs) {
-    const tab = document.createElement("button");
+  const wasFocused = focusedItemIn(strip, ".tab");
+  // 关闭键若属于正被关掉的那一页，焦点落到（关闭后的）当前页的切换键上。
+  const want = wasFocused ? { page: wasFocused.dataset.page, close: document.activeElement.classList.contains("tab-close") } : null;
+  const nodes = openTabs.map((id) => {
+    const tab = document.createElement("div");
     tab.className = "tab" + (id === activePage ? " is-active" : "");
-    tab.title = t.tabs[id];
-    tab.innerHTML = `<span class="tab-ico">${PAGE_ICON[id]}</span><span class="tab-label"></span><span class="tab-close">✕</span>`;
-    tab.querySelector(".tab-label").textContent = t.tabs[id];
-    tab.onclick = (e) => { if (!e.target.classList.contains("tab-close")) activateTab(id); };
-    tab.querySelector(".tab-close").onclick = (e) => { e.stopPropagation(); closeTab(id); };
-    strip.appendChild(tab);
-  }
+    tab.dataset.page = id;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "tab-btn";
+    btn.title = t.tabs[id];
+    if (id === activePage) btn.setAttribute("aria-current", "page");
+    const label = document.createElement("span");
+    label.className = "tab-label";
+    label.textContent = t.tabs[id];
+    btn.append(icon("tab-ico", PAGE_ICON[id]), label);
+    btn.onclick = () => activateTab(id);
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "tab-close";
+    close.setAttribute("aria-label", t.closeTab.replace("{t}", () => t.tabs[id]));
+    close.textContent = "✕";
+    close.onclick = () => closeTab(id);
+    tab.append(btn, close);
+    return tab;
+  });
+  strip.replaceChildren(...nodes); // 一次原子替换，不经过 HTML 解析器
   const empty = $("emptyState");
   empty.style.display = openTabs.length ? "none" : "grid";
   $("newTab").style.display = openTabs.length ? "grid" : "none";
   saveTabs();
+  if (want) {
+    const page = openTabs.includes(want.page) ? want.page : activePage;
+    const tab = page ? strip.querySelector('.tab[data-page="' + page + '"]') : null;
+    if (tab) (want.close && page === want.page ? tab.querySelector(".tab-close") : tab.querySelector(".tab-btn")).focus();
+  }
+  // 页签条放不下时，让当前页签滚进可视区（只滚页签条自己）。
+  const current = strip.querySelector(".tab.is-active");
+  if (current) current.scrollIntoView({ block: "nearest", inline: "nearest", container: "nearest" });
 }
 
 // ── 标签操作 ──
@@ -822,6 +922,13 @@ function applyLang() {
   $("aboutCopy").textContent = t.aboutCopy;
   $("aboutDesc").textContent = t.aboutDesc;
   $("newTab").title = t.newTab;
+  // 无障碍名称随语言切换（侧栏导航、页签条、图标按钮、语言菜单、设置分区）。
+  $("sideNav").setAttribute("aria-label", t.sideNavLabel);
+  $("tabs").setAttribute("aria-label", t.openPages);
+  $("selLang").setAttribute("aria-label", t.langLabel);
+  $("newTab").setAttribute("aria-label", t.newTab);
+  document.querySelector(".modal-tabs").setAttribute("aria-label", t.settingsTabs);
+  syncCollapseState($("sidebar").classList.contains("collapsed"));
   $("emptyTitle").textContent = t.emptyTitle;
   $("emptyDesc").textContent = t.emptyDesc;
   document.querySelector('[data-tab="gateway"]').textContent = t.tabGateway;
@@ -832,33 +939,72 @@ function applyLang() {
 
 // ── 设置页内标签（网关/密钥/客户端） + 关于页 ──
 // 设置与关于是壳内页签（由侧边栏 openTab 打开），不再是浮层弹窗。
-document.querySelectorAll(".mtab").forEach((tab) => {
-  tab.onclick = () => setSettingsTab(tab.dataset.tab);
-});
+// 内部分区是 WAI-ARIA tabs：焦点落在哪个标签就选中哪个（方向键即切换）。
+// 方向键的漫游焦点优先交给原生 focusgroup（Chromium 150+）；没有原生
+// 支持时用 roving tabindex 兜底——两种情况下方向键都只由一处处理。
+const settingsTabs = () => [...document.querySelectorAll(".mtab")];
+const nativeFocusgroup = Object.hasOwn(HTMLElement.prototype, "focusGroup");
 function setSettingsTab(name) {
-  document.querySelectorAll(".mtab").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
-  document.querySelectorAll(".mpanel").forEach((p) => p.classList.toggle("is-active", p.id === "tab-" + name));
+  settingsTabs().forEach((x) => {
+    const on = x.dataset.tab === name;
+    x.setAttribute("aria-selected", String(on));
+    if (!nativeFocusgroup) x.tabIndex = on ? 0 : -1;
+    x.toggleAttribute("focusgroupstart", on);
+  });
+  document.querySelectorAll(".mpanel").forEach((p) => {
+    const on = p.id === "tab-" + name;
+    p.classList.toggle("is-active", on);
+    p.hidden = !on;
+  });
 }
+settingsTabs().forEach((tab) => {
+  tab.onclick = () => setSettingsTab(tab.dataset.tab);
+  tab.addEventListener("focus", () => { if (tab.getAttribute("aria-selected") !== "true") setSettingsTab(tab.dataset.tab); });
+  if (!nativeFocusgroup) {
+    tab.addEventListener("keydown", (e) => {
+      const tabs = settingsTabs();
+      const i = tabs.indexOf(tab);
+      const to = e.key === "ArrowRight" ? (i + 1) % tabs.length
+        : e.key === "ArrowLeft" ? (i + tabs.length - 1) % tabs.length
+        : e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : -1;
+      if (to < 0) return;
+      e.preventDefault();
+      tabs[to].focus(); // focus → 选中
+    });
+  }
+});
+if (!nativeFocusgroup) setSettingsTab("gateway"); // 初始 roving tabindex
 function renderSettingsPanes() { /* 面板显隐由 CSS class 驱动，无需重绘 */ }
 
 // renderAboutVersions 拉真实版本填「关于」页：桌面端版本来自 Rust
 // （Tauri 打包元数据），网关版本由捆绑 ofd --version 实时读取。
+// verChip 用 DOM API 组装版本胶囊（文本走 textContent，不经 HTML 解析器）。
+function verChip(label, value, pending) {
+  const chip = document.createElement("span");
+  chip.className = "ver-chip" + (pending ? " pending" : "");
+  const name = document.createElement("span");
+  name.textContent = label;
+  chip.append(name);
+  if (value !== undefined) {
+    const b = document.createElement("b");
+    b.textContent = value;
+    chip.append(b);
+  }
+  return chip;
+}
 async function renderAboutVersions() {
   const row = $("aboutVersion");
-  row.innerHTML = `<span class="ver-chip pending"><span>${t.verDesktop}</span><b>…</b></span>`;
+  row.replaceChildren(verChip(t.verDesktop, "…", true));
   let info = null;
   try { info = await invoke("app_info"); } catch { /* 读取失败降级 */ }
-  const chips = [];
   const desktop = (info && info.desktop) || "dev";
-  chips.push(`<span class="ver-chip"><span>${t.verDesktop}</span><b>v${esc(desktop)}</b></span>`);
   const gw = info && info.gateway ? String(info.gateway).replace(/^ofd\s*/i, "") : "";
-  chips.push(gw
-    ? `<span class="ver-chip"><span>${t.verGateway}</span><b>${esc(gw)}</b></span>`
-    : `<span class="ver-chip pending"><span>${t.verGateway}</span><b>${t.verUnknown}</b></span>`);
-  if (info && info.os) chips.push(`<span class="ver-chip"><span>${esc(info.os)}/${esc(info.arch || "")}</span></span>`);
-  row.innerHTML = chips.join("");
+  row.replaceChildren(
+    verChip(t.verDesktop, "v" + desktop),
+    gw ? verChip(t.verGateway, gw) : verChip(t.verGateway, t.verUnknown, true),
+    ...(info && info.os ? [verChip(info.os + "/" + (info.arch || ""))] : []),
+  );
 }
-function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 $("aboutCopy").onclick = async () => {
   try {
     const info = await invoke("app_info");
@@ -882,15 +1028,15 @@ $("aboutCheck").onclick = async () => {
 
 // ── 空态建议 chips ──
 function renderEmptyChips() {
-  const box = $("emptyChips");
-  box.innerHTML = "";
-  ["chat", "keys", "providers"].forEach((id) => {
+  const chip = (id) => {
     const b = document.createElement("button");
+    b.type = "button";
     b.className = "chip";
-    b.textContent = PAGE_ICON[id] + " " + t.tabs[id];
+    b.append(icon("", PAGE_ICON[id]), " " + t.tabs[id]);
     b.onclick = () => openTab(id);
-    box.appendChild(b);
-  });
+    return b;
+  };
+  $("emptyChips").replaceChildren(...["chat", "keys", "providers"].map(chip));
 }
 
 // ── 按钮接线 ──
@@ -959,8 +1105,7 @@ async function refreshProviderSelect() {
   } catch { /* 网关未起：走静态骨架 */ }
   if (!entries.length) entries = Object.keys(SIGNUP).map(id => ({ id, signup: SIGNUP[id] }));
   entries.sort((a, b) => a.id.localeCompare(b.id));
-  sel.innerHTML = entries.map(e =>
-    `<option value="${e.id}">${e.id}${e.signup ? "" : "（本地/免密钥）"}</option>`).join("");
+  sel.replaceChildren(...entries.map(e => new Option(e.id + (e.signup ? "" : "（本地/免密钥）"), e.id)));
   if (prev && entries.some(e => e.id === prev)) sel.value = prev;
 }
 $("btnSignup").onclick = async () => {

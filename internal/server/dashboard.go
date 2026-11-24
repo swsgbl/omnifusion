@@ -42,6 +42,7 @@ func (s *Server) requireDashboardKey(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !s.dashboardKeyOK(r) {
 			if strings.Contains(r.Header.Get("Accept"), "text/html") {
+				setHTMLSecurityHeaders(w, []byte(dashboardKeyHTML))
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.WriteHeader(http.StatusUnauthorized)
 				_, _ = w.Write([]byte(dashboardKeyHTML))
@@ -66,23 +67,24 @@ const dashboardKeyHTML = `<!DOCTYPE html>
 <style>
   :root { color-scheme: dark; }
   body { font: 15px/1.8 system-ui, sans-serif; background: #0d1117; color: #e6edf3;
-         margin: 0; min-height: 100vh; display: grid; place-items: center; }
+         margin: 0; min-height: 100dvh; display: grid; place-items: center; }
   .card { max-width: 520px; padding: 32px 36px; border: 1px solid #30363d;
           border-radius: 12px; background: #161b22; }
-  h1 { font-size: 18px; margin: 0 0 12px; }
+  h1 { font-size: 18px; margin: 0 0 12px; text-wrap: balance; }
   code { background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
          padding: 1px 6px; font-size: 12.5px; }
   .muted { color: #8b949e; font-size: 13px; }
+  p { text-wrap: pretty; }
 </style>
 </head>
 <body>
-<div class="card">
-  <h1>🔑 需要网关令牌 · Gateway token required</h1>
+<main class="card">
+  <h1><span aria-hidden="true">🔑</span> 需要网关令牌 · Gateway token required</h1>
   <p>桌面端：点上方「从 ofd 读取 Key」自动填入，页面会自动重载。</p>
   <p class="muted">Desktop: click "Read Key from ofd" — the page reloads with the key filled in.</p>
   <p>浏览器直开：在 URL 后追加 <code>?key=&lt;令牌&gt;</code>；令牌在终端执行 <code>ofd gateway-key</code> 获取。</p>
   <p class="muted">Direct browser access: append <code>?key=&lt;token&gt;</code> to the URL; get the token with <code>ofd gateway-key</code>.</p>
-</div>
+</main>
 </body>
 </html>`
 
@@ -130,6 +132,7 @@ func (s *Server) serveDashboardPage(w http.ResponseWriter, page string) {
 		http.Error(w, "dashboard page unavailable", http.StatusInternalServerError)
 		return
 	}
+	setHTMLSecurityHeaders(w, data) // CSP 脚本哈希取自这份 data（见 webheaders.go）
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)

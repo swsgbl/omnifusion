@@ -150,7 +150,7 @@ func (s *Server) Handler() http.Handler {
 		mux.HandleFunc("GET /.well-known/agent-card.json", s.handleA2ACard)
 		mux.Handle("POST /rpc", s.requireGatewayKey(http.HandlerFunc(s.handleA2ARPC)))
 	}
-	return obs.RequestLogger(s.log)(mux)
+	return obs.RequestLogger(s.log)(nosniff(mux)) // nosniff 贴最内层：每个响应都带 MIME 嗅探拦截（webheaders.go）
 }
 
 // ListenAndServe 启动并支持 ctx 取消后的优雅关停。

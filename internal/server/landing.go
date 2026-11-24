@@ -14,35 +14,39 @@ const landingHTML = `<!DOCTYPE html>
 <style>
   :root { color-scheme: dark; }
   body { font: 15px/1.7 system-ui, sans-serif; background: #0d1117; color: #e6edf3;
-         margin: 0; min-height: 100vh; display: grid; place-items: center; }
+         margin: 0; min-height: 100dvh; display: grid; place-items: center; }
   .card { max-width: 560px; padding: 36px 40px; border: 1px solid #30363d;
           border-radius: 12px; background: #161b22; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
+  h1 { font-size: 20px; margin: 0 0 4px; text-wrap: balance; }
   .ok { color: #3fb950; font-size: 13px; margin-bottom: 20px; }
+  /* 呼吸只给装饰圆点：状态文字本身保持静止（可读，也不属于自动播放的动态内容）。 */
+  .ok .dot { display: inline-block; }
   a { color: #58a6ff; text-decoration: none; }
+  /* 正文行内的链接靠下划线与 surrounding 文字区分（不能只靠颜色）。 */
+  .foot a { text-decoration: underline; text-underline-offset: 2px; }
   .row { padding: 10px 0; border-top: 1px solid #21262d; }
   .row b { display: block; font-size: 14px; }
   .row span { color: #8b949e; font-size: 12.5px; }
   code { background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
          padding: 1px 6px; font-size: 12.5px; }
   .foot { margin-top: 22px; color: #8b949e; font-size: 12px;
-          border-top: 1px solid #21262d; padding-top: 12px; }
+          border-top: 1px solid #21262d; padding-top: 12px; text-wrap: pretty; }
 </style>
 </head>
 <body>
-<div class="card">
+<main class="card">
   <h1>OmniFusion · AI Gateway</h1>
-  <div class="ok">● 网关运行中 · Gateway is running</div>
-  <div class="row"><b><a id="chat" href="/dashboard/chat">💬 对话页 · Chat</a></b>
+  <div class="ok"><span class="dot" aria-hidden="true">●</span> 网关运行中 · Gateway is running</div>
+  <div class="row"><b><a id="chat" href="/dashboard/chat"><span aria-hidden="true">💬</span> 对话页 · Chat</a></b>
     <span>装完即聊，默认「⚡ 自动」选最强免费模型 / chat with free models right away</span></div>
-  <div class="row"><b><a id="dash" href="/dashboard">📊 控制台 · Dashboard</a></b>
+  <div class="row"><b><a id="dash" href="/dashboard"><span aria-hidden="true">📊</span> 控制台 · Dashboard</a></b>
     <span>提供商 / 密钥 / 用量 / 压缩 / 弹性 / providers · keys · usage · resilience</span></div>
-  <div class="row"><b>🔌 OpenAI 兼容 API</b>
+  <div class="row"><b><span aria-hidden="true">🔌</span> OpenAI 兼容 API</b>
     <span><code id="base">/v1</code> · Anthropic <code>/v1/messages</code> · Gemini <code>/v1beta</code> · Responses <code>/v1/responses</code></span></div>
-  <div class="row"><b>🔑 密钥 · API key</b>
+  <div class="row"><b><span aria-hidden="true">🔑</span> 密钥 · API key</b>
     <span>页面与 API 需要网关令牌（<code>?key=…</code> / <code>Authorization: Bearer …</code>），终端执行 <code>ofd gateway-key</code> 获取 / run <code>ofd gateway-key</code> to get the token</span></div>
   <div class="foot">Apache-2.0 · 无遥测 · 数据本机 · No telemetry · data stays local · <a href="https://github.com/swsgbl/omnifusion/blob/main/SECURITY.md">安全 · Security</a></div>
-</div>
+</main>
 <script>
 'use strict';
 const key = new URLSearchParams(location.search).get('key') || '';
@@ -54,14 +58,15 @@ document.getElementById('base').textContent = location.origin + '/v1';
 <script src="/dashboard/assets/motion.js"></script>
 <script>
 'use strict';
-// 落地页专属：状态点呼吸（骨架进场由 motion.js 的 page() 负责）。
-if (window.OFD) OFD.motion.pulse('.ok');
+// 落地页专属：状态圆点呼吸（骨架进场由 motion.js 的 page() 负责）。
+if (window.OFD) OFD.motion.pulse('.ok .dot');
 </script>
 </body>
 </html>`
 
 // handleRoot 服务根路径落地页（无鉴权：不含任何敏感信息）。
 func (s *Server) handleRoot(w http.ResponseWriter, _ *http.Request) {
+	setHTMLSecurityHeaders(w, []byte(landingHTML))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(landingHTML))
 }
