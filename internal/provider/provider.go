@@ -107,11 +107,29 @@ type Provider interface {
 	HTTPClient() *http.Client
 }
 
+// Anonymous 是免凭据实例化的适配器（注册表 optional_key 且未存 key）。
+// 免密网关上的 401/403 是模型级的——免费池匿名可调、付费模型要求登录
+//（PAID_MODEL_AUTH_REQUIRED）——路由层据此只锁模型，不冷却整家。
+type Anonymous interface {
+	Keyless() bool
+}
+
+// Aggregator 是单 key/端点后多路复用多家上游的聚合面（OpenRouter、
+// NVIDIA NIM、Kilo）。它的 429 是"某个模型背后的上游在限流/过载"，
+// 不是账户级限额——路由层据此把限流隔离收敛到模型。
+type Aggregator interface {
+	IsAggregator() bool
+}
+
 // ModelInfo describes one catalog entry. Fields grow as the router
 // needs them; keeps the identity and sizing basics.
 type ModelInfo struct {
 	ID            string `json:"id"`
 	ContextWindow int64  `json:"context_window,omitempty"`
+	// Free 是上游清单自带的免费声明（isFree:true 或 OpenRouter 式零
+	// 定价）。与注册表静态 0/0 不同，它随每次目录同步刷新——免费池
+	// 轮换时静态清单会过期，这个标记不会。
+	Free bool `json:"free,omitempty"`
 }
 
 // Price is a model's declared list price in USD per 1M tokens (registry

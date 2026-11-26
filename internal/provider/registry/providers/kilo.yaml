@@ -10,6 +10,9 @@ providers:
     # （PAID_MODEL_AUTH_REQUIRED），故 models_filter 只收免费池。
     optional_key: true
     models_filter: free
+    # 聚合面：429 是"某个免费模型背后的上游在限流"，不是账户级限额
+    # ——路由层把限流隔离收敛到模型，同池其他模型照常可试。
+    aggregator: true
     extra_headers:
       user-agent: omnifusion-gateway
     signup_url: https://kilo.ai
@@ -21,27 +24,24 @@ providers:
     # 勿在此车道发送敏感内容；付费模型请申请 key 后另行配置。
     free_tier: 免密免费池（isFree 模型实时拉取，无 key 可用；勿发敏感内容）
     models:
-      # 2026-10-13 GET /models 实测的 isFree 切片（kilo-auto/free 自动
-      # 路由免费池；清单实时同步为准，静态列表是同步失败的回落）。
+      # 2026-11-26 live /models 的 isFree 切片里实测可用（逐模型探测
+      # 发真实小请求）的 9 个；kilo-auto/free 是上游自己的免费池路由
+      # 入口。清单实时同步为准，静态列表是同步失败的回落。免费池轮换
+      # 很快——2026-10-13 登记的 15 个里只剩 6 个还在——已下线/已转
+      # 收费的旧条目务必删掉（转收费的旧模型回 401，曾把整个免密池
+      # 隔离 30 分钟）。此刻限流/状态不明的（baidu/ernie、ling-3.2、
+      # super-vl、glyph-cluster）不登记：上游的 isFree 标记仍会带它们
+      # 进安全网，只是排在核对过的入口之后。
       - id: kilo-auto/free
         price_in: 0
         price_out: 0
       - id: openrouter/free
         price_in: 0
         price_out: 0
-      - id: stepfun/step-5-preview-free
-        price_in: 0
-        price_out: 0
-      - id: inclusionai/ling-3.1-flash
-        price_in: 0
-        price_out: 0
-      - id: liquid/lfm-2.5-2.6b:free
+      - id: liquid/lfm-3-1.7b:free
         price_in: 0
         price_out: 0
       - id: nvidia/nemotron-3.5-lightning:free
-        price_in: 0
-        price_out: 0
-      - id: nvidia/nemotron-3-super-120b-a12b:free
         price_in: 0
         price_out: 0
       - id: nvidia/nemotron-3-ultra-550b-a55b:free
@@ -50,21 +50,12 @@ providers:
       - id: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
         price_in: 0
         price_out: 0
-      - id: cohere/north-mini-code:free
+      - id: particle-ai/particle-1:free
         price_in: 0
         price_out: 0
-      - id: poolside/laguna-s-2.1:free
+      - id: recursive/flint-v1.0:free
         price_in: 0
         price_out: 0
-      - id: poolside/laguna-xs-2.1:free
-        price_in: 0
-        price_out: 0
-      - id: thinkingmachines/inkling-small:free
-        price_in: 0
-        price_out: 0
-      - id: dots-studio/dots-3-note-preview:free
-        price_in: 0
-        price_out: 0
-      - id: stealth/glyph-cluster
+      - id: reflection/beam-free
         price_in: 0
         price_out: 0

@@ -5,14 +5,21 @@ providers:
     base_url: https://api.llm7.io/v1
     auth_style: bearer
     key_env: LLM7_API_KEY
-    optional_key: true # 匿名可用（10 RPM）；免费 key 解锁更高限额
+    optional_key: true # 匿名可调 turbo 档；pro 档需 key
     signup_url: https://llm7.io
     capabilities:
       input: [text]
       output: [text]
       features: []
-    free_tier: 20+ 免费模型；匿名 10 RPM，免费 key 更高限额
+    # 2026-11-26 经官方 /models 与匿名实测核对：清单 84 个模型全部标价
+    # >0，旧登记的 sao10k/l3-euryale-70b 已下线（400 unavailable），
+    # "20+ 免费模型"不再成立。匿名调用 turbo 档（gpt-oss:20b、
+    # codestral-latest）回 200；pro 档匿名回 401 "Missing API key"。
+    free_tier: 匿名可调 turbo 档（gpt-oss:20b、codestral-latest）；pro 档需 key，按 token 计费
     models:
-      - id: sao10k/l3-euryale-70b
+      - id: gpt-oss:20b
+        price_in: 0
+        price_out: 0
+      - id: codestral-latest
         price_in: 0
         price_out: 0

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/swsgbl/omnifusion/internal/core/schema"
@@ -192,12 +193,16 @@ func (s *Server) logDispatchFailure(req *schema.UnifiedRequest, attempts []routi
 	s.log.Error("chat completion failed", append(fields, "err", security.RedactSecrets(errString(err)))...)
 }
 
-// upstreamErrorMessage 是客户端可见的上游失败摘要。UpstreamError 走
-// 结构化摘要（不含体）；其余回退路径可能携带上游原文——脱敏后再出
+// upstreamErrorMessage 是客户端可见的上游失败摘要。全链失败时先出
+// 逐家可行动摘要（dispatchFailureSummary）；其余情况 UpstreamError 走
+// 结构化摘要（不含体）；回退路径可能携带上游原文——脱敏后再出
 // （纵深防御：即使未来新增回退路径，密钥形态也出不去）。
 func upstreamErrorMessage(err error) string {
 	var de *routing.DispatchError
 	if errors.As(err, &de) && len(de.Attempts) > 0 {
+		if summary := dispatchFailureSummary(de.Attempts); summary != "" {
+			return summary
+		}
 		last := de.Attempts[len(de.Attempts)-1]
 		if ue, ok := provider.IsUpstream(last.Err); ok {
 			msg := fmt.Sprintf("upstream %s returned status %d", ue.Provider, ue.Status)
@@ -211,6 +216,124 @@ func upstreamErrorMessage(err error) string {
 		return security.RedactSecrets(fmt.Sprintf("upstream %s failed: %v", last.Provider, last.Err))
 	}
 	return security.RedactSecrets(err.Error())
+}
+
+// failureSummaryMax 是摘要里逐家列出的上限：再多的失败折成一句计数，
+// 摘要本身不该变成一堵墙。
+const failureSummaryMax = 6
+
+// kindHint 是错误类别 → 给用户的一句固定提示（不含任何上游原文）。
+var kindHint = map[routing.ErrorKind]string{
+	routing.KindAuthInvalid:    "check the API key",
+	routing.KindQuotaExhausted: "quota or balance is exhausted",
+	routing.KindModelGone:      "model was retired or is not available on this account",
+	routing.KindRateLimit:      "rate limited, retry shortly",
+	routing.KindNetOrTimeout:   "network unreachable or timed out",
+	routing.KindUpstream5xx:    "upstream error",
+	routing.KindStreamBroken:   "stream broke mid-response",
+	routing.KindRequestError:   "request rejected",
+}
+
+// failureHint 是单条失败的提示：403 单独处理——区域封锁（如 CN/HK
+// 出口被 Groq 等拒）是最常见的 403 成因，先给代理建议再提密钥。
+func failureHint(kind routing.ErrorKind, status int) string {
+	if kind == routing.KindAuthInvalid && status == http.StatusForbidden {
+		return "region-blocked? set HTTPS_PROXY to a permitted region, or pick another provider; otherwise check the API key"
+	}
+	return kindHint[kind]
+}
+
+// dispatchFailureSummary 把全链失败压成一句可行动的摘要：逐个列出
+// 真正打到上游的失败（provider/model: 状态码 类别 — 提示），被隔离/
+// 超预算跳过的候选只报数量；一个上游都没打、全是跳过时直接点名谁被
+// 隔离、到什么时候。2026-11-25 用户实撞：全部候选失败时只回"最后
+// 一家 skipped (cooldown)"，看不出是哪把 key 失效、哪家欠费。
+//
+// 只含 provider、模型 id、状态码、类别与固定提示——上游响应体可能回显
+// 密钥，一个字节都不带出去。没有任何失败记录时返回空串，由调用方
+// 回落旧摘要。
+func dispatchFailureSummary(attempts []routing.Attempt) string {
+	var parts, skips []string
+	seen := map[string]bool{}
+	skipSeen := map[string]bool{}
+	skipped := 0
+	for _, a := range attempts {
+		if a.Err == nil {
+			continue
+		}
+		if reason, ok := skipReason(a); ok {
+			skipped++
+			target := a.Provider
+			if a.Model != "" && strings.HasPrefix(reason, "model locked") {
+				target += "/" + a.Model
+			}
+			if !skipSeen[target] && len(skips) < failureSummaryMax {
+				skipSeen[target] = true
+				skips = append(skips, target+" ("+reason+")")
+			}
+			continue
+		}
+		status := 0
+		if ue, ok := provider.IsUpstream(a.Err); ok {
+			status = ue.Status
+		}
+		// 同家同类同状态的失败只列一次（多模型逐个撞同一堵墙）。
+		key := fmt.Sprintf("%s|%d|%s", a.Provider, status, a.Kind)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		if len(parts) >= failureSummaryMax {
+			continue // 超出上限的只计数
+		}
+
+		target := a.Provider
+		if a.Model != "" {
+			target += "/" + a.Model
+		}
+		kind := string(a.Kind)
+		if kind == "" {
+			kind = "unknown"
+		}
+		part := fmt.Sprintf("%s: %s", target, kind)
+		if status != 0 {
+			part = fmt.Sprintf("%s: HTTP %d %s", target, status, kind)
+		}
+		if hint := failureHint(a.Kind, status); hint != "" {
+			part += " (" + hint + ")"
+		}
+		parts = append(parts, part)
+	}
+	if len(parts) == 0 && len(skips) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	if len(parts) == 0 {
+		fmt.Fprintf(&b, "no candidate could be tried: %s.", strings.Join(skips, "; "))
+	} else {
+		fmt.Fprintf(&b, "all candidates failed (%d distinct): %s", len(seen), strings.Join(parts, "; "))
+		if rest := len(seen) - len(parts); rest > 0 {
+			fmt.Fprintf(&b, "; (+%d more)", rest)
+		}
+		if skipped > 0 {
+			fmt.Fprintf(&b, ". %d other candidate(s) were skipped because they are isolated or over budget", skipped)
+		}
+	}
+	b.WriteString(" Isolation lifts by itself when the timer expires; fixing the provider (key / balance / network) in the dashboard clears it right away.")
+	return security.RedactSecrets(b.String())
+}
+
+// skipReason 识别"没发请求就被跳过"的尝试并给出原因。provider 级隔离
+// （冷却/熔断/配额窗口/链预算）走 SkipReason；模型级隔离在 tryOne 内
+// 判定，错误文本是路由层自己拼的（不含任何上游原文）。
+func skipReason(a routing.Attempt) (string, bool) {
+	if a.SkipReason != "" {
+		return a.SkipReason, true
+	}
+	if msg := a.Err.Error(); strings.HasPrefix(msg, "routing: model isolated (") {
+		return strings.TrimSuffix(strings.TrimPrefix(msg, "routing: model isolated ("), ")"), true
+	}
+	return "", false
 }
 
 func errString(err error) string {

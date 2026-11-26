@@ -25,16 +25,21 @@ const (
 	//（连续熔断指数翻倍：30s,60s,120s…封顶 10m）。
 	breakerOpenBase = 30 * time.Second
 	breakerOpenMax  = 10 * time.Minute
+	// breakerDialStreak 是连续建连失败即熔断的次数：主机不可达（DNS
+	// 污染、服务没启动）不会自愈，不等常规窗口阈值——那个阈值要用户
+	// 连吃 5 次拨号超时才等到熔断。
+	breakerDialStreak = 2
 )
 
 // breaker 记录一个 provider 的熔断状态。生命周期短（30s 级退避），
 // 仅内存持有，重启即重置；冷却/锁定才持久化（FreeRide 教训针对的是
 // 长冷却，熔断状态自愈极快）。
 type breaker struct {
-	state    breakerState
-	outcomes []bool // 最近窗口，true=失败；容量 ≤ breakerWindow
-	openSeq  int    // 连续熔断次数（退避指数）
-	openTill time.Time
+	state     breakerState
+	outcomes  []bool // 最近窗口，true=失败；容量 ≤ breakerWindow
+	openSeq   int    // 连续熔断次数（退避指数）
+	openTill  time.Time
+	dialFails int // 连续建连失败（成功或任何"连上了"的结果清零）
 }
 
 // blocked 报告当前是否隔离。open 且到点时原子转入 half-open 并放行
@@ -56,8 +61,10 @@ func (b *breaker) blocked(now time.Time) (bool, time.Duration) {
 }
 
 // onFailure 记一次失败；half-open 探测失败立即重熔断（退避翻倍），
-// closed 且达阈值时熔断。
+// closed 且达阈值时熔断。能走到这里说明连接是通的（拿到了响应或
+// 响应后的读失败），建连失败计数清零。
 func (b *breaker) onFailure(now time.Time) {
+	b.dialFails = 0
 	b.record(true) // true = 失败
 	switch b.state {
 	case breakerHalfOpen:
@@ -69,8 +76,19 @@ func (b *breaker) onFailure(now time.Time) {
 	}
 }
 
+// onDialFailure 记一次建连失败：连续 breakerDialStreak 次即熔断
+//（不等窗口阈值）；half-open 探测仍连不上同样立即重熔断。
+func (b *breaker) onDialFailure(now time.Time) {
+	b.record(true)
+	b.dialFails++
+	if b.state == breakerHalfOpen || b.dialFails >= breakerDialStreak {
+		b.trip(now)
+	}
+}
+
 // onSuccess 记一次成功；half-open 探测成功即闭合并清零退避。
 func (b *breaker) onSuccess() {
+	b.dialFails = 0
 	b.record(false) // false = 成功
 	if b.state == breakerHalfOpen {
 		b.state = breakerClosed

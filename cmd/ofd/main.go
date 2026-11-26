@@ -254,7 +254,7 @@ func run() error {
 		ing := catalogfeed.NewIngestor(st, pub, logger)
 		// 内置能力分种子（随二进制分发，来自官方 feed 的冻结副本）：
 		// 全新安装 + 首次拉取不可达（典型：直连受限网络）时 @quality
-		// 依然开箱即用；签名 feed 与不低于种子的 store 重放都会覆盖种子。
+		// 依然开箱即用；不低于种子版本的签名 feed 与 store 重放会覆盖种子。
 		seedVer := int64(0)
 		if seed, err := catalogfeed.SeedFeed(); err != nil {
 			logger.Warn("catalog feed seed unparsable; skipping", "err", err)
@@ -265,6 +265,15 @@ func run() error {
 		applyFeed := func() {
 			f, err := ing.Refresh(ctx, cfg.Catalog.FeedURL)
 			if err == nil {
+				// 远端也可能比内置种子旧（应用已升级、新目录还没发布到分发
+				// 面）：种子是随二进制核对过的更新副本，不让旧版把它盖掉
+				// ——与下面 store 回放是同一条规则。2026-11-26 隔离网关
+				// 实测：进程连得上 GitHub 时，v7 种子被远端 v6 整体覆盖。
+				if f.Version < seedVer {
+					logger.Info("catalog feed on remote older than embedded seed; keeping seed",
+						"remote_version", f.Version, "seed_version", seedVer)
+					return
+				}
 				logger.Info("catalog feed applied",
 					"version", f.Version, "entries", catalog.ApplyFeed(f))
 				return

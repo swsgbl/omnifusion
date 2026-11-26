@@ -88,6 +88,11 @@ type Spec struct {
 	// 清单里发布，keyless 只服务前者；不过滤会把 374 个必然 401 的
 	// 付费 id 灌进目录。
 	FreeOnly bool
+	// Aggregator marks a gateway that multiplexes many upstream vendors
+	// behind one key (OpenRouter, NVIDIA NIM, Kilo). Their 429s are
+	// per-model capacity signals, so the router scopes rate-limit
+	// isolation to the model instead of cooling the whole provider.
+	Aggregator bool
 	// Timeout tunes this provider's dedicated HTTP client.
 	Timeout time.Duration
 }

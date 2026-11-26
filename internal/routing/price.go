@@ -130,24 +130,21 @@ func (c *Catalog) Cheapest(providerName string) (provider.Price, bool) {
 	return best, found
 }
 
-// CheapestModel 返回该 provider 登记定价最低的模型 id 与价格。优先
-// 返回 live/静态清单里实际在列的模型（价并列时），避免推荐已下线条目
-//（与 BestModel 同口径）。
+// CheapestModel 返回该 provider 登记定价最低的模型 id 与价格。只在
+// 此刻可服务的清单里选（live 优先，无快照回落静态），避免推荐已下线
+// 条目（与 BestModel 同口径）。
 func (c *Catalog) CheapestModel(providerName string) (string, provider.Price, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	merged := c.mergedPrices(providerName)
 	live := map[string]bool{}
-	for _, m := range c.models[providerName] {
-		live[m.ID] = true
-	}
-	for _, m := range c.static[providerName] {
+	for _, m := range c.serveable(providerName) {
 		live[m.ID] = true
 	}
 	bestID := ""
 	var best provider.Price
 	found := false
-	// 第一轮：只看 live/静态在列的（推荐即能用）。
+	// 第一轮：只挑在列的（推荐即能用）。
 	for id, p := range merged {
 		if !live[id] {
 			continue
@@ -168,28 +165,29 @@ func (c *Catalog) CheapestModel(providerName string) (string, provider.Price, bo
 	return bestID, best, found
 }
 
-// FreeModels 返回该 provider 登记免费价（0/0）且在列（live/静态）的
-// 模型 id，按 id 排序（确定性）。免费安全网的多模型冗余数据源：
-// 免密池的聚合入口（kilo-auto/free 一类）瞬时抖动时，同家的其他
-// 免费模型仍在网内可试。
+// FreeModels 返回该 provider 此刻可服务的免费模型 id，按 id 排序
+//（确定性）。只在此刻可服务的清单里挑（live 优先，无快照回落静态——
+// 静态条目不与 live 取并集，否则早已下线的旧条目永远"在列"）。两类
+// 免费证据：登记免费价 0/0（注册表/签名 feed）在前——维护者核对过的
+// 入口优先试；上游清单自带的免费标记（ModelInfo.Free）在后——免费池
+// 轮换时静态清单会过期，上游标记不会，免费安全网因此不再依赖发版。
 func (c *Catalog) FreeModels(providerName string) []string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	live := map[string]bool{}
-	for _, m := range c.models[providerName] {
-		live[m.ID] = true
-	}
-	for _, m := range c.static[providerName] {
-		live[m.ID] = true
-	}
-	var out []string
-	for id, p := range c.mergedPrices(providerName) {
-		if p.In <= 0 && p.Out <= 0 && live[id] {
-			out = append(out, id)
+	prices := c.mergedPrices(providerName)
+	var curated, flagged []string
+	for _, m := range c.serveable(providerName) {
+		if p, ok := prices[m.ID]; ok && p.In <= 0 && p.Out <= 0 {
+			curated = append(curated, m.ID)
+			continue
+		}
+		if m.Free {
+			flagged = append(flagged, m.ID)
 		}
 	}
-	sort.Strings(out)
-	return out
+	sort.Strings(curated)
+	sort.Strings(flagged)
+	return append(curated, flagged...)
 }
 
 // mergedPrices 合并该 provider 的静态与 feed 价格索引（调用方持读锁）。

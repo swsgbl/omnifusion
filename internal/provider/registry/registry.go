@@ -83,7 +83,11 @@ type Entry struct {
 	// ModelsFilter "free" 只保留 /models 清单里 isFree:true 的条目：
 	// 免密网关（Kilo 公共网关）把免费池与付费 id 混在同一份清单里，
 	// keyless 只服务免费池，其余必然 401。
-	ModelsFilter string            `yaml:"models_filter,omitempty"`
+	ModelsFilter string `yaml:"models_filter,omitempty"`
+	// Aggregator 标记单 key 后多路复用多家上游的聚合面（OpenRouter、
+	// NVIDIA NIM、Kilo）：它的 429 是某个模型背后的上游限流，不是账户
+	// 级限额——路由层把限流隔离收敛到模型，其余模型照常可试。
+	Aggregator   bool              `yaml:"aggregator,omitempty"`
 	ExtraHeaders map[string]string `yaml:"extra_headers,omitempty"`
 	ModelAliases map[string]string `yaml:"model_aliases,omitempty"`
 	RateLimits   RateLimitsDecl    `yaml:"rate_limits,omitempty"`
@@ -204,6 +208,7 @@ func Build(e Entry, creds Credentials) (provider.Provider, error) {
 			ExtraHeaders: e.ExtraHeaders,
 			ModelAliases: e.ModelAliases,
 			FreeOnly:     e.ModelsFilter == "free",
+			Aggregator:   e.Aggregator,
 			Cap:          cap,
 		})
 	case KindAnthropic:

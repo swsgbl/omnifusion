@@ -118,3 +118,62 @@ func TestFeedSnapshot(t *testing.T) {
 			snap[0].Probation, snap[1].Probation, snap[2].Probation)
 	}
 }
+
+// TestBestModelPicksOnlyServeableModels 选模只在"此刻能服务的清单"里选
+//（2026-11-25 用户实撞：NVIDIA 的 feed 首选早已 410，裸 @quality 每个
+// 请求都先去撞它）。feed 首选不在 live 清单 → 跳过它取 live 里的最高
+// 分；同分按 id 取小（确定性）；live 与 feed 没有交集 → ok=false。
+func TestBestModelPicksOnlyServeableModels(t *testing.T) {
+	up := newModelsUpstream(t,
+		upstreamModel{id: "live-mid", ctx: 8192},
+		upstreamModel{id: "live-tie-b", ctx: 8192},
+		upstreamModel{id: "live-tie-a", ctx: 8192},
+		upstreamModel{id: "live-unrated", ctx: 8192},
+	)
+	c := NewCatalog([]provider.Provider{newMockAdapter(t, "p", up.srv.URL)}, nil, nil, nil, nil)
+	c.Sync(context.Background())
+
+	c.ApplyFeed(feedFor(7, map[string][]catalogfeed.ModelEntry{"p": {
+		{ID: "retired-best", Capability: 95}, // feed 首选：早已下线，live 清单里没有
+		{ID: "live-mid", Capability: 70},
+		{ID: "live-tie-a", Capability: 60},
+		{ID: "live-tie-b", Capability: 60},
+	}}))
+	if id, cap, ok := c.BestModel("p"); !ok || id != "live-mid" || cap != 70 {
+		t.Fatalf("BestModel = (%q, %v, %v), want (live-mid, 70, true)", id, cap, ok)
+	}
+
+	c.ApplyFeed(feedFor(8, map[string][]catalogfeed.ModelEntry{"p": {
+		{ID: "live-tie-b", Capability: 60},
+		{ID: "live-tie-a", Capability: 60},
+	}}))
+	if id, _, ok := c.BestModel("p"); !ok || id != "live-tie-a" {
+		t.Fatalf("tie-break BestModel = (%q, %v), want live-tie-a (smaller id wins)", id, ok)
+	}
+
+	c.ApplyFeed(feedFor(9, map[string][]catalogfeed.ModelEntry{"p": {
+		{ID: "retired-best", Capability: 95},
+	}}))
+	if id, _, ok := c.BestModel("p"); ok {
+		t.Fatalf("BestModel with no serveable match = (%q, %v), want ok=false", id, ok)
+	}
+}
+
+// TestBestModelFallsBackWithoutLiveSnapshot 无 live 快照时：有静态声明
+// 只在静态里选；连静态都没有才信 feed 全集（不能凭空排除）。
+func TestBestModelFallsBackWithoutLiveSnapshot(t *testing.T) {
+	feed := feedFor(7, map[string][]catalogfeed.ModelEntry{"p": {
+		{ID: "retired-best", Capability: 95},
+		{ID: "static-ok", Capability: 50},
+	}})
+	staticOnly := NewCatalog(nil, map[string][]provider.ModelInfo{"p": {{ID: "static-ok"}}}, nil, nil, nil)
+	staticOnly.ApplyFeed(feed)
+	if id, _, ok := staticOnly.BestModel("p"); !ok || id != "static-ok" {
+		t.Fatalf("static fallback BestModel = (%q, %v), want static-ok", id, ok)
+	}
+	bare := NewCatalog(nil, nil, nil, nil, nil)
+	bare.ApplyFeed(feed)
+	if id, _, ok := bare.BestModel("p"); !ok || id != "retired-best" {
+		t.Fatalf("no-snapshot BestModel = (%q, %v), want feed best retired-best", id, ok)
+	}
+}

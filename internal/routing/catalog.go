@@ -190,7 +190,15 @@ func (c *Catalog) syncOne(ctx context.Context, p provider.Provider) bool {
 	unchanged := c.sums[name] == sum
 	c.mu.RUnlock()
 	if unchanged {
-		return false // 校验和一致：跳过落库（1h 刷新不产生写放大）
+		// 校验和一致：跳过落库（1h 刷新不产生写放大），也不算目录
+		// 变更（代际不动——语义缓存不失效）。但 store 行不带上游的
+		// 免费标记，重启恢复出的快照 Free 全空：用本轮结果原位补回。
+		if err == nil {
+			c.mu.Lock()
+			c.models[name] = list
+			c.mu.Unlock()
+		}
+		return false
 	}
 	if c.st != nil {
 		rows := make([]store.ModelRow, 0, len(list))
@@ -341,7 +349,9 @@ func (c *Catalog) Checksum(name string) string {
 }
 
 // catalogChecksum 是清单的内容指纹（校验和）：对排序后的
-// "id\x00ctx_len" 行做 SHA-256。顺序无关，清单相同即同和。
+// "id\x00ctx_len" 行做 SHA-256。顺序无关，清单相同即同和。free 标记
+// 不入指纹——它只是选模提示，变了不算"目录变了"（代际递增会让语义
+// 缓存整体失效）。
 func catalogChecksum(list []provider.ModelInfo) string {
 	sorted := make([]provider.ModelInfo, len(list))
 	copy(sorted, list)
@@ -351,6 +361,19 @@ func catalogChecksum(list []provider.ModelInfo) string {
 		_, _ = fmt.Fprintf(h, "%s\x00%d\n", m.ID, m.ContextWindow)
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// serveable 返回该 provider 此刻可服务的模型清单（调用方持读锁）：
+// live 快照优先；无快照（未同步 / ErrNotSupported 回落）取静态声明。
+// 选模、免费池、最低价都只在这份清单里挑——静态声明只做回落源，
+// 不与 live 取并集：并集会让早已下线的静态条目永远"在列"
+//（2026-10~11 用户实撞：Kilo 静态清单里转收费的旧模型每个请求都进
+// 安全网，401 之后整家被隔离）。
+func (c *Catalog) serveable(providerName string) []provider.ModelInfo {
+	if live := c.models[providerName]; len(live) > 0 {
+		return live
+	}
+	return c.static[providerName]
 }
 
 func (c *Catalog) warnf(msg, providerName string, err error) {

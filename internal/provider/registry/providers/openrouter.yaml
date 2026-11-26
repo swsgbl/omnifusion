@@ -8,6 +8,10 @@ providers:
     kind: openai_compat
     display_name: OpenRouter
     # 聚合器：数百个上游模型多路复用在同一 key 后（含 :free 后缀免费模型）。
+    # 它的 429 是"某个模型背后的上游在限流"（Provider returned error），
+    # 不是账户级限额——路由层把限流隔离收敛到模型，同家别的免费模型
+    # 照常可试。
+    aggregator: true
     base_url: https://openrouter.ai/api/v1
     auth_style: bearer
     key_env: OPENROUTER_API_KEY

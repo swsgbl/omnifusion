@@ -111,23 +111,42 @@ func (r *Router) freeSafetyNet(existing []candidate) []candidate {
 		models := []string{}
 		if fl, ok := r.Price.(freeModelLister); ok {
 			models = fl.FreeModels(p.Name())
-			if len(models) > safetyNetModelsPerProvider {
-				models = models[:safetyNetModelsPerProvider]
-			}
 		} else if id, price, ok := r.Price.CheapestModel(p.Name()); ok &&
 			price.In <= 0 && price.Out <= 0 {
 			models = []string{id}
 		}
+		taken := 0
 		for _, id := range models {
+			if taken >= safetyNetModelsPerProvider {
+				break
+			}
 			key := p.Name() + "\x00" + id
 			if seen[key] {
 				continue
 			}
+			// 正被模型级隔离的（配额锁定/已下线/单模型限流）不占名额：
+			// 名额要留给此刻真能试的模型，否则一个池里前三个恰好都
+			// 被锁时，后面的可用模型永远轮不到。
+			if r.modelLocked(p, id) {
+				continue
+			}
 			seen[key] = true
 			out = append(out, candidate{p: p, model: id, safety: true})
+			taken++
 		}
 	}
 	return out
+}
+
+// modelLocked 报告候选模型当前是否处于模型级隔离（未装配隔离态恒
+// false）。别名重写后的权威判定仍在 tryOne（锁定键是 provider 侧
+// 模型名）；这里只是选模时的粗筛。
+func (r *Router) modelLocked(p provider.Provider, model string) bool {
+	if r.Isolation == nil {
+		return false
+	}
+	locked, _ := r.Isolation.LockedModel(p.Name(), model)
+	return locked
 }
 
 // cheapCandidates 是裸 "@cheap" 的候选生成：每家取其登记最低价模型，

@@ -2,7 +2,9 @@ providers:
   - id: nvidia
     kind: openai_compat
     display_name: NVIDIA NIM
-    # 聚合面：同一 key 后多路复用多家上游模型。
+    # 聚合面：同一 key 后多路复用多家上游模型。429 是"某个模型背后的
+    # 上游在限流"，不是账户级限额——路由层把限流隔离收敛到模型。
+    aggregator: true
     base_url: https://integrate.api.nvidia.com/v1
     auth_style: bearer
     key_env: NVAPI_API_KEY
@@ -15,17 +17,31 @@ providers:
     rate_limits: {rpm: 40} # 官方口径"约"，保守取 40
     models:
       # 开发者免费积分内 $0（积分耗尽转按量，不登记）。
-      # 2026-08-30 经 live /models（83 个）核对：qwen3.5-122b-a10b、
-      # meta/llama-3.1-8b-instruct 已下架，勿再声明。
-      - id: moonshotai/kimi-k2.6
+      # 2026-11-26 经 live /models（30 个）核对并逐模型探测：此前登记
+      # 的 4 个（moonshotai/kimi-k2.6、openai/gpt-oss-120b、
+      # deepseek-ai/deepseek-v4-flash-0731、google/gemma-4-31b-it）已
+      # 全部下架（deepseek 那个回 410 Gone），勿再声明。清单里的
+      # embedding/安全守卫/翻译等非对话模型不登记；探测 20s 仍无响应的
+      # （moonshotai/kimi-k3.1-pro、z-ai/glm-5.3-flash、
+      # mistralai/mistral-large-4-1t-a52b）暂不登记为免费。
+      - id: nvidia/nemotron-3-ultra-550b-a55b
         price_in: 0
         price_out: 0
-      - id: openai/gpt-oss-120b
+      - id: nvidia/nemotron-3.5-super-vl-120b-a12b
         price_in: 0
         price_out: 0
-      - id: deepseek-ai/deepseek-v4-flash-0731
+      - id: nvidia/nemotron-3.5-lightning-30b-a3b
         price_in: 0
         price_out: 0
-      - id: google/gemma-4-31b-it
+      - id: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+        price_in: 0
+        price_out: 0
+      - id: nvidia/nemotron-3.5-bolt-e4b
+        price_in: 0
+        price_out: 0
+      - id: stepfun-ai/step-5-preview
+        price_in: 0
+        price_out: 0
+      - id: minimaxai/minimax-m3.1-flash
         price_in: 0
         price_out: 0

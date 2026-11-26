@@ -240,6 +240,12 @@ func (s *Server) handleDashboardKeysSet(w http.ResponseWriter, r *http.Request) 
 		writeAPIError(w, http.StatusInternalServerError, "store key failed", "server_error", "")
 		return
 	}
+	// 换了凭据就清掉该家的隔离态：旧 key 留下的 30 分钟鉴权冷却/模型
+	// 锁定对新 key 没有意义。隔离态持久化在 SQLite，不清的话用户"修好
+	// key → 重启"之后仍要空等旧冷却到期。
+	if s.router != nil && s.router.Isolation != nil {
+		s.router.Isolation.Clear(in.Provider)
+	}
 	if s.log != nil { // 只记 provider 与动作，永不记密钥材料
 		s.log.Info("provider key stored via dashboard", "provider", in.Provider)
 	}

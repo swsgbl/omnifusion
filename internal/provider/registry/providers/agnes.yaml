@@ -10,11 +10,17 @@ providers:
       input: [text]
       output: [text]
       features: [tools]
-    free_tier: 多个 Flash 模型免费（agnes-2.0-flash 免费、256K 上下文、30 RPM）
+    # 2026-11-26 实测：账户余额为负（Pro 系列回 403 "Insufficient user
+    # quota"）时 agnes-2.5-flash / agnes-3.0-flash 仍正常出结果——Flash
+    # 系列免费、Pro 系列按量计费。
+    free_tier: Flash 系列免费（agnes-2.5-flash、agnes-3.0-flash）；Pro 系列按量计费
     models:
-      - id: agnes-2.0-flash
+      # 2026-11-26 经 live /models（13 个）核对并逐模型探测：此前登记的
+      # agnes-2.0-flash（500/429）与 agnes-1.5-flash（404）已不可用。
+      # 清单里的 image/video/sys1 模型不走对话端点，不登记。
+      - id: agnes-2.5-flash
         price_in: 0
         price_out: 0
-      - id: agnes-1.5-flash
+      - id: agnes-3.0-flash
         price_in: 0
         price_out: 0

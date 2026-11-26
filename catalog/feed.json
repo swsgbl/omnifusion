@@ -1,6 +1,6 @@
 {
-  "version": 6,
-  "generated_at": 1790747639,
+  "version": 7,
+  "generated_at": 1795686551,
   "providers": {
     "sambanova": {
       "models": [
@@ -40,11 +40,6 @@
         {"id": "qwen-flash", "status": "probation", "capability": 72}
       ]
     },
-    "mimo": {
-      "models": [
-        {"id": "mimo-v2.5-pro", "status": "probation", "capability": 76}
-      ]
-    },
     "groq": {
       "models": [
         {"id": "openai/gpt-oss-120b", "ctx_len": 131072, "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
@@ -57,16 +52,19 @@
     },
     "nvidia": {
       "models": [
-        {"id": "moonshotai/kimi-k2.6", "status": "probation", "capability": 78, "price_in": 0, "price_out": 0},
-        {"id": "deepseek-ai/deepseek-v4-flash-0731", "status": "probation", "capability": 80, "price_in": 0, "price_out": 0},
-        {"id": "openai/gpt-oss-120b", "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
-        {"id": "google/gemma-4-31b-it", "status": "probation", "capability": 65, "price_in": 0, "price_out": 0}
+        {"id": "nvidia/nemotron-3-ultra-550b-a55b", "status": "probation", "capability": 82, "price_in": 0, "price_out": 0},
+        {"id": "moonshotai/kimi-k3.1-pro", "ctx_len": 1048576, "status": "probation", "capability": 78},
+        {"id": "nvidia/nemotron-3.5-super-vl-120b-a12b", "status": "probation", "capability": 76, "price_in": 0, "price_out": 0},
+        {"id": "stepfun-ai/step-5-preview", "status": "probation", "capability": 70, "price_in": 0, "price_out": 0},
+        {"id": "minimaxai/minimax-m3.1-flash", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "nvidia/nemotron-3.5-lightning-30b-a3b", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "nvidia/nemotron-3.5-bolt-e4b", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0}
       ]
     },
     "modelscope": {
       "models": [
         {"id": "Qwen/Qwen3-235B-A22B-Instruct-2507", "status": "probation", "capability": 76, "price_in": 0, "price_out": 0},
-        {"id": "deepseek-ai/DeepSeek-V4-Flash-0731", "status": "probation", "capability": 80, "price_in": 0, "price_out": 0},
         {"id": "ZhipuAI/GLM-4.7-Flash", "status": "probation", "capability": 72, "price_in": 0, "price_out": 0},
         {"id": "Qwen/Qwen3-Next-80B-A3B-Instruct", "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
         {"id": "stepfun-ai/Step-3.5-Flash", "status": "probation", "capability": 70, "price_in": 0, "price_out": 0}
@@ -94,20 +92,18 @@
     },
     "openrouter": {
       "models": [
-        {"id": "z-ai/glm-5.2:free", "status": "probation", "capability": 85, "price_in": 0, "price_out": 0},
-        {"id": "moonshotai/kimi-k2.6:free", "status": "probation", "capability": 78, "price_in": 0, "price_out": 0},
-        {"id": "openai/gpt-oss-120b:free", "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
-        {"id": "nvidia/nemotron-3-ultra-550b-a55b:free", "status": "probation", "capability": 82, "price_in": 0, "price_out": 0},
-        {"id": "nvidia/nemotron-3-super-120b-a12b:free", "status": "probation", "capability": 76, "price_in": 0, "price_out": 0},
-        {"id": "minimax/minimax-m3:free", "status": "probation", "capability": 74, "price_in": 0, "price_out": 0},
-        {"id": "minimax/minimax-m2.7:free", "status": "probation", "capability": 72, "price_in": 0, "price_out": 0},
-        {"id": "qwen/qwen3.8-27b:free", "status": "probation", "capability": 70, "price_in": 0, "price_out": 0},
-        {"id": "inclusionai/ling-3.0-flash-fin:free", "status": "probation", "capability": 68, "price_in": 0, "price_out": 0},
-        {"id": "google/gemma-4-31b-it:free", "status": "probation", "capability": 65, "price_in": 0, "price_out": 0},
-        {"id": "google/gemma-4-26b-a4b-it:free", "status": "probation", "capability": 62, "price_in": 0, "price_out": 0},
-        {"id": "cohere/north-mini-code:free", "status": "probation", "capability": 62, "price_in": 0, "price_out": 0},
-        {"id": "dots-studio/dots-3-note-preview:free", "status": "probation", "capability": 60, "price_in": 0, "price_out": 0},
-        {"id": "liquid/lfm-2.5-2.6b:free", "status": "probation", "capability": 45, "price_in": 0, "price_out": 0}
+        {"id": "nvidia/nemotron-3-ultra-550b-a55b:free", "ctx_len": 1000000, "status": "probation", "capability": 82, "price_in": 0, "price_out": 0},
+        {"id": "inclusionai/ling-3.2-flash:free", "ctx_len": 1048576, "status": "probation", "capability": 68},
+        {"id": "liquid/lfm-3-1.7b:free", "ctx_len": 262144, "status": "probation", "capability": 45, "price_in": 0, "price_out": 0},
+        {"id": "google/gemma-4-31b-it:free", "ctx_len": 262144, "status": "probation", "capability": 65},
+        {"id": "google/gemma-4-26b-a4b-it:free", "ctx_len": 262144, "status": "probation", "capability": 62},
+        {"id": "nvidia/nemotron-3.5-super-vl:free", "ctx_len": 1000000, "status": "probation", "capability": 76},
+        {"id": "nvidia/nemotron-3.5-lightning:free", "ctx_len": 1000000, "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "ctx_len": 256000, "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "openrouter/free", "ctx_len": 200000, "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "particle-ai/particle-1:free", "ctx_len": 1048576, "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "recursive/flint-v1.0:free", "ctx_len": 262144, "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "baidu/ernie-5.5-flash-preview:free", "ctx_len": 1024000, "status": "probation", "capability": 0}
       ]
     },
     "huggingface": {
@@ -118,10 +114,33 @@
         {"id": "Qwen/Qwen2.5-7B-Instruct", "status": "probation", "capability": 48}
       ]
     },
-    "ark": {
+    "kilo": {
       "models": [
-        {"id": "doubao-pro-128k-240628", "ctx_len": 131072, "status": "probation", "capability": 71},
-        {"id": "doubao-pro-32k-240828", "ctx_len": 32768, "status": "probation", "capability": 70}
+        {"id": "nvidia/nemotron-3-ultra-550b-a55b:free", "status": "probation", "capability": 82, "price_in": 0, "price_out": 0},
+        {"id": "nvidia/nemotron-3.5-super-vl:free", "status": "probation", "capability": 76},
+        {"id": "inclusionai/ling-3.2-flash:free", "status": "probation", "capability": 68},
+        {"id": "liquid/lfm-3-1.7b:free", "status": "probation", "capability": 45, "price_in": 0, "price_out": 0},
+        {"id": "kilo-auto/free", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "nvidia/nemotron-3.5-lightning:free", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "openrouter/free", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "particle-ai/particle-1:free", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "recursive/flint-v1.0:free", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "reflection/beam-free", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "baidu/ernie-5.5-flash-preview:free", "status": "probation", "capability": 0},
+        {"id": "stealth/glyph-cluster", "status": "probation", "capability": 0}
+      ]
+    },
+    "agnes": {
+      "models": [
+        {"id": "agnes-2.5-flash", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0},
+        {"id": "agnes-3.0-flash", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0}
+      ]
+    },
+    "llm7": {
+      "models": [
+        {"id": "gpt-oss:20b", "status": "probation", "capability": 66, "price_in": 0, "price_out": 0},
+        {"id": "codestral-latest", "status": "probation", "capability": 0, "price_in": 0, "price_out": 0}
       ]
     }
   }

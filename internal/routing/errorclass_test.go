@@ -28,6 +28,7 @@ func TestClassify(t *testing.T) {
 		// —— auth_invalid ——
 		{"401", &provider.UpstreamError{Status: 401, Body: []byte(`invalid api key`)}, KindAuthInvalid},
 		{"403 region block", &provider.UpstreamError{Status: 403, Body: []byte(`{"error":{"message":"Request not allowed from your region"}}`)}, KindAuthInvalid},
+		{"403 insufficient quota (Agnes shape)", &provider.UpstreamError{Status: 403, Body: []byte(`{"error":{"message":"Insufficient user quota, remaining: -0.000098"}}`)}, KindQuotaExhausted},
 		// —— upstream_5xx ——
 		{"500", &provider.UpstreamError{Status: 500, Body: []byte(`internal error`)}, KindUpstream5xx},
 		{"502", &provider.UpstreamError{Status: 502}, KindUpstream5xx},
@@ -47,7 +48,9 @@ func TestClassify(t *testing.T) {
 		{"inline error event (status 0)", &provider.UpstreamError{Status: 0, Body: []byte(`{"error":{"message":"overloaded"}}`)}, KindStreamBroken},
 		// —— request_error / unknown / nil ——
 		{"400 bad request", &provider.UpstreamError{Status: 400, Body: []byte(`invalid parameter`)}, KindRequestError},
-		{"404 model not found", &provider.UpstreamError{Status: 404, Body: []byte(`model nope does not exist`)}, KindRequestError},
+		{"404 model not found", &provider.UpstreamError{Status: 404, Body: []byte(`model nope does not exist`)}, KindModelGone},
+		{"404 not available for user group", &provider.UpstreamError{Status: 404, Body: []byte(`Model x is not available for your current user group`)}, KindModelGone},
+		{"410 gone (retired model)", &provider.UpstreamError{Status: 410, Body: []byte(`{"title":"Gone","detail":"The model has been deprecated"}`)}, KindModelGone},
 		{"413 too large", &provider.UpstreamError{Status: 413}, KindRequestError},
 		{"plain error", errors.New("boom"), KindUnknown},
 		{"nil", nil, ""},
@@ -70,6 +73,7 @@ func TestPolicyFor(t *testing.T) {
 		{KindUpstream5xx, Policy{Failover: true, HealthPenalty: true}},
 		{KindNetOrTimeout, Policy{Failover: true}},
 		{KindStreamBroken, Policy{Failover: true, HealthPenalty: true}},
+		{KindModelGone, Policy{Failover: true, LockoutModel: true}},
 		{KindRequestError, Policy{Failover: true}},
 		{KindUnknown, Policy{Failover: true}},
 		{"", Policy{Failover: true}},

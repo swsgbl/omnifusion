@@ -141,12 +141,12 @@ func (r *Router) Dispatch(ctx context.Context, req *schema.UnifiedRequest, opts 
 		att.Kind = Classify(att.Err)
 		attempts = append(attempts, att)
 		if att.Err == nil {
-			r.applyIsolation(c.p.Name(), att)
+			r.applyIsolation(c.p, att)
 			r.recordQuota(c.p.Name(), resp)
 			r.bindSession(cfg.sessionID, c.p.Name())
 			return resp, attempts, nil
 		}
-		r.applyIsolation(c.p.Name(), att)
+		r.applyIsolation(c.p, att)
 		r.observeLedger(att)
 		if r.Log != nil {
 			r.Log.Warn("provider attempt failed",
@@ -283,11 +283,11 @@ func (r *Router) dispatchTarget(ctx context.Context, cfg dispatchConfig, req *sc
 	att.Kind = Classify(att.Err)
 	attempts = append(attempts, att)
 	if att.Err == nil {
-		r.applyIsolation(p.Name(), att)
+		r.applyIsolation(p, att)
 		r.recordQuota(p.Name(), resp)
 		return resp, attempts, nil
 	}
-	r.applyIsolation(p.Name(), att)
+	r.applyIsolation(p, att)
 	if r.Log != nil {
 		r.Log.Warn("target dispatch failed",
 			"provider", att.Provider, "model", att.Model, "kind", att.Kind, "err", att.Err)

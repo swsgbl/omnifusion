@@ -30,6 +30,7 @@ const (
 	KindNetOrTimeout   ErrorKind = "net_or_timeout"  // 超时/网络中断（仅退避不冷却）
 	KindStreamBroken   ErrorKind = "stream_broken"   // 流中断（读失败/无 [DONE]/坏载荷/流内错误事件）
 	KindRequestError   ErrorKind = "request_error"   // 非鉴权 4xx
+	KindModelGone      ErrorKind = "model_gone"      // 404/410：模型已下线或本账户无权使用
 	KindUnknown        ErrorKind = "unknown"
 )
 
@@ -39,6 +40,10 @@ const (
 	// AuthInvalidCooldown 是 auth_invalid 的长冷却：key 疑似失效，
 	// 人工复核（ofd key validate / 换 key）之前不值得高频重试。
 	AuthInvalidCooldown = 30 * time.Minute
+	// ModelGoneLockout 是 model_gone 的 Model 锁定时长。模型下线/无权
+	// 不会几分钟内自愈，但不做太长：错配 base_url 也表现为逐模型 404，
+	// 用户改完配置重启后不该还被旧锁定挡住。
+	ModelGoneLockout = 10 * time.Minute
 )
 
 // Policy 是某类错误的处理策略，字段对应 处理策略表。
@@ -49,6 +54,8 @@ type Policy struct {
 	// Cooldown 是 Connection 层冷却时长；0 表示不冷却。
 	Cooldown time.Duration
 	// LockoutModel 表示把该 Model 锁定到额度重置点（reset-aware，）。
+	// 锁定时长按类别取：quota_exhausted 用 QuotaLockoutDuration，
+	// model_gone 用 ModelGoneLockout。
 	LockoutModel bool
 	// InvalidKey 表示把关联 API key 置为 invalid，需人工处理。
 	InvalidKey bool
@@ -62,6 +69,8 @@ type Policy struct {
 // - auth_invalid 长冷却 + 置 invalid；
 // - upstream_5xx / stream_broken 降分但不冷却（仅同元组退避，）；
 // - net_or_timeout 仅退避：瞬时网络问题不惩罚 provider；
+// - model_gone 锁定 Model（2026-11-25 用户实撞：目录里已 410 的模型
+//   每个请求都被重试，NVIDIA 一家 27 次原地撞墙）；
 // - request_error / unknown 不惩罚（请求自身问题或不明错误）。
 var policyTable = map[ErrorKind]Policy{
 	KindRateLimit:      {Failover: true, Cooldown: RateLimitCooldown},
@@ -70,6 +79,7 @@ var policyTable = map[ErrorKind]Policy{
 	KindUpstream5xx:    {Failover: true, HealthPenalty: true},
 	KindNetOrTimeout:   {Failover: true},
 	KindStreamBroken:   {Failover: true, HealthPenalty: true},
+	KindModelGone:      {Failover: true, LockoutModel: true},
 	KindRequestError:   {Failover: true},
 	KindUnknown:        {Failover: true},
 }
@@ -131,8 +141,21 @@ func classifyUpstream(ue *provider.UpstreamError) ErrorKind {
 		return KindRateLimit
 	case ue.Status == http.StatusPaymentRequired:
 		return KindQuotaExhausted
-	case ue.Status == http.StatusUnauthorized, ue.Status == http.StatusForbidden:
+	case ue.Status == http.StatusUnauthorized:
 		return KindAuthInvalid
+	case ue.Status == http.StatusForbidden:
+		// 403 也常是"钱的问题"而不是凭据：Agnes 等厂商用 403 表达配额/
+		// 余额不足（2026-11-25 用户实撞：付费模型 403 把整家冷却 30
+		// 分钟，同家好用的免费模型跟着 0ms 502）。命中配额关键词就按
+		// 配额锁定模型；区域封锁一类无关键词的仍是 auth_invalid。
+		if quotaBodyRe.Match(ue.Body) {
+			return KindQuotaExhausted
+		}
+		return KindAuthInvalid
+	case ue.Status == http.StatusNotFound, ue.Status == http.StatusGone:
+		// 模型不存在/已下架/本账户无权（"not available for your user
+		// group"）：对这个账户它就是没了，再试也是 404——锁模型。
+		return KindModelGone
 	case ue.Status >= 500:
 		return KindUpstream5xx
 	case ue.Status >= 400:

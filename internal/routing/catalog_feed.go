@@ -84,29 +84,48 @@ func (c *Catalog) Capability(providerName, model string) (float64, bool) {
 }
 
 // BestModel 返回该 provider 能力分最高的模型（裸 @quality 的自动
-// 选模依据）。无 feed 数据返回 ok=false。优先返回 live/静态清单里
-// 实际在列的模型（分数并列时），避免推荐目录里不存在的模型。
+// 选模依据）。只在"此刻能服务的清单"里选：live 快照优先，无快照回落
+// 静态声明，两者都没有才信 feed 全集。feed 是按版本冻结的，上游
+// 轮换后常留着已下线的条目——2026-11-25 用户实撞：NVIDIA 的 feed 首选
+// 早已 410，裸 @quality 每个请求都先去撞它。同分按 id 取小（map 遍历
+// 序随机，不能让同一份目录每次选出不同模型）。清单里有能力的模型
+// 一个都没有时返回 ok=false（不能凭空选模型）。
 func (c *Catalog) BestModel(providerName string) (string, float64, bool) {
 	c.mu.RLock()
 	caps := c.feedCapability[providerName]
-	live := c.models[providerName]
+	pool := c.serveable(providerName)
+	hasPool := len(pool) > 0
 	c.mu.RUnlock()
 	best, bestCap := "", float64(-1)
-	for id, cap := range caps {
-		if cap > bestCap {
-			best, bestCap = id, cap
+	if hasPool {
+		for _, m := range pool {
+			v, ok := caps[m.ID]
+			if !ok {
+				continue
+			}
+			if betterPick(m.ID, v, best, bestCap) {
+				best, bestCap = m.ID, v
+			}
+		}
+	} else {
+		for id, v := range caps {
+			if betterPick(id, v, best, bestCap) {
+				best, bestCap = id, v
+			}
 		}
 	}
 	if best == "" {
 		return "", 0, false
 	}
-	// live 清单里有更高分的可服务模型吗？（feed 可能收录了已下线条目）
-	for _, m := range live {
-		if v, ok := caps[m.ID]; ok && v > bestCap {
-			best, bestCap = m.ID, v
-		}
-	}
 	return best, bestCap, true
+}
+
+// betterPick 是 BestModel 的择优规则：分高者胜，同分 id 小者胜。
+func betterPick(id string, v float64, best string, bestCap float64) bool {
+	if best == "" || v > bestCap {
+		return true
+	}
+	return v == bestCap && id < best
 }
 
 // FeedProbation 返回 (provider, model) 是否处于众测期（feed 标注；

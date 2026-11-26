@@ -73,14 +73,14 @@ func (r *Router) DispatchStream(ctx context.Context, req *schema.UnifiedRequest,
 		att.Kind = Classify(att.Err)
 		attempts = append(attempts, att)
 		if att.Err == nil {
-			r.applyIsolation(c.p.Name(), att)
+			r.applyIsolation(c.p, att)
 			if r.Quota != nil {
 				r.Quota.RecordRequest(c.p.Name()) // token 用量由流 Close 时补记
 			}
 			r.bindSession(cfg.sessionID, c.p.Name())
 			return stream, attempts, nil
 		}
-		r.applyIsolation(c.p.Name(), att)
+		r.applyIsolation(c.p, att)
 		r.observeLedger(att)
 		if r.Log != nil {
 			r.Log.Warn("stream provider attempt failed",
@@ -192,7 +192,10 @@ func (r *Router) midStreamReporter(name, model string) func(error) {
 			r.Scoring.ObserveFailure(name)
 		}
 		kind := Classify(err)
-		r.applyIsolation(name, Attempt{Model: model, Err: err, Kind: kind})
+		// 流中断裂恒为 stream_broken 类，没有模型级改判，直接走策略表。
+		if r.Isolation != nil {
+			r.Isolation.ApplyFailure(name, model, kind)
+		}
 		if r.Log != nil {
 			r.Log.Warn("mid-stream break after first chunk; health penalty applied",
 				"provider", name, "model", model, "kind", kind, "err", err)

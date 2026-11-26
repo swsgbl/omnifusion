@@ -11,8 +11,10 @@
 package routing
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -112,16 +114,56 @@ func (iso *Isolation) ApplyFailure(provider, model string, kind ErrorKind) {
 		iso.setCooldown(provider, now.Add(p.Cooldown), string(kind))
 	}
 	if p.LockoutModel && model != "" {
-		iso.setLockout(provider, model, now.Add(QuotaLockoutDuration), string(kind))
+		iso.setLockout(provider, model, now.Add(lockoutDuration(kind)), string(kind))
 	}
 	if breakerEligible(kind) {
-		b := iso.breakers[provider]
-		if b == nil {
-			b = &breaker{}
-			iso.breakers[provider] = b
-		}
+		b := iso.breaker(provider)
 		b.onFailure(now)
 	}
+}
+
+// LockModel 以模型级语义落地一次失败：只锁定 (provider, model)，不冷却
+// 连接、不计熔断——用于"整家没病，只是这个模型不行"的场景（免密网关
+// 的付费模型 401、聚合面的单模型限流；判据见 modelScopedFailure）。
+func (iso *Isolation) LockModel(provider, model string, d time.Duration, kind ErrorKind) {
+	if model == "" {
+		return
+	}
+	now := iso.now()
+	iso.mu.Lock()
+	defer iso.mu.Unlock()
+	iso.setLockout(provider, model, now.Add(d), string(kind))
+}
+
+// ApplyDialFailure 记一次"连接根本没建立起来"的失败（dial 超时/拒绝/
+// DNS 失败）。它与"连上了但对端慢"不同：主机不可达（DNS 污染、本地
+// 服务没启动）几乎不会自愈，而常规熔断要凑满窗口阈值——用户要连续
+// 多个请求各挂满一次拨号预算才等得到熔断。连续两次即熔断，此后沿用
+// 指数退避；成功即清零。
+func (iso *Isolation) ApplyDialFailure(provider string) {
+	now := iso.now()
+	iso.mu.Lock()
+	defer iso.mu.Unlock()
+	iso.breaker(provider).onDialFailure(now)
+}
+
+// breaker 返回 provider 的熔断器（调用方持锁；惰性创建）。
+func (iso *Isolation) breaker(provider string) *breaker {
+	b := iso.breakers[provider]
+	if b == nil {
+		b = &breaker{}
+		iso.breakers[provider] = b
+	}
+	return b
+}
+
+// lockoutDuration 是 LockoutModel 类错误的 Model 锁定时长：配额类锁到
+// 重置点（reset-aware v1 固定 1h），模型下线类短得多（改配置可解）。
+func lockoutDuration(kind ErrorKind) time.Duration {
+	if kind == KindModelGone {
+		return ModelGoneLockout
+	}
+	return QuotaLockoutDuration
 }
 
 // ApplySuccess 回报一次成功：熔断探测通过即闭合；冷却不动（到点自然恢复）。
@@ -234,14 +276,56 @@ func (r *Router) skipIfBlocked(p provider.Provider) (Attempt, bool) {
 }
 
 // applyIsolation 把一次尝试的结果反馈给隔离状态机（成功→探测闭合，
-// 失败→按策略冷却/锁定/计数）。
-func (r *Router) applyIsolation(providerName string, att Attempt) {
+// 失败→按策略冷却/锁定/计数）。p 用于判定模型级语义（免密/聚合面）
+// 与建连失败。
+func (r *Router) applyIsolation(p provider.Provider, att Attempt) {
 	if r.Isolation == nil {
 		return
 	}
+	name := p.Name()
 	if att.Err == nil {
-		r.Isolation.ApplySuccess(providerName)
+		r.Isolation.ApplySuccess(name)
 		return
 	}
-	r.Isolation.ApplyFailure(providerName, att.Model, att.Kind)
+	if att.Kind == KindNetOrTimeout && isDialError(att.Err) {
+		r.Isolation.ApplyDialFailure(name)
+		return
+	}
+	if d, kind, ok := modelScopedFailure(p, att); ok {
+		r.Isolation.LockModel(name, att.Model, d, kind)
+		return
+	}
+	r.Isolation.ApplyFailure(name, att.Model, att.Kind)
+}
+
+// modelScopedFailure 判定一次失败是否只该落到模型级——连接本身没病，
+// 换个模型同一网关照样能用，冷却整家只会把好模型一起拖死：
+//   - 免密实例（provider.Anonymous）的 401/403：免费池匿名可调，付费
+//     模型要求登录（Kilo PAID_MODEL_AUTH_REQUIRED）。2026-11-25 用户
+//     实撞：静态清单里一个转收费的旧模型回 401，整个免密免费池被
+//     隔离 30 分钟（日志里该家"isolated, skip" 15 次）；
+//   - 聚合面（provider.Aggregator）的限流：429 来自该模型背后的上游
+//     （OpenRouter "Provider returned error"），同家别的模型此刻可用。
+//
+// 返回锁定时长与错误类别；ok=false 走常规策略表。
+func modelScopedFailure(p provider.Provider, att Attempt) (time.Duration, ErrorKind, bool) {
+	switch att.Kind {
+	case KindAuthInvalid:
+		if a, ok := p.(provider.Anonymous); ok && a.Keyless() {
+			return AuthInvalidCooldown, att.Kind, true
+		}
+	case KindRateLimit:
+		if a, ok := p.(provider.Aggregator); ok && a.IsAggregator() {
+			return RateLimitCooldown, att.Kind, true
+		}
+	}
+	return 0, "", false
+}
+
+// isDialError 报告网络错误是否发生在建连阶段（TCP dial 失败：超时、
+// 拒绝、DNS 解析失败）。只认 typed error（*net.OpError 的 Op 字段），
+// 不做字符串匹配。
+func isDialError(err error) bool {
+	var op *net.OpError
+	return errors.As(err, &op) && op.Op == "dial"
 }
